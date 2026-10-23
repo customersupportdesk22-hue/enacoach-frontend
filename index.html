@@ -55,14 +55,21 @@
   .hero-banner h2 { font-size: 22px; font-weight: 800; margin-bottom: 6px; }
   .hero-banner p { font-size: 13px; opacity: 0.9; }
   
-  .search-container { padding: 0 16px 20px 16px; margin-top: -40px; position: relative; z-index: 5; }
+  .search-container { padding: 0 16px 20px 16px; margin-top: -40px; position: relative; z-index: 5; margin-bottom: 40px; }
   .search-card { background: white; border-radius: 16px; padding: 16px; box-shadow: 0 8px 25px rgba(0,0,0,0.08); }
-  .input-group { margin-bottom: 24px; } /* Increased space between fields */
-  .input-group label { display: block; font-size: 12px; font-weight: 700; color: var(--text-muted); margin-bottom: 8px; letter-spacing: 0.5px; } /* Slightly larger, more space below label */
-  .input-box { display: flex; align-items: center; background: var(--bg-body); border: 1px solid var(--border); border-radius: 10px; padding: 16px 14px; gap: 10px; } /* Increased height for easier tapping */
+  .input-group { margin-bottom: 24px; }
+  .input-group label { display: block; font-size: 12px; font-weight: 700; color: var(--text-muted); margin-bottom: 8px; letter-spacing: 0.5px; }
+  .input-box { display: flex; align-items: center; background: var(--bg-body); border: 1px solid var(--border); border-radius: 10px; padding: 16px 14px; gap: 10px; }
   .input-box .icon { color: var(--primary); font-size: 18px; }
   .input-box input { border: none; background: transparent; width: 100%; font-size: 14px; font-weight: 500; outline: none; color: var(--text-main); }
   
+  /* CUSTOM AUTOCOMPLETE DROPDOWN */
+  .autocomplete-wrapper { position: relative; width: 100%; }
+  .autocomplete-items { position: absolute; border: 1px solid var(--border); border-top: none; z-index: 99; top: 100%; left: 0; right: 0; background: white; border-radius: 0 0 10px 10px; max-height: 200px; overflow-y: auto; box-shadow: 0 8px 15px rgba(0,0,0,0.1); display: none; }
+  .autocomplete-items div { padding: 14px; cursor: pointer; border-bottom: 1px solid var(--border); font-size: 14px; font-weight: 500; color: var(--text-main); }
+  .autocomplete-items div:last-child { border-bottom: none; }
+  .autocomplete-items div:hover { background-color: var(--primary-light); color: var(--primary); }
+
   /* DATE UI */
   .date-container { display: flex; background: var(--bg-body); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; gap: 10px; }
   .date-box { flex: 1; position: relative; cursor: pointer; }
@@ -70,11 +77,11 @@
   .date-label { font-size: 11px; color: var(--text-muted); font-weight: 600; display: flex; align-items: center; gap: 4px; margin-bottom: 4px; }
   .date-value { font-size: 14px; font-weight: 700; color: var(--text-main); }
   .date-value.empty { color: var(--text-muted); font-weight: 500; }
-  .date-pills { display: flex; gap: 8px; margin-top: 16px; } /* More space between date box and buttons */
+  .date-pills { display: flex; gap: 8px; margin-top: 16px; }
   .date-pill { flex: 1; padding: 8px 0; border-radius: 20px; border: 1px solid var(--border); background: white; color: var(--text-main); font-size: 13px; font-weight: 600; cursor: pointer; text-align: center; transition: all 0.2s; }
   .date-pill.active { background: var(--primary); color: white; border-color: var(--primary); box-shadow: 0 4px 10px rgba(255,94,0,0.3); }
 
-  .btn-primary { width: 100%; background: var(--primary); color: white; border: none; padding: 18px; border-radius: 10px; font-size: 16px; font-weight: 700; display: flex; justify-content: center; align-items: center; gap: 8px; cursor: pointer; margin-top: 24px; box-shadow: 0 4px 10px rgba(255,94,0,0.3); } /* Pushed the button down, made it slightly taller */
+  .btn-primary { width: 100%; background: var(--primary); color: white; border: none; padding: 18px; border-radius: 10px; font-size: 16px; font-weight: 700; display: flex; justify-content: center; align-items: center; gap: 8px; cursor: pointer; margin-top: 24px; box-shadow: 0 4px 10px rgba(255,94,0,0.3); }
 
   .popular-section { padding: 0 16px 20px 16px; }
   .popular-section h3 { font-size: 16px; font-weight: 800; margin-bottom: 12px; }
@@ -211,13 +218,13 @@
   .qr-container img { width: 110px; height: 110px; border-radius: 8px; border: 1px solid var(--border); padding: 4px; }
 
   .th-tabs-container { display: flex; background: rgba(255,255,255,0.2); border-radius: 10px; padding: 4px; margin-top: 10px; }
-  .th-tab { flex: 1; padding: 10px; border-radius: 8px; border: none; background: transparent; color: white; font-weight: 700; font-size: 13px; cursor: pointer; }
+    .th-tab { flex: 1; padding: 10px; border-radius: 8px; border: none; background: transparent; color: white; font-weight: 700; font-size: 13px; cursor: pointer; }
   .th-tab.active { background: white; color: var(--primary); }
   .ticket-card { background: white; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin: 16px; }
   .ticket-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
   .ticket-id { font-size: 14px; font-weight: 800; }
   .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 10px; font-weight: 800; text-transform: uppercase; background: #FEF3C7; color: #D97706; }
-   .ticket-route { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .ticket-route { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
   .ticket-time { font-size: 16px; font-weight: 800; }
   .ticket-city { font-size: 12px; color: var(--text-muted); font-weight: 600; }
   .ticket-footer { display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed var(--border); padding-top: 12px; }
@@ -252,11 +259,32 @@
     <p>Book your bus ticket in seconds</p>
   </div>
 
-  <div class="search-container" style="margin-bottom: 40px;"> <!-- Added margin-bottom so it doesn't touch the bottom nav -->
+  <div class="search-container">
     <div class="search-card">
-      <div class="input-group"><label>FROM</label><div class="input-box"><span class="icon">🏢</span><input type="text" id="searchFrom" list="cityList" placeholder="Departure city"></div></div>
-      <div class="input-group"><label>TO</label><div class="input-box"><span class="icon">📍</span><input type="text" id="searchTo" list="cityList" placeholder="Destination city"></div></div>
-      <datalist id="cityList"></datalist> 
+      
+      <!-- FROM INPUT (CUSTOM AUTOCOMPLETE) -->
+      <div class="input-group">
+        <label>FROM</label>
+        <div class="input-box">
+          <span class="icon">🏢</span>
+          <div class="autocomplete-wrapper">
+            <input type="text" id="searchFrom" placeholder="Departure city" autocomplete="off" spellcheck="false">
+            <div id="fromDropdown" class="autocomplete-items"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TO INPUT (CUSTOM AUTOCOMPLETE) -->
+      <div class="input-group">
+        <label>TO</label>
+        <div class="input-box">
+          <span class="icon">📍</span>
+          <div class="autocomplete-wrapper">
+            <input type="text" id="searchTo" placeholder="Destination city" autocomplete="off" spellcheck="false">
+            <div id="toDropdown" class="autocomplete-items"></div>
+          </div>
+        </div>
+      </div>
       
       <div class="input-group">
         <label>TRAVEL DATES</label>
@@ -633,6 +661,7 @@
   let selectedBus = null;
   let currentBookingRef = "";
   let SEAT_PRICES = { normal: 1700, biz: 2200, vip: 2700 };
+  let allCities = []; // Store cities globally for autocomplete
 
   function generateBidirectionalRoutes(originalRoutes) {
     const finalRoutes = [];
@@ -679,6 +708,7 @@
     }
   }
 
+  // --- CUSTOM AUTOCOMPLETE LOGIC ---
   function populateDatalist() {
     const cities = new Set();
     ALL_ROUTES.forEach(route => {
@@ -686,13 +716,70 @@
         if(route.destination) cities.add(route.destination);
         if(route.stops) route.stops.forEach(s => cities.add(s));
     });
-    document.getElementById('cityList').innerHTML = Array.from(cities).sort().map(city => `<option value="${city}">`).join('');
+    
+    allCities = Array.from(cities).sort();
+
+    setupAutocomplete("searchFrom", "fromDropdown");
+    setupAutocomplete("searchTo", "toDropdown");
+  }
+
+  function setupAutocomplete(inputId, dropdownId) {
+    const input = document.getElementById(inputId);
+    const dropdown = document.getElementById(dropdownId);
+
+    input.addEventListener('focus', function() {
+      if (this.value.length === 0) {
+        renderDropdown(allCities, dropdown);
+      }
+    });
+
+    input.addEventListener('input', function() {
+      const val = this.value.toLowerCase();
+      if (!val) {
+        renderDropdown(allCities, dropdown);
+        return;
+      }
+      const filtered = allCities.filter(city => city.toLowerCase().includes(val));
+      renderDropdown(filtered, dropdown);
+    });
+
+    document.addEventListener('click', function(e) {
+      if (e.target !== input && e.target !== dropdown) {
+        dropdown.style.display = 'none';
+      }
+    });
+
+    function renderDropdown(citiesArray, dropdownElement) {
+      dropdownElement.innerHTML = '';
+      if (citiesArray.length === 0) {
+        dropdownElement.style.display = 'none';
+        return;
+      }
+      dropdownElement.style.display = 'block';
+      
+      citiesArray.forEach(city => {
+        const div = document.createElement('div');
+        div.innerText = city;
+        div.addEventListener('click', function() {
+          input.value = this.innerText;
+          dropdownElement.style.display = 'none';
+        });
+        dropdownElement.appendChild(div);
+      });
+    }
   }
 
   // --- TELEGRAM ALERT FUNCTION ---
   function sendTelegramAlert(ref, passengers, amount) {
     let tgSettings = JSON.parse(localStorage.getItem('enaTgSettings')) || { token: '', chatId: '' };
-    if (!tgSettings.token || !tgSettings.chatId) return; // Exit if not configured
+    
+    // Debugging: Log what is found in local storage
+    console.log("Telegram Settings Found:", tgSettings);
+    
+    if (!tgSettings.token || !tgSettings.chatId) {
+        console.warn("Telegram Alert skipped: Missing Token or Chat ID in admin panel.");
+        return; 
+    }
 
     const text = `🚌 *NEW BOOKING ALERT*\n\n*Ref:* ${ref}\n*Passengers:* ${passengers}\n*Route:* ${currentRoute.from} → ${currentRoute.to}\n*Date:* ${formatDateString(currentRoute.date)}\n*Time:* ${selectedBus.departure}\n*Amount:* KES ${amount.toLocaleString()}\n\n_Check WhatsApp for payment confirmation._`;
 
@@ -706,7 +793,17 @@
             text: text,
             parse_mode: 'Markdown'
         })
-    }).catch(err => console.error("Telegram Error:", err));
+    })
+    .then(response => response.json())
+    .then(data => {
+        if(data.ok) {
+            console.log("Telegram Alert sent successfully!");
+        } else {
+            console.error("Telegram API Error:", data.description);
+            alert("Telegram Error: " + data.description); // Shows error to help you debug
+        }
+    })
+    .catch(err => console.error("Telegram Fetch Error:", err));
   }// --- NAVIGATION & HELPERS ---
 function showScreen(screenId) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
