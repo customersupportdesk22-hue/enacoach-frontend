@@ -26,7 +26,7 @@
   <h1>Admin Settings</h1>
   <p>Manage Payments, Fares & Notifications</p>
   
-  <div id="successMsg" class="success-msg">✅ Settings saved successfully!</div>
+  <div id="successMsg" class="success-msg">✅ Settings saved successfully to database!</div>
 
   <h3>1. Payment Details</h3>
   <div class="form-group">
@@ -46,15 +46,8 @@
     <input type="text" id="payAccount" placeholder="e.g. 1769003">
   </div>
 
-  <h3>2. Telegram Notifications</h3>
-  <div class="form-group">
-    <label>Telegram Bot Token</label>
-    <input type="text" id="tgToken" placeholder="e.g. 123456789:ABCdef...">
-  </div>
-  <div class="form-group">
-    <label>Your Telegram Chat ID</label>
-    <input type="text" id="tgChatId" placeholder="e.g. 987654321">
-  </div>
+  <h3>2. Telegram Notifications (Set in Vercel)</h3>
+  <p style="text-align: left; font-size: 12px; margin-bottom: 10px;">Telegram Token and Chat ID are now securely stored in Vercel Environment Variables.</p>
 
   <h3>3. Fare Override</h3>
   <div class="form-group">
@@ -66,26 +59,23 @@
 </div>
 
 <script>
-  window.onload = function() {
-    let pay = JSON.parse(localStorage.getItem('enaPaymentSettings')) || { type: 'paybill', number: '756756', account: '1769003' };
-    
-    // SECURITY FIX: Tokens are now empty by default. GitHub will not flag this.
-    let tg = JSON.parse(localStorage.getItem('enaTgSettings')) || { token: '', chatId: '' };
-    
-    let fare = JSON.parse(localStorage.getItem('enaFareSettings')) || { override: 0 };
-    
-    document.getElementById('payType').value = pay.type;
-    document.getElementById('payNumber').value = pay.number;
-    document.getElementById('payAccount').value = pay.account;
-    
-    // Loads whatever token/chatId is saved in your browser's local storage
-    document.getElementById('tgToken').value = tg.token;
-    document.getElementById('tgChatId').value = tg.chatId;
-    
-    document.getElementById('fareOverride').value = fare.override;
-    
-    toggleAccountField();
-  };
+  async function loadSettings() {
+    try {
+      const response = await fetch('/api/settings');
+      const data = await response.json();
+      
+      document.getElementById('payType').value = data.type || 'paybill';
+      document.getElementById('payNumber').value = data.number || '';
+      document.getElementById('payAccount').value = data.account || '';
+      document.getElementById('fareOverride').value = data.override || 0;
+      
+      toggleAccountField();
+    } catch (error) {
+      console.error("Failed to load settings from database");
+    }
+  }
+
+  window.onload = loadSettings;
 
   function toggleAccountField() {
     const type = document.getElementById('payType').value;
@@ -104,22 +94,34 @@
     }
   }
 
-  function saveSettings() {
+  async function saveSettings() {
     const type = document.getElementById('payType').value;
     const number = document.getElementById('payNumber').value.trim();
     const account = document.getElementById('payAccount').value.trim();
-    const token = document.getElementById('tgToken').value.trim();
-    const chatId = document.getElementById('tgChatId').value.trim();
     const override = parseFloat(document.getElementById('fareOverride').value) || 0;
 
     if (!number) return alert("Please enter the payment number.");
 
-    localStorage.setItem('enaPaymentSettings', JSON.stringify({ type, number, account }));
-    localStorage.setItem('enaTgSettings', JSON.stringify({ token, chatId }));
-    localStorage.setItem('enaFareSettings', JSON.stringify({ override }));
+    const btn = document.querySelector('.btn');
+    btn.innerText = "Saving...";
 
-    document.getElementById('successMsg').style.display = 'block';
-    setTimeout(() => { document.getElementById('successMsg').style.display = 'none'; }, 3000);
+    try {
+      const response = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, number, account, override })
+      });
+
+      if (response.ok) {
+        document.getElementById('successMsg').style.display = 'block';
+        setTimeout(() => { document.getElementById('successMsg').style.display = 'none'; }, 3000);
+      } else {
+        alert("Failed to save settings. Check database connection.");
+      }
+    } catch (error) {
+      alert("Network error.");
+    }
+    btn.innerText = "Save All Settings";
   }
 </script>
 </body>

@@ -268,7 +268,7 @@
         <div class="input-box">
           <span class="icon">🏢</span>
           <div class="autocomplete-wrapper">
-            <input type="text" id="searchFrom" placeholder="Departure city" autocomplete="off" spellcheck="false">
+            <input type="text" id="searchFrom" placeholder="Enter Departure City" autocomplete="off" spellcheck="false">
             <div id="fromDropdown" class="autocomplete-items"></div>
           </div>
         </div>
@@ -280,7 +280,7 @@
         <div class="input-box">
           <span class="icon">📍</span>
           <div class="autocomplete-wrapper">
-            <input type="text" id="searchTo" placeholder="Destination city" autocomplete="off" spellcheck="false">
+            <input type="text" id="searchTo" placeholder="Enter Destination City" autocomplete="off" spellcheck="false">
             <div id="toDropdown" class="autocomplete-items"></div>
           </div>
         </div>
@@ -627,30 +627,34 @@
       renderTripHistory('pending', document.querySelector('.th-tab'));
   }
 
-  function loadPaymentSettings() {
-      let settings = JSON.parse(localStorage.getItem('enaPaymentSettings')) || {
-          type: 'paybill', number: '756756', account: '1769003'
-      };
+  // --- FETCH SETTINGS FROM DATABASE ---
+async function loadPaymentSettings() {
+    try {
+        const response = await fetch('/api/settings');
+        const settings = await response.json();
+        
+        const label = document.getElementById('payMethodLabel');
+        const value = document.getElementById('payMethodValue');
+        const accountRow = document.getElementById('payAccountRow');
+        const accountValue = document.getElementById('payAccountValue');
 
-      const label = document.getElementById('payMethodLabel');
-      const value = document.getElementById('payMethodValue');
-      const accountRow = document.getElementById('payAccountRow');
-      const accountValue = document.getElementById('payAccountValue');
-
-      if (settings.type === 'paybill') {
-          label.innerText = 'Paybill Number';
-          value.innerText = settings.number;
-          accountRow.style.display = 'flex';
-          accountValue.innerText = settings.account;
-      } else if (settings.type === 'till') {
-          label.innerText = 'Till Number';
-          value.innerText = settings.number;
-          accountRow.style.display = 'none';
-      } else if (settings.type === 'phone') {
-          label.innerText = 'Phone Number';
-          value.innerText = settings.number;
-          accountRow.style.display = 'none';
-      }
+        if (settings.type === 'paybill') {
+            label.innerText = 'Paybill Number';
+            value.innerText = settings.number;
+            accountRow.style.display = 'flex';
+            accountValue.innerText = settings.account;
+        } else if (settings.type === 'till') {
+            label.innerText = 'Till Number';
+            value.innerText = settings.number;
+            accountRow.style.display = 'none';
+        } else {
+            label.innerText = 'Phone Number';
+            value.innerText = settings.number;
+            accountRow.style.display = 'none';
+        }
+    } catch (error) {
+        console.error("Failed to load settings", error);
+    }
   }
 
   // --- DATA & ROUTE GENERATION ---
@@ -769,42 +773,27 @@
     }
   }
 
-  // --- TELEGRAM ALERT FUNCTION ---
-  function sendTelegramAlert(ref, passengers, amount) {
-    let tgSettings = JSON.parse(localStorage.getItem('enaTgSettings')) || { token: '', chatId: '' };
-    
-    // Debugging: Log what is found in local storage
-    console.log("Telegram Settings Found:", tgSettings);
-    
-    if (!tgSettings.token || !tgSettings.chatId) {
-        console.warn("Telegram Alert skipped: Missing Token or Chat ID in admin panel.");
-        return; 
-    }
-
-    const text = `🚌 *NEW BOOKING ALERT*\n\n*Ref:* ${ref}\n*Passengers:* ${passengers}\n*Route:* ${currentRoute.from} → ${currentRoute.to}\n*Date:* ${formatDateString(currentRoute.date)}\n*Time:* ${selectedBus.departure}\n*Amount:* KES ${amount.toLocaleString()}\n\n_Check WhatsApp for payment confirmation._`;
-
-    const url = `https://api.telegram.org/bot${tgSettings.token}/sendMessage`;
-    
-    fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            chat_id: tgSettings.chatId,
-            text: text,
-            parse_mode: 'Markdown'
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if(data.ok) {
-            console.log("Telegram Alert sent successfully!");
-        } else {
-            console.error("Telegram API Error:", data.description);
-            alert("Telegram Error: " + data.description); // Shows error to help you debug
-        }
-    })
-    .catch(err => console.error("Telegram Fetch Error:", err));
-  }// --- NAVIGATION & HELPERS ---
+  // --- TELEGRAM ALERT FUNCTION (NOW SECURE VIA BACKEND) ---
+function sendTelegramAlert(ref, passengers, amount) {
+  fetch('/api/notify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+          ref: ref,
+          passengers: passengers,
+          route: `${currentRoute.from} → ${currentRoute.to}`,
+          date: formatDateString(currentRoute.date) || currentRoute.date,
+          time: selectedBus.departure,
+          amount: amount.toLocaleString()
+      })
+  })
+  .then(response => response.json())
+  .then(data => {
+      if(!data.success) console.error("Backend Error:", data.error);
+  })
+  .catch(err => console.error("Fetch Error:", err));
+}
+  // --- NAVIGATION & HELPERS ---
 function showScreen(screenId) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('screen-' + screenId).classList.add('active');
@@ -1167,7 +1156,7 @@ function updateSeatSummary() {
 
     // 5. Populate Payment Details
     document.getElementById('displayAmount').innerText = `KES ${totalPrice.toLocaleString()}`;
-    loadPaymentSettings(); 
+    await loadPaymentSettings();
 
     // 6. Show the Modal
     document.getElementById('checkoutModal').style.display = 'flex';
