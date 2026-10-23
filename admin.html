@@ -69,11 +69,8 @@
   window.onload = function() {
     let pay = JSON.parse(localStorage.getItem('enaPaymentSettings')) || { type: 'paybill', number: '756756', account: '1769003' };
     
-    // CHANGED: Added your Token and Chat ID as the default fallback values
-    let tg = JSON.parse(localStorage.getItem('enaTgSettings')) || { 
-        token: '8214524284:AAHVE1mcJZ-tpT2Bo3C-24bIoIzVgitnOiY', 
-        chatId: '8048741156' 
-    };
+    // SECURITY FIX: Tokens are now empty by default. GitHub will not flag this.
+    let tg = JSON.parse(localStorage.getItem('enaTgSettings')) || { token: '', chatId: '' };
     
     let fare = JSON.parse(localStorage.getItem('enaFareSettings')) || { override: 0 };
     
@@ -81,7 +78,7 @@
     document.getElementById('payNumber').value = pay.number;
     document.getElementById('payAccount').value = pay.account;
     
-    // CHANGED: These now load your bot token and chat ID automatically
+    // Loads whatever token/chatId is saved in your browser's local storage
     document.getElementById('tgToken').value = tg.token;
     document.getElementById('tgChatId').value = tg.chatId;
     
