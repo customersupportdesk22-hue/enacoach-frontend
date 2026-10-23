@@ -1,0 +1,1224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>ENA Coach - Book Bus Tickets</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --primary: #FF5E00;
+    --primary-light: #FFF0E6;
+    --text-main: #1A1A1A;
+    --text-muted: #6B7280;
+    --bg-body: #F9FAFB;
+    --bg-white: #FFFFFF;
+    --border: #E5E7EB;
+    --success: #22C55E;
+    --seat-normal: #E0F2FE; --seat-normal-border: #38BDF8; --seat-normal-text: #0369A1;
+    --seat-vip: #FEF08A; --seat-vip-border: #EAB308; --seat-vip-text: #854D0E;
+    --seat-biz: #DCFCE7; --seat-biz-border: #4ADE80; --seat-biz-text: #166534;
+    --seat-sold: #9CA3AF; --seat-selected: #EF4444;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+  
+  body { background: var(--bg-body); color: var(--text-main); padding-bottom: 70px; min-height: 100dvh; display: flex; flex-direction: column; }
+
+  /* ANTI-COPY PROTECTION */
+  .no-select { -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; -webkit-touch-callout: none; }
+
+  /* SCREEN MANAGEMENT */
+  .screen { display: none; animation: fadeIn 0.3s ease; flex: 1; background: var(--bg-body); }
+  .screen.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* HEADERS */
+  .app-header { background: var(--bg-white); padding: 20px 16px; display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 10; }
+  .header-title h1 { font-size: 24px; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+  .header-title h1::before { content: ""; display: block; width: 4px; height: 24px; background: var(--primary); border-radius: 2px; }
+  .header-title p { font-size: 12px; color: var(--text-muted); margin-top: 4px; margin-left: 12px; }
+  .header-logo { width: 60px; height: auto; border-radius: 8px; }
+
+  .results-header { background: var(--primary); color: white; padding: 16px; position: sticky; top: 0; z-index: 10; }
+  .results-header h2 { font-size: 18px; display: flex; align-items: center; gap: 8px; cursor: pointer; }
+  .results-header p { font-size: 12px; opacity: 0.9; margin-top: 4px; }
+
+  /* BOTTOM NAV */
+  .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--bg-white); border-top: 1px solid var(--border); display: flex; justify-content: space-around; padding: 10px 0 20px; padding-bottom: env(safe-area-inset-bottom); z-index: 100; }
+  .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 10px; font-weight: 600; color: var(--text-muted); cursor: pointer; }
+  .nav-item.active { color: var(--primary); }
+  .nav-item svg { width: 22px; height: 22px; stroke-width: 2; stroke: currentColor; fill: none; transition: all 0.2s; }
+
+  /* HOME SEARCH */
+  .hero-banner { background: linear-gradient(135deg, var(--primary), #FF8C42); padding: 30px 20px; color: white; border-radius: 0 0 20px 20px; text-align: center; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(255,94,0,0.2); }
+  .hero-banner h2 { font-size: 22px; font-weight: 800; margin-bottom: 6px; }
+  .hero-banner p { font-size: 13px; opacity: 0.9; }
+  
+  .search-container { padding: 0 16px 20px 16px; margin-top: -40px; position: relative; z-index: 5; }
+  .search-card { background: white; border-radius: 16px; padding: 16px; box-shadow: 0 8px 25px rgba(0,0,0,0.08); }
+  .input-group { margin-bottom: 24px; } /* Increased space between fields */
+  .input-group label { display: block; font-size: 12px; font-weight: 700; color: var(--text-muted); margin-bottom: 8px; letter-spacing: 0.5px; } /* Slightly larger, more space below label */
+  .input-box { display: flex; align-items: center; background: var(--bg-body); border: 1px solid var(--border); border-radius: 10px; padding: 16px 14px; gap: 10px; } /* Increased height for easier tapping */
+  .input-box .icon { color: var(--primary); font-size: 18px; }
+  .input-box input { border: none; background: transparent; width: 100%; font-size: 14px; font-weight: 500; outline: none; color: var(--text-main); }
+  
+  /* DATE UI */
+  .date-container { display: flex; background: var(--bg-body); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; gap: 10px; }
+  .date-box { flex: 1; position: relative; cursor: pointer; }
+  .date-box:first-child { border-right: 1px solid var(--border); padding-right: 10px; }
+  .date-label { font-size: 11px; color: var(--text-muted); font-weight: 600; display: flex; align-items: center; gap: 4px; margin-bottom: 4px; }
+  .date-value { font-size: 14px; font-weight: 700; color: var(--text-main); }
+  .date-value.empty { color: var(--text-muted); font-weight: 500; }
+  .date-pills { display: flex; gap: 8px; margin-top: 16px; } /* More space between date box and buttons */
+  .date-pill { flex: 1; padding: 8px 0; border-radius: 20px; border: 1px solid var(--border); background: white; color: var(--text-main); font-size: 13px; font-weight: 600; cursor: pointer; text-align: center; transition: all 0.2s; }
+  .date-pill.active { background: var(--primary); color: white; border-color: var(--primary); box-shadow: 0 4px 10px rgba(255,94,0,0.3); }
+
+  .btn-primary { width: 100%; background: var(--primary); color: white; border: none; padding: 18px; border-radius: 10px; font-size: 16px; font-weight: 700; display: flex; justify-content: center; align-items: center; gap: 8px; cursor: pointer; margin-top: 24px; box-shadow: 0 4px 10px rgba(255,94,0,0.3); } /* Pushed the button down, made it slightly taller */
+
+  .popular-section { padding: 0 16px 20px 16px; }
+  .popular-section h3 { font-size: 16px; font-weight: 800; margin-bottom: 12px; }
+  .popular-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .popular-card { background: white; border: 1px solid var(--border); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 4px; cursor: pointer; }
+  .popular-card .route { font-weight: 700; font-size: 14px; }
+  .popular-card .price { font-size: 12px; color: var(--primary); font-weight: 800; }
+  
+  /* RESULTS & STOPS & SEATS */
+  .bus-card { background: var(--bg-white); border-bottom: 1px solid var(--border); padding: 16px; }
+  .bus-top { display: flex; justify-content: space-between; margin-bottom: 12px; }
+  .bus-time { font-size: 18px; font-weight: 700; }
+  .bus-loc { font-size: 12px; color: var(--text-muted); margin-top: 2px; font-weight: 700; }
+  .bus-duration { text-align: center; font-size: 11px; color: var(--text-muted); display: flex; flex-direction: column; align-items: center; }
+  .bus-duration .line { width: 60px; height: 2px; background: var(--border); margin: 6px 0; position: relative; }
+  .bus-duration .line::before, .bus-duration .line::after { content: ""; position: absolute; top: -3px; width: 8px; height: 8px; border-radius: 50%; border: 2px solid var(--border); background: var(--bg-white); }
+  .bus-duration .line::before { left: -4px; } .bus-duration .line::after { right: -4px; }
+  .bus-company { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; padding-top: 16px; border-top: 1px dashed var(--border); }
+  .bus-info { display: flex; align-items: center; gap: 10px; }
+  .bus-logo { width: 40px; height: 40px; border-radius: 8px; object-fit: cover; }
+  .bus-name { font-weight: 700; font-size: 14px; }
+  .seats-left { font-size: 11px; color: var(--success); font-weight: 600; margin-top: 2px; }
+  .btn-view-seats { background: var(--primary); color: white; border: none; padding: 10px 16px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; }
+  .price-tag { font-size: 16px; font-weight: 800; color: var(--primary); margin-right: 10px; }
+
+  .stops-tabs { display: flex; background: rgba(255,255,255,0.2); border-radius: 10px; margin-top: 15px; padding: 4px; }
+  .stop-tab { flex: 1; padding: 10px; border-radius: 8px; border: none; background: transparent; color: white; font-weight: 700; font-size: 13px; cursor: pointer; }
+  .stop-tab.active { background: white; color: var(--primary); }
+  .stop-card { background: white; border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin: 12px 16px; display: flex; align-items: center; gap: 16px; cursor: pointer; }
+  .stop-card.selected { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-light); }
+  .stop-radio { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--border); display: flex; justify-content: center; align-items: center; flex-shrink: 0; }
+  .stop-card.selected .stop-radio { border-color: var(--primary); }
+  .stop-card.selected .stop-radio::after { content: ""; width: 12px; height: 12px; border-radius: 50%; background: var(--primary); }
+  .stop-details { flex: 1; }
+  .stop-name { font-weight: 800; font-size: 15px; margin-bottom: 4px; }
+  .stop-desc { font-size: 11px; color: var(--text-muted); }
+  .stop-time { text-align: right; }
+  .stop-time .time { font-weight: 800; font-size: 14px; }
+  .stop-time .date { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+  
+  .sticky-bottom { position: fixed; bottom: 65px; left: 0; right: 0; background: white; padding: 16px; border-top: 1px solid var(--border); z-index: 20; }
+  .btn-disabled { background: #D1D5DB; color: #6B7280; cursor: not-allowed; box-shadow: none; }
+
+  .seat-header-tabs { display: flex; border-bottom: 1px solid var(--border); background: white; position: sticky; top: 60px; z-index: 9; }
+  .seat-header-tab { flex: 1; text-align: center; padding: 14px 0; font-weight: 700; font-size: 13px; color: var(--text-muted); cursor: pointer; border-bottom: 3px solid transparent; }
+  .seat-header-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+  .seat-screen { padding: 16px; }
+  .seat-legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 11px; justify-content: center; margin-bottom: 20px; background: var(--bg-body); padding: 12px; border-radius: 8px; }
+  .legend-item { display: flex; align-items: center; gap: 4px; font-weight: 600; }
+  .seat-box { width: 16px; height: 16px; border-radius: 4px; border: 1px solid var(--border); }
+  .seat-box.normal { background: var(--seat-normal); border-color: var(--seat-normal-border); }
+  .seat-box.vip { background: var(--seat-vip); border-color: var(--seat-vip-border); }
+  .seat-box.biz { background: var(--seat-biz); border-color: var(--seat-biz-border); }
+  .seat-box.selected { background: var(--seat-selected); border: none; }
+  .seat-box.sold { background: var(--seat-sold); border: none; }
+  .bus-layout { max-width: 320px; margin: 0 auto; background: white; border: 2px solid var(--border); border-radius: 20px 20px 10px 10px; padding: 20px 10px; position: relative; }
+  .steering-wheel { font-size: 30px; text-align: right; padding-right: 20px; margin-bottom: 20px; color: var(--text-muted); }
+  .seat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; row-gap: 12px; }
+  .seat-grid > div:nth-child(4n-1) { margin-right: 20px; } 
+  .seat { width: 44px; height: 44px; border-radius: 8px; display: flex; justify-content: center; align-items: center; font-size: 12px; font-weight: 700; border: 1px solid; margin: 0 auto; cursor: pointer; transition: 0.1s; }
+  .seat.normal { background: var(--seat-normal); border-color: var(--seat-normal-border); color: var(--seat-normal-text); }
+  .seat.vip { background: var(--seat-vip); border-color: var(--seat-vip-border); color: var(--seat-vip-text); }
+  .seat.biz { background: var(--seat-biz); border-color: var(--seat-biz-border); color: var(--seat-biz-text); }
+  .seat.sold { background: var(--seat-sold); border-color: var(--seat-sold); color: #4B5563; pointer-events: none; }
+  .seat.selected { background: var(--seat-selected); border-color: var(--seat-selected); color: white; transform: scale(1.1); }
+  .info-content { padding: 20px; font-size: 14px; color: var(--text-main); line-height: 1.6; }
+  .info-content h3 { font-size: 16px; font-weight: 800; margin-bottom: 10px; color: var(--primary); }
+  .info-content ul { padding-left: 20px; margin-bottom: 15px; }  
+  
+  /* PASSENGER DETAILS */
+  #screen-passenger { background: #F3F4F6; }
+  .passenger-header-info { display: flex; gap: 16px; font-size: 12px; opacity: 0.9; margin-top: 4px; }
+  .passenger-header-info span { display: flex; align-items: center; gap: 4px; }
+  .passenger-card { background: white; border-radius: 16px; margin: 16px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.02); }
+  .passenger-card-header { background: #F9FAFB; padding: 16px; display: flex; align-items: center; gap: 16px; border-bottom: 1px solid var(--border); }
+  .passenger-badge { width: 40px; height: 40px; border-radius: 50%; background: var(--primary); color: white; display: flex; justify-content: center; align-items: center; font-size: 20px; font-weight: 800; }
+  .passenger-title { font-size: 16px; font-weight: 800; color: var(--text-main); }
+  .passenger-subtitle { font-size: 12px; color: var(--text-muted); }
+  .passenger-form-section { padding: 16px; border-bottom: 1px solid var(--border); }
+  .passenger-section-title { font-size: 13px; font-weight: 800; color: var(--text-main); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .passenger-section-title .icon { background: var(--bg-body); padding: 4px; border-radius: 6px; font-size: 14px; }
+  .p-input-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  .p-input-group { margin-bottom: 12px; }
+  .p-input-group label { display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 6px; }
+  .p-input-box { display: flex; align-items: center; border: 1px solid var(--border); border-radius: 8px; padding: 12px; background: white; }
+  .p-input-box input, .p-input-box select { border: none; outline: none; width: 100%; font-size: 14px; font-weight: 500; color: var(--text-main); background: transparent; }
+  .p-input-box .prefix { font-size: 14px; font-weight: 600; margin-right: 8px; border-right: 1px solid var(--border); padding-right: 8px; display: flex; align-items: center; gap: 4px;}
+  .seat-summary-card { margin: 16px; background: var(--bg-body); border-radius: 12px; padding: 16px; display: flex; align-items: center; justify-content: space-between; }
+  .seat-icon-box { width: 40px; height: 40px; background: #1E293B; border-radius: 8px; display: flex; justify-content: center; align-items: center; color: white; font-size: 20px; }
+  .seat-info-text .seat-name { font-weight: 800; font-size: 15px; }
+  .seat-info-text .seat-type { font-size: 11px; color: var(--text-muted); background: var(--border); padding: 2px 8px; border-radius: 10px; margin-left: 6px; }
+  .seat-info-text .seat-price { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+  .btn-payment { background: #D92D20; color: white; border: none; padding: 16px; border-radius: 12px; font-size: 16px; font-weight: 800; width: calc(100% - 32px); margin: 16px; cursor: pointer; display: flex; justify-content: center; align-items: center; }
+
+  /* MODALS / HELP / HISTORY / PROFILE */
+  .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; justify-content: center; align-items: center; z-index: 1000; padding: 20px;}
+  .modal-content { background: white; width: 100%; max-width: 400px; border-radius: 20px; padding: 24px; animation: popIn 0.3s ease; }
+  @keyframes popIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+  .close-btn { background: var(--bg-body); border: none; width: 32px; height: 32px; border-radius: 50%; font-size: 16px; cursor: pointer; }
+  
+  .help-btn { display: flex; align-items: center; gap: 12px; padding: 16px; border-radius: 12px; text-decoration: none; margin-bottom: 12px; font-weight: 700; }
+  .help-btn.wa { background: rgba(37,211,102,0.1); border: 1px solid rgba(37,211,102,0.3); color: #166534; }
+  .help-btn.call { background: rgba(255,94,0,0.1); border: 1px solid rgba(255,94,0,0.3); color: var(--primary); }
+  .help-icon { width: 40px; height: 40px; border-radius: 50%; display: flex; justify-content: center; align-items: center; color: white; font-size: 20px; }
+  .help-btn.wa .help-icon { background: #25D366; }
+  .help-btn.call .help-icon { background: var(--primary); }
+
+  /* E-TICKET / PAYMENT MODAL */
+  .payment-details-box { background: var(--bg-body); border-radius: 12px; padding: 16px; margin-top: 16px; border: 1px dashed var(--primary); }
+  .payment-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+  .payment-row:last-child { border-bottom: none; }
+  .payment-row strong { font-size: 16px; color: var(--text-main); font-weight: 800; }
+  .copy-btn { background: var(--primary-light); color: var(--primary); border: none; padding: 6px 12px; border-radius: 6px; font-weight: 700; font-size: 12px; cursor: pointer; }
+
+  .strict-notice { background: #FEF2F2; border: 1px solid #F87171; border-left: 4px solid #EF4444; padding: 12px; border-radius: 8px; margin: 16px 0; }
+  .strict-notice h4 { color: #991B1B; font-size: 13px; font-weight: 800; display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+  .strict-notice p { color: #7F1D1D; font-size: 12px; line-height: 1.4; }
+  
+  .eticket { background: #fff; border-radius: 16px; overflow: hidden; position: relative; border: 1px solid var(--border); margin-bottom: 16px; }
+  .eticket-header { background: var(--primary); color: white; padding: 16px; text-align: center; }
+  .eticket-header h2 { font-size: 18px; font-weight: 800; letter-spacing: 1px; }
+  .eticket-header p { font-size: 10px; opacity: 0.8; text-transform: uppercase; letter-spacing: 2px; margin-top: 2px; }
+  .pending-badge { background: #FEF3C7; color: #D97706; font-size: 10px; font-weight: 800; padding: 4px 12px; border-radius: 20px; display: inline-block; margin-top: 8px; text-transform: uppercase; letter-spacing: 1px; }
+  .eticket-body { padding: 16px; }
+  .eticket-row { display: flex; justify-content: space-between; margin-bottom: 12px; }
+  .eticket-row .label { font-size: 10px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 2px; }
+  .eticket-row .value { font-size: 14px; font-weight: 800; color: var(--text-main); }
+  .eticket-divider { border-top: 2px dashed var(--border); margin: 16px 0; position: relative; }
+  .eticket-divider::before, .eticket-divider::after { content: ""; position: absolute; top: -10px; width: 20px; height: 20px; background: var(--bg-body); border-radius: 50%; }
+  .eticket-divider::before { left: -26px; }
+  .eticket-divider::after { right: -26px; }
+  .qr-container { text-align: center; margin-bottom: 8px; }
+  .qr-container img { width: 110px; height: 110px; border-radius: 8px; border: 1px solid var(--border); padding: 4px; }
+
+  .th-tabs-container { display: flex; background: rgba(255,255,255,0.2); border-radius: 10px; padding: 4px; margin-top: 10px; }
+  .th-tab { flex: 1; padding: 10px; border-radius: 8px; border: none; background: transparent; color: white; font-weight: 700; font-size: 13px; cursor: pointer; }
+  .th-tab.active { background: white; color: var(--primary); }
+  .ticket-card { background: white; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin: 16px; }
+  .ticket-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .ticket-id { font-size: 14px; font-weight: 800; }
+  .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 10px; font-weight: 800; text-transform: uppercase; background: #FEF3C7; color: #D97706; }
+   .ticket-route { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .ticket-time { font-size: 16px; font-weight: 800; }
+  .ticket-city { font-size: 12px; color: var(--text-muted); font-weight: 600; }
+  .ticket-footer { display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed var(--border); padding-top: 12px; }
+  .ticket-price { font-size: 16px; font-weight: 800; color: var(--primary); }
+  .ticket-btn { padding: 10px; border-radius: 8px; font-weight: 700; font-size: 13px; border: none; background: var(--primary); color: white; width: 100%; margin-top: 10px; }
+  
+  .profile-header { background: var(--primary); padding: 40px 20px; text-align: center; color: white; border-radius: 0 0 20px 20px; }
+  .profile-avatar { width: 80px; height: 80px; background: white; border-radius: 50%; margin: 0 auto 16px; display: flex; justify-content: center; align-items: center; font-size: 40px; color: var(--primary); }
+  .menu-group { background: white; border-radius: 12px; padding: 16px; margin: 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.02); }
+  .menu-item { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border); cursor: pointer; font-weight: 500; }
+  .menu-item:last-child { border-bottom: none; }
+  
+  .auth-card { background: white; padding: 24px; border-radius: 16px; margin: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+  .auth-tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
+  .auth-tab { flex: 1; text-align: center; padding: 10px; font-weight: 700; color: var(--text-muted); cursor: pointer; }
+  .auth-tab.active { color: var(--primary); border-bottom: 3px solid var(--primary); }
+  .auth-btn { width: 100%; padding: 14px; border: none; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 10px; background: var(--primary); color: white; }
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--text-muted); }
+  .fab { position: fixed; bottom: 80px; right: 20px; background: var(--primary); color: white; border-radius: 50px; padding: 14px 20px; font-weight: 700; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 15px rgba(255,94,0,0.4); z-index: 50; cursor: pointer; border: none; font-size: 15px; }
+</style>
+</head><body>
+
+<!-- SCREEN 1: HOME -->
+<div id="screen-home" class="screen active">
+  <header class="app-header">
+    <div class="header-title"><h1>ENA Coach</h1><p>Travel Safe & Comfortable</p></div>
+    <img src="https://res.cloudinary.com/yvzp2mhd/image/upload/v1792239650/WA_1792239223964.jpg" class="header-logo" alt="ENA Coach">
+  </header>
+  
+  <div class="hero-banner">
+    <h2>Where are you going today?</h2>
+    <p>Book your bus ticket in seconds</p>
+  </div>
+
+  <div class="search-container" style="margin-bottom: 40px;"> <!-- Added margin-bottom so it doesn't touch the bottom nav -->
+    <div class="search-card">
+      <div class="input-group"><label>FROM</label><div class="input-box"><span class="icon">🏢</span><input type="text" id="searchFrom" list="cityList" placeholder="Departure city"></div></div>
+      <div class="input-group"><label>TO</label><div class="input-box"><span class="icon">📍</span><input type="text" id="searchTo" list="cityList" placeholder="Destination city"></div></div>
+      <datalist id="cityList"></datalist> 
+      
+      <div class="input-group">
+        <label>TRAVEL DATES</label>
+        <div class="date-container">
+          <div class="date-box">
+            <div class="date-label"><span style="color:var(--primary);">📅</span> Departure</div>
+            <div class="date-value" id="displayDepartureDate">Wed, May 13</div>
+            <input type="date" id="searchDate" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;" onchange="updateDisplayDate(this, 'displayDepartureDate')">
+          </div>
+          <div class="date-box">
+            <div class="date-label"><span style="color:var(--text-muted);">📅</span> Return (Optional)</div>
+            <div class="date-value empty" id="displayReturnDate">Tap to add</div>
+            <input type="date" id="returnDate" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;" onchange="updateDisplayDate(this, 'displayReturnDate')">
+          </div>
+        </div>
+        <div class="date-pills">
+          <button type="button" class="date-pill active" onclick="setQuickDate(0, this)">Today</button>
+          <button type="button" class="date-pill" onclick="setQuickDate(1, this)">Tomorrow</button>
+          <button type="button" class="date-pill" onclick="setQuickDate('friday', this)">Friday</button>
+          <button type="button" class="date-pill" onclick="setQuickDate('saturday', this)">Saturday</button>
+        </div>
+      </div>
+      
+      <button class="btn-primary" onclick="searchRoutes()"><span>🔍</span> Search Buses</button>
+    </div>
+  </div>
+</div>
+
+<!-- SCREEN 2: SEARCH RESULTS -->
+<div id="screen-results" class="screen">
+  <header class="results-header">
+    <h2 onclick="showScreen('home')">← <span id="headerRoute">NAIROBI → KISUMU</span></h2>
+    <p id="resultsDate">14 May 2024 · One Way</p>
+  </header>
+  <div id="resultsList"></div>
+</div><!-- SCREEN 3: STOPS -->
+<div id="screen-stops" class="screen">
+  <header class="results-header" style="padding-bottom: 16px;">
+    <h2 onclick="showScreen('results')">← Choose your stops</h2>
+    <p id="stopsDate">May 14, 2026</p>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px;">
+      <div style="font-size: 16px; font-weight: 800;" id="stopsFrom">NAIROBI</div>
+      <div style="font-size: 20px;">🚌</div>
+      <div style="font-size: 16px; font-weight: 800;" id="stopsTo">KISUMU</div>
+    </div>
+    <div class="stops-tabs">
+      <button class="stop-tab active" onclick="switchStopTab('boarding')" id="tab-boarding">1 Boarding</button>
+      <button class="stop-tab" onclick="switchStopTab('dropping')" id="tab-dropping">2 Dropping</button>
+    </div>
+  </header>
+  <div id="stopsList" style="padding-bottom: 140px;"></div>
+  <div class="sticky-bottom">
+    <button class="btn-primary" id="btnSelectStop" onclick="goToSeats()">Next: Select Dropping Stop</button>
+  </div>
+</div>
+
+<!-- SCREEN 4: SEATS -->
+<div id="screen-seats" class="screen">
+  <header class="results-header" style="background: var(--primary);">
+    <h2 onclick="showScreen('stops')">← Select Your Seats</h2>
+    <p id="seatHeaderRoute">NAIROBI → KISUMU</p>
+  </header>
+  <div class="seat-header-tabs">
+    <div class="seat-header-tab active" onclick="switchSeatTab('layout', this)">Seats Layout</div>
+    <div class="seat-header-tab" onclick="switchSeatTab('details', this)">Details</div>
+    <div class="seat-header-tab" onclick="switchSeatTab('terms', this)">Terms</div>
+  </div>
+  <div id="seat-tab-content">
+    <div id="tab-layout" class="seat-screen">
+      <div style="font-size: 12px; font-weight: 700; margin-bottom: 10px;">Selected: <span id="selectedCount" style="color: var(--primary);">0</span> / 6 seats</div>
+      <div class="seat-legend">
+        <div class="legend-item"><div class="seat-box normal"></div> Normal</div>
+        <div class="legend-item"><div class="seat-box vip"></div> VIP</div>
+        <div class="legend-item"><div class="seat-box biz"></div> Business</div>
+        <div class="legend-item"><div class="seat-box selected"></div> Selected</div>
+        <div class="legend-item"><div class="seat-box sold"></div> Sold</div>
+      </div>
+      <div class="bus-layout">
+        <div class="steering-wheel">🛞</div>
+        <div class="seat-grid" id="seatGrid"></div>
+      </div>
+      <div style="background: white; border-radius: 12px; padding: 16px; margin-top: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <div style="font-size: 11px; color: var(--text-muted); font-weight: 700;">TOTAL FARE</div>
+          <div style="font-size: 22px; font-weight: 800; color: var(--primary);" id="totalFare">KES 0.00</div>
+        </div>
+        <button class="btn-primary" style="width: auto; padding: 12px 24px;" onclick="goToPassengerScreen()">Proceed</button>
+      </div>
+    </div>
+    <div id="tab-details" class="info-content" style="display: none;">
+      <h3>Bus Features</h3>
+      <ul><li>Air Conditioning</li><li>Free WiFi onboard</li><li>USB Charging Ports</li><li>Reclining Seats</li></ul>
+    </div>
+    <div id="tab-terms" class="info-content" style="display: none;">
+      <h3>Terms & Conditions</h3>
+      <ul><li>Tickets are non-transferable.</li><li>Arrive 15 mins before departure.</li><li>50% refund on cancellations 24h prior.</li></ul>
+    </div>
+  </div>
+</div>
+
+<!-- SCREEN 5: PASSENGER DETAILS -->
+<div id="screen-passenger" class="screen">
+  <header class="results-header" style="background: var(--primary); padding: 16px;">
+    <h2 onclick="showScreen('seats')" style="margin-bottom: 8px;">← <span id="paxHeaderRoute">NAIROBI → KISUMU</span></h2>
+    <div class="passenger-header-info">
+      <span>📅 <span id="paxHeaderDate">14/5/2026</span></span>
+      <span>🕐 <span id="paxHeaderTime">07:00 AM</span></span>
+      <span>👤 <span id="paxHeaderCount">1 seat</span></span>
+    </div>
+  </header>
+  <div id="passengersContainer" style="padding-bottom: 20px;"></div>
+  <button class="btn-payment" onclick="validateAndShowPayment()">Proceed to Payment</button>
+</div><!-- SCREEN 6: TRIP HISTORY -->
+<div id="screen-trip-history" class="screen">
+  <header class="results-header" style="background: var(--primary); padding-bottom: 16px;">
+    <h2 onclick="showScreen('home')">← Trip History</h2>
+    <div class="th-tabs-container">
+      <button class="th-tab active" onclick="renderTripHistory('pending', this)">Pending</button>
+      <button class="th-tab" onclick="renderTripHistory('upcoming', this)">Upcoming</button>
+      <button class="th-tab" onclick="renderTripHistory('completed', this)">Completed</button>
+    </div>
+  </header>
+  <div id="tripHistoryList" style="padding-bottom: 80px;"></div>
+  <button class="fab" onclick="showScreen('home')"><span>+</span> Book Trip</button>
+</div>
+
+<!-- SCREEN 7: PROFILE -->
+<div id="screen-profile" class="screen">
+  <div id="profile-logged-in" style="display: none;">
+    <div class="profile-header">
+      <div class="profile-avatar" id="profileAvatar">👤</div>
+      <h2 style="font-size: 22px; font-weight: 700;" id="profileName">User</h2>
+      <p style="opacity: 0.9; font-size: 14px;" id="profileEmail">user@email.com</p>
+    </div>
+    <div class="menu-group"><div class="menu-item" onclick="showScreen('trip-history')"><span>My Trips</span> <span>❯</span></div></div>
+    <div class="menu-group"><div class="menu-item" onclick="signOut()" style="color: #EF4444;"><span>Sign Out</span> <span>❯</span></div></div>
+  </div>
+  
+  <div id="auth-container">
+    <div style="text-align: center; margin-bottom: 20px; padding-top: 20px;"><h2 style="font-size: 24px; font-weight: 800; color: var(--primary);">Welcome to ENA Coach</h2></div>
+    <div class="auth-card">
+      <div class="auth-tabs">
+        <div class="auth-tab active" onclick="switchAuthTab('login')" id="tab-login">Sign In</div>
+        <div class="auth-tab" onclick="switchAuthTab('register')" id="tab-register">Register</div>
+      </div>
+      <div id="form-login">
+        <div class="input-group"><label>Email</label><div class="input-box"><input type="email" id="loginEmail"></div></div>
+        <div class="input-group"><label>Password</label><div class="input-box"><input type="password" id="loginPassword"></div></div>
+        <button type="button" class="auth-btn" onclick="handleLogin()">Sign In</button>
+      </div>
+      <div id="form-register" style="display: none;">
+        <div class="input-group"><label>Full Name</label><div class="input-box"><input type="text" id="regName" placeholder="John Doe"></div></div>
+        <div class="input-group"><label>Email</label><div class="input-box"><input type="email" id="regEmail" placeholder="you@email.com"></div></div>
+        <div class="input-group"><label>Phone</label><div class="input-box"><input type="tel" id="regPhone" placeholder="0712345678"></div></div>
+        <div class="input-group"><label>Password</label><div class="input-box"><input type="password" id="regPassword"></div></div>
+        <button type="button" class="auth-btn" onclick="handleRegister()">Create Account</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<div class="bottom-nav">
+  <div class="nav-item active" onclick="showScreen('home')" id="nav-home">
+    <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+    <span>Home</span>
+  </div>
+  <div class="nav-item" onclick="showScreen('trip-history')" id="nav-history">
+    <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"></path><path d="M13 5v2"></path><path d="M13 17v2"></path><path d="M13 11v2"></path></svg>
+    <span>Trip History</span>
+  </div>
+  <div class="nav-item" onclick="openHelpModal()">
+    <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+    <span>Help</span>
+  </div>
+  <div class="nav-item" onclick="showScreen('profile')" id="nav-profile">
+    <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+    <span>Profile</span>
+  </div>
+</div><!-- HELP MODAL -->
+<div class="modal-bg" id="helpModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 style="font-size: 18px; font-weight: 800;">Help & Support</h3>
+      <button class="close-btn" onclick="closeHelpModal()">✕</button>
+    </div>
+    <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px; text-align: center;">Our support team is available 24/7 to assist you.</p>
+    <a href="https://wa.me/254780097070" target="_blank" class="help-btn wa">
+      <div class="help-icon">💬</div>
+      <div><div style="font-size: 15px;">Chat on WhatsApp</div><div style="font-size: 12px; font-weight: 400; opacity: 0.8;">0780 097 070</div></div>
+    </a>
+    <a href="tel:+254709221544" class="help-btn call">
+      <div class="help-icon">📞</div>
+      <div><div style="font-size: 15px;">Call Support</div><div style="font-size: 12px; font-weight: 400; opacity: 0.8;">0709 221 544</div></div>
+    </a>
+  </div>
+</div>
+
+<!-- CUSTOM PROFESSIONAL ALERT/CONFIRM MODAL -->
+<div class="modal-bg" id="customModal">
+  <div class="modal-content" style="max-width: 320px; text-align: center; padding: 24px;">
+    <div id="customModalIcon" style="font-size: 40px; margin-bottom: 12px;">ℹ️</div>
+    <h3 id="customModalTitle" style="font-size: 18px; font-weight: 800; margin-bottom: 8px;">Notice</h3>
+    <p id="customModalText" style="font-size: 14px; color: var(--text-muted); margin-bottom: 24px; line-height: 1.5;"></p>
+    <div style="display: flex; gap: 10px;">
+      <button id="customModalCancel" class="auth-btn" style="background: var(--border); color: var(--text-main); margin-top: 0; display: none;" onclick="closeCustomModal()">Cancel</button>
+      <button id="customModalOk" class="auth-btn" style="margin-top: 0;" onclick="closeCustomModal()">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- COMBINED CHECKOUT & E-TICKET MODAL -->
+<div class="modal-bg" id="checkoutModal">
+  <div class="modal-content" style="padding: 0; max-width: 400px; background: var(--bg-body); overflow-y: auto; max-height: 90vh;">
+    
+    <!-- 1. E-TICKET SECTION -->
+    <div class="eticket no-select" style="margin-bottom: 0; border-radius: 20px 20px 0 0; border: none;">
+      <div class="eticket-header">
+        <h2>ENA COACH</h2>
+        <p>Official E-Ticket</p>
+        <div class="pending-badge">Pending Payment</div>
+      </div>
+      
+      <div class="eticket-body">
+        <div style="text-align: center; margin-bottom: 16px; margin-top: 8px;">
+          <div class="label" style="font-size: 11px; color: var(--text-muted); font-weight: 700;">BOOKING REFERENCE</div>
+          <div style="font-size: 22px; font-weight: 800; color: var(--primary); letter-spacing: 2px;" id="ticketRef">ENA123456</div>
+        </div>
+
+        <div class="eticket-row">
+          <div>
+            <div class="label">From</div>
+            <div class="value" id="ticketFrom">NAIROBI</div>
+          </div>
+          <div style="text-align: right;">
+            <div class="label">To</div>
+            <div class="value" id="ticketTo">KISUMU</div>
+          </div>
+        </div>
+
+        <div class="eticket-row">
+          <div>
+            <div class="label">Date & Time</div>
+            <div class="value" id="ticketDate">Fri, Oct 23 · 07:00 AM</div>
+          </div>
+          <div style="text-align: right;">
+            <div class="label">Seat(s)</div>
+            <div class="value" id="ticketSeat">A1, A2</div>
+          </div>
+        </div>
+
+        <div class="eticket-row">
+          <div>
+            <div class="label">Passenger(s)</div>
+            <div class="value" id="ticketPax">John Doe</div>
+          </div>
+        </div>
+
+        <div class="eticket-divider"></div>
+
+        <div class="qr-container">
+          <img id="ticketQR" src="" alt="QR Code">
+          <p style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">Valid only after payment is confirmed</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. PAYMENT & NOTICE SECTION -->
+    <div style="padding: 20px; background: white; border-radius: 0 0 20px 20px;">
+      
+      <!-- STRICT NOTICE -->
+      <div class="strict-notice" style="margin-top: 0;">
+        <h4><span>⚠️</span> STRICT NOTICE</h4>
+        <p>This ticket is <b>NOT VALID</b> until payment is made. Please pay via M-Pesa below, then click the WhatsApp button to confirm your booking.</p>
+      </div>
+
+      <!-- PAYMENT DETAILS -->
+      <div class="payment-details-box" style="margin-top: 0; border-color: var(--primary);">
+          <div class="payment-row">
+              <span id="payMethodLabel">Paybill Number</span>
+              <strong id="payMethodValue">756756</strong>
+              <button class="copy-btn" onclick="copyText(document.getElementById('payMethodValue').innerText)">Copy</button>
+          </div>
+          <div class="payment-row" id="payAccountRow">
+              <span>Account Number</span>
+              <strong id="payAccountValue">1769003</strong>
+              <button class="copy-btn" onclick="copyText(document.getElementById('payAccountValue').innerText)">Copy</button>
+          </div>
+          <div class="payment-row">
+              <span>Amount to Pay</span>
+              <strong id="displayAmount" style="color: var(--primary); font-size: 18px;">KES 0</strong>
+          </div>
+      </div>
+
+      <button class="auth-btn" style="margin-top: 20px; background: #25D366; box-shadow: 0 4px 10px rgba(37,211,102,0.3);" onclick="executeWhatsAppPayment()">
+          I have paid - Send Confirmation
+      </button>
+      
+      <button type="button" style="width: 100%; background: none; border: none; color: var(--text-muted); font-size: 13px; margin-top: 12px; cursor: pointer;" onclick="closeCheckoutModal()">Cancel Booking</button>
+    </div>
+  </div>
+</div><script>
+  // Prevent long-press copying of the ticket
+  document.addEventListener('contextmenu', event => event.preventDefault());
+
+  // --- CUSTOM MODAL LOGIC ---
+  function showAlert(message, title = 'Notice', icon = 'ℹ️') {
+      document.getElementById('customModalTitle').innerText = title;
+      document.getElementById('customModalText').innerText = message;
+      document.getElementById('customModalIcon').innerText = icon;
+      document.getElementById('customModalCancel').style.display = 'none';
+      document.getElementById('customModalOk').onclick = closeCustomModal;
+      document.getElementById('customModal').style.display = 'flex';
+  }
+
+  function showConfirm(message, title = 'Confirm', onConfirm, icon = '❓') {
+      document.getElementById('customModalTitle').innerText = title;
+      document.getElementById('customModalText').innerText = message;
+      document.getElementById('customModalIcon').innerText = icon;
+      document.getElementById('customModalCancel').style.display = 'block';
+      document.getElementById('customModalOk').onclick = () => {
+          if (onConfirm) onConfirm();
+          closeCustomModal();
+      };
+      document.getElementById('customModal').style.display = 'flex';
+  }
+
+  function closeCustomModal() { document.getElementById('customModal').style.display = 'none'; }
+
+  // --- PAYMENT MODAL LOGIC ---
+  function copyText(text) {
+      navigator.clipboard.writeText(text).then(() => {
+          showAlert(text + " copied to clipboard!", "Copied", "📋");
+      });
+  }
+
+  function closeCheckoutModal() {
+      document.getElementById('checkoutModal').style.display = 'none';
+      showScreen('trip-history');
+      renderTripHistory('pending', document.querySelector('.th-tab'));
+  }
+
+  function loadPaymentSettings() {
+      let settings = JSON.parse(localStorage.getItem('enaPaymentSettings')) || {
+          type: 'paybill', number: '756756', account: '1769003'
+      };
+
+      const label = document.getElementById('payMethodLabel');
+      const value = document.getElementById('payMethodValue');
+      const accountRow = document.getElementById('payAccountRow');
+      const accountValue = document.getElementById('payAccountValue');
+
+      if (settings.type === 'paybill') {
+          label.innerText = 'Paybill Number';
+          value.innerText = settings.number;
+          accountRow.style.display = 'flex';
+          accountValue.innerText = settings.account;
+      } else if (settings.type === 'till') {
+          label.innerText = 'Till Number';
+          value.innerText = settings.number;
+          accountRow.style.display = 'none';
+      } else if (settings.type === 'phone') {
+          label.innerText = 'Phone Number';
+          value.innerText = settings.number;
+          accountRow.style.display = 'none';
+      }
+  }
+
+  // --- DATA & ROUTE GENERATION ---
+  let ALL_ROUTES = [];
+  let matchedBuses = []; 
+  let currentRoute = { from: 'Nairobi', to: 'Kisumu', date: '', baseFare: 1700 };
+  let selectedSeats = [];
+  let selectedBus = null;
+  let currentBookingRef = "";
+  let SEAT_PRICES = { normal: 1700, biz: 2200, vip: 2700 };
+
+  function generateBidirectionalRoutes(originalRoutes) {
+    const finalRoutes = [];
+    const routeMap = new Set(); 
+
+    originalRoutes.forEach(route => {
+        const forwardKey = `${route.origin.toLowerCase().trim()}-${route.destination.toLowerCase().trim()}`;
+        if (!routeMap.has(forwardKey)) {
+            finalRoutes.push(route);
+            routeMap.add(forwardKey);
+        }
+
+        const reverseKey = `${route.destination.toLowerCase().trim()}-${route.origin.toLowerCase().trim()}`;
+        if (!routeMap.has(reverseKey)) {
+            const reverseStops = route.stops ? [...route.stops].reverse() : [];
+            finalRoutes.push({
+                id: route.id + "-REV",
+                origin: route.destination,
+                destination: route.origin,
+                fare_kes: route.fare_kes,
+                stops: reverseStops
+            });
+            routeMap.add(reverseKey);
+        }
+    });
+    return finalRoutes;
+  }
+
+  async function loadRoutes() {
+    try {
+      const response = await fetch('routes.json'); 
+      const data = await response.json();
+      if(data && data.routes) {
+        ALL_ROUTES = generateBidirectionalRoutes(data.routes);
+        populateDatalist();
+      }
+    } catch (error) {
+      console.error("Failed to load routes.json", error);
+      ALL_ROUTES = [
+        { origin: "Nairobi", destination: "Kisumu", fare_kes: 1700 },
+        { origin: "Kisumu", destination: "Nairobi", fare_kes: 1700 }
+      ];
+      populateDatalist();
+    }
+  }
+
+  function populateDatalist() {
+    const cities = new Set();
+    ALL_ROUTES.forEach(route => {
+        if(route.origin) cities.add(route.origin);
+        if(route.destination) cities.add(route.destination);
+        if(route.stops) route.stops.forEach(s => cities.add(s));
+    });
+    document.getElementById('cityList').innerHTML = Array.from(cities).sort().map(city => `<option value="${city}">`).join('');
+  }
+
+  // --- TELEGRAM ALERT FUNCTION ---
+  function sendTelegramAlert(ref, passengers, amount) {
+    let tgSettings = JSON.parse(localStorage.getItem('enaTgSettings')) || { token: '', chatId: '' };
+    if (!tgSettings.token || !tgSettings.chatId) return; // Exit if not configured
+
+    const text = `🚌 *NEW BOOKING ALERT*\n\n*Ref:* ${ref}\n*Passengers:* ${passengers}\n*Route:* ${currentRoute.from} → ${currentRoute.to}\n*Date:* ${formatDateString(currentRoute.date)}\n*Time:* ${selectedBus.departure}\n*Amount:* KES ${amount.toLocaleString()}\n\n_Check WhatsApp for payment confirmation._`;
+
+    const url = `https://api.telegram.org/bot${tgSettings.token}/sendMessage`;
+    
+    fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            chat_id: tgSettings.chatId,
+            text: text,
+            parse_mode: 'Markdown'
+        })
+    }).catch(err => console.error("Telegram Error:", err));
+  }// --- NAVIGATION & HELPERS ---
+function showScreen(screenId) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + screenId).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  if(['home', 'results', 'stops', 'seats', 'passenger'].includes(screenId)) document.getElementById('nav-home').classList.add('active');
+  else if(screenId === 'profile') document.getElementById('nav-profile').classList.add('active');
+  else if(screenId === 'trip-history') document.getElementById('nav-history').classList.add('active');
+  window.scrollTo(0,0);
+}
+
+function openHelpModal() { document.getElementById('helpModal').style.display = 'flex'; }
+function closeHelpModal() { document.getElementById('helpModal').style.display = 'none'; }
+
+function formatDateString(dateString) {
+  if (!dateString) return '';
+  const date = new Date(dateString + 'T12:00:00'); 
+  const options = { weekday: 'short', month: 'short', day: 'numeric' };
+  return date.toLocaleDateString('en-US', options);
+}
+
+function updateDisplayDate(inputElement, displayId) {
+  const displayDiv = document.getElementById(displayId);
+  if (inputElement.value) {
+    displayDiv.innerText = formatDateString(inputElement.value);
+    displayDiv.classList.remove('empty');
+  } else {
+    displayDiv.innerText = displayId === 'displayReturnDate' ? 'Tap to add' : '';
+    displayDiv.classList.add('empty');
+  }
+  if (displayId === 'displayDepartureDate') {
+    document.querySelectorAll('.date-pill').forEach(p => p.classList.remove('active'));
+  }
+}
+
+function setQuickDate(offset, btnElement) {
+  const d = new Date();
+  if (offset === 'friday') {
+    const day = d.getDay(); const diff = (5 - day + 7) % 7; d.setDate(d.getDate() + (diff === 0 ? 7 : diff)); 
+  } else if (offset === 'saturday') {
+    const day = d.getDay(); const diff = (6 - day + 7) % 7; d.setDate(d.getDate() + (diff === 0 ? 7 : diff)); 
+  } else { d.setDate(d.getDate() + offset); }
+
+  const yyyy = d.getFullYear(); const mm = String(d.getMonth() + 1).padStart(2, '0'); const dd = String(d.getDate()).padStart(2, '0');
+  const dateStr = `${yyyy}-${mm}-${dd}`;
+  document.getElementById('searchDate').value = dateStr;
+  
+  const displayDiv = document.getElementById('displayDepartureDate');
+  displayDiv.innerText = formatDateString(dateStr);
+  displayDiv.classList.remove('empty');
+
+  document.querySelectorAll('.date-pill').forEach(p => p.classList.remove('active'));
+  if (btnElement) btnElement.classList.add('active');
+}
+
+window.addEventListener('DOMContentLoaded', () => { setQuickDate(0, document.querySelector('.date-pill')); });
+
+function quickSearch(from, to) {
+  document.getElementById('searchFrom').value = from;
+  document.getElementById('searchTo').value = to;
+  searchRoutes();
+}
+
+function searchRoutes() {
+  currentRoute.from = document.getElementById('searchFrom').value.trim() || "Nairobi";
+  currentRoute.to = document.getElementById('searchTo').value.trim() || "Kisumu";
+  currentRoute.date = document.getElementById('searchDate').value;
+
+  const fromSearch = currentRoute.from.toLowerCase();
+  const toSearch = currentRoute.to.toLowerCase();
+  const exactRoute = ALL_ROUTES.find(r => r.origin.toLowerCase() === fromSearch && r.destination.toLowerCase() === toSearch);
+  
+  // CHECK FOR FARE OVERRIDE
+  let fareSettings = JSON.parse(localStorage.getItem('enaFareSettings')) || { override: 0 };
+  let baseFare = exactRoute ? exactRoute.fare_kes : 1700;
+  if (fareSettings.override > 0) {
+      baseFare = fareSettings.override; 
+  }
+  currentRoute.baseFare = baseFare;
+
+  document.getElementById('headerRoute').innerText = `${currentRoute.from.toUpperCase()} → ${currentRoute.to.toUpperCase()}`;
+  document.getElementById('resultsDate').innerText = `${formatDateString(currentRoute.date) || currentRoute.date} · One Way`;
+  
+  const list = document.getElementById('resultsList');
+  
+  if (!exactRoute) {
+      list.innerHTML = `<div class="empty-state"><div class="icon">🚌</div><h3>No routes found</h3><p>We could not find a direct route for ${currentRoute.from} to ${currentRoute.to}.</p></div>`;
+      showScreen('results'); return;
+  }
+
+  // ADDED NIGHT BUSES
+  matchedBuses = [
+      { id: 1, departure: "07:00 AM", arrival: "01:00 PM", duration: "6h 00m", price: baseFare, seats: 32 },
+      { id: 2, departure: "08:30 AM", arrival: "02:30 PM", duration: "6h 00m", price: baseFare, seats: 16 },
+      { id: 3, departure: "10:00 AM", arrival: "04:00 PM", duration: "6h 00m", price: baseFare, seats: 8 },
+      { id: 4, departure: "08:00 PM", arrival: "02:00 AM", duration: "6h 00m", price: baseFare, seats: 24 },
+      { id: 5, departure: "10:30 PM", arrival: "04:30 AM", duration: "6h 00m", price: baseFare, seats: 12 }
+  ];
+
+  list.innerHTML = matchedBuses.map(bus => `
+    <div class="bus-card">
+      <div class="bus-top">
+        <div><div class="bus-time">${bus.departure}</div><div class="bus-loc">${currentRoute.from.toUpperCase()}</div></div>
+        <div class="bus-duration"><span>${bus.duration}</span><div class="line"></div><span>Direct</span></div>
+        <div style="text-align: right;"><div class="bus-time">${bus.arrival}</div><div class="bus-loc">${currentRoute.to.toUpperCase()}</div></div>
+      </div>
+      <div class="bus-company">
+        <div class="bus-info">
+          <img src="https://res.cloudinary.com/yvzp2mhd/image/upload/v1792239650/WA_1792239223964.jpg" class="bus-logo">
+          <div><div class="bus-name">ENA COACH</div><div class="seats-left">● ${bus.seats} seats left</div></div>
+        </div>
+        <div style="display: flex; align-items: center;">
+          <div class="price-tag">KES ${bus.price}</div>
+          <button class="btn-view-seats" onclick="openStopsScreen(${bus.id})">View Seats</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+  showScreen('results');
+}
+
+// --- STOPS LOGIC ---
+let currentBoardingStop = null;
+let currentDroppingStop = null;
+let currentStopTab = 'boarding';
+
+function openStopsScreen(busId) {
+  selectedBus = matchedBuses.find(b => b.id === busId);
+  if (!selectedBus) return; 
+
+  document.getElementById('stopsDate').innerText = formatDateString(currentRoute.date) || currentRoute.date;
+  document.getElementById('stopsFrom').innerText = currentRoute.from.toUpperCase();
+  document.getElementById('stopsTo').innerText = currentRoute.to.toUpperCase();
+  document.getElementById('seatHeaderRoute').innerText = `${currentRoute.from.toUpperCase()} → ${currentRoute.to.toUpperCase()}`;
+  document.getElementById('paxHeaderRoute').innerText = `${currentRoute.from.toUpperCase()} → ${currentRoute.to.toUpperCase()}`;
+  
+  // Force ONLY ONE stop, using the EXACT time of the selected bus
+  let boardingStops = [{ id: 'b1', name: currentRoute.from + ' Main Stage', desc: 'Central Pickup Point', time: selectedBus.departure, date: currentRoute.date }];
+  let droppingStops = [{ id: 'd1', name: currentRoute.to + ' Main Stage', desc: 'Main Terminal', time: selectedBus.arrival, date: currentRoute.date }];
+
+  window.currentStopsData = { boarding: boardingStops, dropping: droppingStops };
+  currentBoardingStop = null; currentDroppingStop = null; currentStopTab = 'boarding';
+  
+  switchStopTab('boarding'); 
+  showScreen('stops');
+}
+
+function switchStopTab(tab) {
+  currentStopTab = tab;
+  document.getElementById('tab-boarding').classList.toggle('active', tab === 'boarding');
+  document.getElementById('tab-dropping').classList.toggle('active', tab === 'dropping');
+  
+  const list = document.getElementById('stopsList');
+  const data = window.currentStopsData[tab];
+  
+  list.innerHTML = data.map(stop => {
+    const isSelected = (tab === 'boarding' && currentBoardingStop === stop.id) || (tab === 'dropping' && currentDroppingStop === stop.id);
+    return `
+      <div class="stop-card ${isSelected ? 'selected' : ''}" onclick="selectStop('${tab}', '${stop.id}')">
+        <div class="stop-radio"></div>
+        <div class="stop-details">
+          <div class="stop-name">${stop.name}</div>
+          <div class="stop-desc">📍 ${stop.desc}</div>
+        </div>
+        <div class="stop-time">
+          <div class="time">${stop.time}</div>
+          <div class="date">${formatDateString(stop.date) || stop.date}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+  updateStopButton();
+}
+
+function selectStop(tab, id) {
+  if (tab === 'boarding') currentBoardingStop = id; else currentDroppingStop = id;
+  switchStopTab(tab);
+}
+
+function updateStopButton() {
+  const btn = document.getElementById('btnSelectStop');
+  btn.classList.remove('btn-disabled');
+  if (currentStopTab === 'boarding') btn.innerText = "Next: Select Dropping Stop";
+  else btn.innerText = "Next: Select Seats";
+}
+
+function goToSeats() {
+  if (currentStopTab === 'boarding') {
+    if (!currentBoardingStop) return showAlert("Please tap on a boarding stop to select it first.", "Selection Required", "📍");
+    switchStopTab('dropping');
+  } else {
+    if (!currentDroppingStop) return showAlert("Please tap on a dropping stop to select it first.", "Selection Required", "📍");
+    renderSeats(); showScreen('seats');
+  }
+}  
+
+function switchSeatTab(tab, el) {
+  document.querySelectorAll('.seat-header-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-layout').style.display = 'none';
+  document.getElementById('tab-details').style.display = 'none';
+  document.getElementById('tab-terms').style.display = 'none';
+  document.getElementById('tab-' + tab).style.display = 'block';
+}
+
+function renderSeats() {
+  const base = currentRoute.baseFare;
+  SEAT_PRICES.normal = base; SEAT_PRICES.biz = base + 500; SEAT_PRICES.vip = base + 1000;
+
+  const grid = document.getElementById('seatGrid');
+  grid.innerHTML = ''; selectedSeats = []; updateSeatSummary();
+
+  for (let i = 1; i <= 40; i++) {
+    const isSold = [2, 5, 9, 14, 20, 25, 31].includes(i); 
+    let type = 'normal'; if (i <= 8) type = 'vip'; else if (i <= 16) type = 'biz';
+    
+    const seatDiv = document.createElement('div');
+    seatDiv.className = `seat ${isSold ? 'sold' : type}`;
+    const col = ((i - 1) % 4) + 1;
+    const row = String.fromCharCode(65 + Math.floor((i - 1) / 4));
+    seatDiv.innerText = `${row}${col}`;
+    
+    if (!isSold) seatDiv.onclick = () => toggleSeat(seatDiv, type, SEAT_PRICES[type], `${row}${col}`);
+    grid.appendChild(seatDiv);
+  }
+}
+
+function toggleSeat(el, type, price, label) {
+  if (el.classList.contains('selected')) {
+    el.classList.remove('selected'); el.classList.add(type);
+    selectedSeats = selectedSeats.filter(s => s.label !== label);
+  } else {
+    if (selectedSeats.length >= 6) return showAlert("You can only select a maximum of 6 seats.", "Limit Reached", "⚠️");
+    el.classList.remove(type); el.classList.add('selected');
+    selectedSeats.push({ label, type, price });
+  }
+  updateSeatSummary();
+}
+
+function updateSeatSummary() {
+  document.getElementById('selectedCount').innerText = selectedSeats.length;
+  const total = selectedSeats.reduce((sum, seat) => sum + seat.price, 0);
+  document.getElementById('totalFare').innerText = `KES ${total.toLocaleString()}`;
+  }  // --- PASSENGER DETAILS & CHECKOUT ---
+  function goToPassengerScreen() {
+    if (selectedSeats.length === 0) return showAlert("Please select at least one seat to proceed.", "No Seats Selected", "💺");
+    
+    document.getElementById('paxHeaderDate').innerText = formatDateString(currentRoute.date) || currentRoute.date;
+    document.getElementById('paxHeaderCount').innerText = `${selectedSeats.length} seat(s)`;
+    document.getElementById('paxHeaderTime').innerText = selectedBus.departure;
+
+    const container = document.getElementById('passengersContainer');
+    container.innerHTML = ""; 
+    const user = JSON.parse(localStorage.getItem('enaUser')) || {};
+
+    selectedSeats.forEach((seat, index) => {
+      const paxNum = index + 1;
+      const defaultName = (index === 0 && user.name) ? user.name.split(' ') : ['', ''];
+      const defaultFname = defaultName[0] || '';
+      const defaultLname = defaultName[1] || '';
+      const defaultEmail = (index === 0 && user.email) ? user.email : '';
+      const defaultPhone = (index === 0 && user.phone) ? user.phone.replace(/^254|^0/, '') : '';
+
+      container.innerHTML += `
+        <div class="passenger-card">
+          <div class="passenger-card-header">
+            <div class="passenger-badge">${paxNum}</div>
+            <div>
+              <div class="passenger-title">Passenger ${paxNum}</div>
+              <div class="passenger-subtitle">of ${selectedSeats.length} passenger(s)</div>
+            </div>
+          </div>
+          <div class="passenger-form-section">
+            <div class="passenger-section-title"><span class="icon">👤</span> Full Name</div>
+            <div class="p-input-row">
+              <div class="p-input-group"><div class="p-input-box"><input type="text" id="p${paxNum}_fname" placeholder="First Name" value="${defaultFname}" required></div></div>
+              <div class="p-input-group"><div class="p-input-box"><input type="text" id="p${paxNum}_lname" placeholder="Last Name" value="${defaultLname}" required></div></div>
+            </div>
+          </div>
+          <div class="passenger-form-section">
+            <div class="passenger-section-title"><span class="icon">✉️</span> Contact Details</div>
+            <div class="p-input-group"><div class="p-input-box"><input type="email" id="p${paxNum}_email" placeholder="Email Address" value="${defaultEmail}"></div></div>
+            <div class="p-input-group">
+              <div class="p-input-box">
+                <div class="prefix">🇰🇪 +254</div>
+                <input type="tel" id="p${paxNum}_phone" placeholder="712345678" value="${defaultPhone}" required>
+              </div>
+            </div>
+          </div>
+          <div class="passenger-form-section">
+            <div class="passenger-section-title"><span class="icon">🪪</span> Identity & Nationality</div>
+            <div class="p-input-group"><div class="p-input-box"><input type="text" id="p${paxNum}_id" placeholder="Enter identity number"></div></div>
+            <div class="p-input-row">
+              <div class="p-input-group"><label>Gender</label><div class="p-input-box"><select id="p${paxNum}_gender"><option>Male</option><option>Female</option></select></div></div>
+              <div class="p-input-group"><label>Nationality</label><div class="p-input-box"><select id="p${paxNum}_nat"><option>Kenyan</option></select></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="seat-summary-card">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div class="seat-icon-box">💺</div>
+            <div class="seat-info-text">
+              <div class="seat-name">Seat ${seat.label} <span class="seat-type">${seat.type.toUpperCase()}</span></div>
+              <div class="seat-price">KES ${seat.price.toLocaleString()}</div>
+            </div>
+          </div>
+        </div>
+      `;
+    });
+
+    showScreen('passenger');
+  }
+
+  function validateAndShowPayment() {
+    for (let i = 1; i <= selectedSeats.length; i++) {
+      const fname = document.getElementById(`p${i}_fname`).value.trim();
+      const lname = document.getElementById(`p${i}_lname`).value.trim();
+      const phone = document.getElementById(`p${i}_phone`).value.trim();
+
+      if (!fname || !lname || !phone) {
+        showAlert(`Please fill in First Name, Last Name, and Phone for Passenger ${i}.`, "Missing Details", "⚠️");
+        return;
+      }
+    }
+
+    // 1. Generate Booking Ref & Total
+    currentBookingRef = 'ENA' + Math.floor(100000 + Math.random() * 900000);
+    let totalPrice = selectedSeats.reduce((sum, s) => sum + s.price, 0);
+    let passengerNamesList = [];
+
+    for (let i = 1; i <= selectedSeats.length; i++) {
+      const fname = document.getElementById(`p${i}_fname`).value.trim();
+      const lname = document.getElementById(`p${i}_lname`).value.trim();
+      passengerNamesList.push(`${fname} ${lname}`);
+    }
+
+    // 2. Save Booking to Local Storage
+    const user = JSON.parse(localStorage.getItem('enaUser')) || {};
+    const currentUserEmail = user.email || 'guest@enacoach.com';
+    const newBooking = {
+        ref: currentBookingRef, from: currentRoute.from, to: currentRoute.to,
+        date: formatDateString(currentRoute.date) || currentRoute.date, seat: selectedSeats.map(s => s.label).join(', '), 
+        price: totalPrice, time: selectedBus.departure, status: 'Pending',
+        userEmail: currentUserEmail
+    };
+    let pastTrips = JSON.parse(localStorage.getItem('enaBookings')) || [];
+    pastTrips.push(newBooking);
+    localStorage.setItem('enaBookings', JSON.stringify(pastTrips));
+
+    // 3. Send Telegram Alert
+    sendTelegramAlert(currentBookingRef, passengerNamesList.join(', '), totalPrice);
+
+    // 4. Populate the E-Ticket
+    document.getElementById('ticketRef').innerText = currentBookingRef;
+    document.getElementById('ticketFrom').innerText = currentRoute.from.toUpperCase();
+    document.getElementById('ticketTo').innerText = currentRoute.to.toUpperCase();
+    document.getElementById('ticketDate').innerText = `${formatDateString(currentRoute.date) || currentRoute.date} · ${selectedBus.departure}`;
+    document.getElementById('ticketSeat').innerText = selectedSeats.map(s => s.label).join(', ');
+    document.getElementById('ticketPax').innerText = passengerNamesList.join(', ');
+    document.getElementById('ticketQR').src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${currentBookingRef}`;
+
+    // 5. Populate Payment Details
+    document.getElementById('displayAmount').innerText = `KES ${totalPrice.toLocaleString()}`;
+    loadPaymentSettings(); 
+
+    // 6. Show the Modal
+    document.getElementById('checkoutModal').style.display = 'flex';
+  }
+
+  function executeWhatsAppPayment() {
+    let passengerDetailsText = '';
+    let totalPrice = selectedSeats.reduce((sum, s) => sum + s.price, 0);
+    
+    for (let i = 1; i <= selectedSeats.length; i++) {
+      const fname = document.getElementById(`p${i}_fname`).value.trim();
+      const lname = document.getElementById(`p${i}_lname`).value.trim();
+      const phone = document.getElementById(`p${i}_phone`).value.trim();
+      const id = document.getElementById(`p${i}_id`).value.trim();
+      const seatLabel = selectedSeats[i-1].label;
+      
+      passengerDetailsText += `\n👤 *Passenger ${i}*\nName: ${fname} ${lname}\nPhone: +254 ${phone}\nID: ${id || 'N/A'}\nSeat: ${seatLabel}\n`;
+    }
+
+    let settings = JSON.parse(localStorage.getItem('enaPaymentSettings')) || { type: 'paybill', number: '756756', account: '1769003' };
+    let paymentText = '';
+    
+    if (settings.type === 'paybill') {
+        paymentText = `*PAYMENT MADE VIA M-PESA PAYBILL*\nPaybill: ${settings.number}\nAccount: ${settings.account}`;
+    } else if (settings.type === 'till') {
+        paymentText = `*PAYMENT MADE VIA M-PESA TILL*\nTill Number: ${settings.number}`;
+    } else {
+        paymentText = `*PAYMENT MADE VIA M-PESA SEND MONEY*\nPhone: ${settings.number}`;
+    }
+
+    const waText = 
+      '*ENA COACH - PAYMENT CONFIRMATION*\n' +
+      'Ref: *' + currentBookingRef + '*\n' +
+      '-----------------------------------\n\n' +
+      '*TRAVEL DETAILS*\n' +
+      'From: ' + currentRoute.from + '\n' +
+      'To: ' + currentRoute.to + '\n' +
+      'Date: ' + (formatDateString(currentRoute.date) || currentRoute.date) + '\n' +
+      'Time: ' + selectedBus.departure + '\n\n' +
+      '*PASSENGERS*\n' +
+      passengerDetailsText + '\n' +
+      '*TOTAL PAID*\n' +
+      'KSh ' + totalPrice.toLocaleString() + '\n\n' +
+      paymentText + '\n\n' + 
+      '-----------------------------------\n' +
+      'I have completed the payment. Here is my confirmation.';
+
+    window.open('https://wa.me/254780097070?text=' + encodeURIComponent(waText), '_blank');
+    
+    // Close modal and go to trip history
+    closeCheckoutModal();
+  }
+
+  function renderTripHistory(filterStatus, btnElement) {
+    document.querySelectorAll('.th-tab').forEach(t => t.classList.remove('active'));
+    if(btnElement) btnElement.classList.add('active');
+
+    const list = document.getElementById('tripHistoryList');
+    const user = JSON.parse(localStorage.getItem('enaUser')) || {};
+    const currentUserEmail = user.email || 'guest@enacoach.com';
+
+    let allBookings = JSON.parse(localStorage.getItem('enaBookings')) || [];
+    let bookings = allBookings.filter(b => b.userEmail === currentUserEmail);
+
+    if(filterStatus !== 'all') bookings = bookings.filter(b => b.status.toLowerCase() === filterStatus);
+    bookings.reverse();
+
+    if(bookings.length === 0) {
+      list.innerHTML = `<div class="empty-state"><div class="icon">🎫</div><h3>No ${filterStatus} trips found</h3><p>Bookings made on this account will appear here.</p></div>`;
+      return;
+    }
+
+    list.innerHTML = bookings.map(b => `
+      <div class="ticket-card">
+        <div class="ticket-header">
+          <div><div style="font-size: 10px; color: var(--text-muted); text-transform: uppercase;">Ticket ID</div><div class="ticket-id">${b.ref}</div></div>
+          <div class="status-badge">${b.status}</div>
+        </div>
+        <div class="ticket-route">
+          <div><div class="ticket-time">${b.time}</div><div class="ticket-city">${b.from.toUpperCase()}</div><div style="font-size:12px; font-weight:600; margin-top:4px;">💺 ${b.seat}</div></div>
+          <div style="color: var(--text-muted); font-size: 20px;">🚌</div>
+          <div style="text-align: right;"><div class="ticket-time">Arrival</div><div class="ticket-city">${b.to.toUpperCase()}</div></div>
+        </div>
+        <div class="ticket-footer">
+          <div style="font-size: 12px; font-weight: 600; color: var(--text-muted);">📅 ${b.date}</div>
+          <div class="ticket-price">KES ${b.price.toLocaleString()}</div>
+        </div>
+        <button class="ticket-btn" onclick="showAlert('Ticket details for ${b.ref} will be available here.', 'Ticket Details', '🎫')">View Ticket Details</button>
+      </div>
+    `).join('');
+  }
+
+  function checkAuth() {
+    const user = JSON.parse(localStorage.getItem('enaUser'));
+    if (user) {
+      document.getElementById('profile-logged-in').style.display = 'block';
+      document.getElementById('auth-container').style.display = 'none';
+      document.getElementById('profileName').innerText = user.name;
+      document.getElementById('profileEmail').innerText = user.email;
+      document.getElementById('profileAvatar').innerText = user.name.charAt(0).toUpperCase();
+    } else {
+      document.getElementById('profile-logged-in').style.display = 'none';
+      document.getElementById('auth-container').style.display = 'block';
+    }
+  }
+
+  function switchAuthTab(tab) {
+    document.getElementById('tab-login').classList.toggle('active', tab === 'login');
+    document.getElementById('tab-register').classList.toggle('active', tab === 'register');
+    document.getElementById('form-login').style.display = tab === 'login' ? 'block' : 'none';
+    document.getElementById('form-register').style.display = tab === 'register' ? 'block' : 'none';
+  }
+
+  function handleRegister() {
+    const name = document.getElementById('regName').value.trim();
+    const email = document.getElementById('regEmail').value.trim();
+    const phone = document.getElementById('regPhone').value.trim();
+    const password = document.getElementById('regPassword').value.trim();
+    
+    if (!name || !email || !phone || !password) {
+        return showAlert("Please fill in all fields to register.", "Missing Information", "⚠️");
+    }
+    
+    localStorage.setItem('enaUser', JSON.stringify({ name, email, phone, password }));
+    showAlert("Account created successfully! Welcome to ENA Coach.", "Success", "✅"); 
+    checkAuth(); 
+  }
+
+  function handleLogin() {
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value.trim();
+    const savedUser = JSON.parse(localStorage.getItem('enaUser'));
+    
+    if (!savedUser) return showAlert("No account found. Please register first.", "Account Not Found", "⚠️");
+    if (email !== savedUser.email || password !== savedUser.password) return showAlert("Incorrect email or password. Please try again.", "Login Failed", "❌");
+    
+    showAlert("Welcome back, " + savedUser.name + "!", "Login Successful", "👋"); 
+    checkAuth();
+  }
+
+  function signOut() { 
+    showConfirm("Are you sure you want to sign out?", "Sign Out", () => {
+        localStorage.removeItem('enaUser'); checkAuth(); 
+    }, "🚪");
+  }
+
+  checkAuth();
+  loadRoutes();
+</script>
+</body>
+</html>

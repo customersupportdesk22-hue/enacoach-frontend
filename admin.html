@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ENA Coach - Admin Settings</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+  body { background: #F9FAFB; color: #1A1A1A; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+  .card { background: white; width: 100%; max-width: 450px; border-radius: 16px; padding: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+  h1 { font-size: 22px; font-weight: 800; color: #FF5E00; margin-bottom: 8px; text-align: center; }
+  p { font-size: 13px; color: #6B7280; text-align: center; margin-bottom: 24px; }
+  .form-group { margin-bottom: 16px; }
+  label { display: block; font-size: 12px; font-weight: 700; color: #6B7280; margin-bottom: 6px; }
+  input, select { width: 100%; padding: 12px; border: 1px solid #E5E7EB; border-radius: 8px; font-size: 14px; font-weight: 500; outline: none; background: #F9FAFB; }
+  input:focus, select:focus { border-color: #FF5E00; background: white; }
+  .btn { width: 100%; padding: 14px; background: #FF5E00; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 10px; }
+  .success-msg { display: none; background: #DCFCE7; color: #166534; padding: 12px; border-radius: 8px; font-size: 13px; font-weight: 600; text-align: center; margin-bottom: 16px; }
+  h3 { font-size: 16px; margin: 20px 0 10px; color: #1A1A1A; }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <h1>Admin Settings</h1>
+  <p>Manage Payments, Fares & Notifications</p>
+  
+  <div id="successMsg" class="success-msg">✅ Settings saved successfully!</div>
+
+  <h3>1. Payment Details</h3>
+  <div class="form-group">
+    <label>Payment Method</label>
+    <select id="payType" onchange="toggleAccountField()">
+      <option value="paybill">M-Pesa Paybill</option>
+      <option value="till">M-Pesa Buy Goods (Till)</option>
+      <option value="phone">M-Pesa Send Money (Phone)</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label id="numberLabel">Paybill Number</label>
+    <input type="text" id="payNumber" placeholder="e.g. 756756">
+  </div>
+  <div class="form-group" id="accountGroup">
+    <label>Account Number</label>
+    <input type="text" id="payAccount" placeholder="e.g. 1769003">
+  </div>
+
+  <h3>2. Telegram Notifications</h3>
+  <div class="form-group">
+    <label>Telegram Bot Token</label>
+    <input type="text" id="tgToken" placeholder="e.g. 123456789:ABCdef...">
+  </div>
+  <div class="form-group">
+    <label>Your Telegram Chat ID</label>
+    <input type="text" id="tgChatId" placeholder="e.g. 987654321">
+  </div>
+
+  <h3>3. Fare Override</h3>
+  <div class="form-group">
+    <label>Global Base Fare (Set to 0 to use routes.json)</label>
+    <input type="number" id="fareOverride" placeholder="e.g. 0">
+  </div>
+
+  <button class="btn" onclick="saveSettings()">Save All Settings</button>
+</div>
+
+<script>
+  window.onload = function() {
+    let pay = JSON.parse(localStorage.getItem('enaPaymentSettings')) || { type: 'paybill', number: '756756', account: '1769003' };
+    let tg = JSON.parse(localStorage.getItem('enaTgSettings')) || { token: '', chatId: '' };
+    let fare = JSON.parse(localStorage.getItem('enaFareSettings')) || { override: 0 };
+    
+    document.getElementById('payType').value = pay.type;
+    document.getElementById('payNumber').value = pay.number;
+    document.getElementById('payAccount').value = pay.account;
+    document.getElementById('tgToken').value = tg.token;
+    document.getElementById('tgChatId').value = tg.chatId;
+    document.getElementById('fareOverride').value = fare.override;
+    
+    toggleAccountField();
+  };
+
+  function toggleAccountField() {
+    const type = document.getElementById('payType').value;
+    const accountGroup = document.getElementById('accountGroup');
+    const numberLabel = document.getElementById('numberLabel');
+
+    if (type === 'paybill') {
+      accountGroup.style.display = 'block';
+      numberLabel.innerText = 'Paybill Number';
+    } else if (type === 'till') {
+      accountGroup.style.display = 'none';
+      numberLabel.innerText = 'Till Number';
+    } else {
+      accountGroup.style.display = 'none';
+      numberLabel.innerText = 'Phone Number';
+    }
+  }
+
+  function saveSettings() {
+    const type = document.getElementById('payType').value;
+    const number = document.getElementById('payNumber').value.trim();
+    const account = document.getElementById('payAccount').value.trim();
+    const token = document.getElementById('tgToken').value.trim();
+    const chatId = document.getElementById('tgChatId').value.trim();
+    const override = parseFloat(document.getElementById('fareOverride').value) || 0;
+
+    if (!number) return alert("Please enter the payment number.");
+
+    localStorage.setItem('enaPaymentSettings', JSON.stringify({ type, number, account }));
+    localStorage.setItem('enaTgSettings', JSON.stringify({ token, chatId }));
+    localStorage.setItem('enaFareSettings', JSON.stringify({ override }));
+
+    document.getElementById('successMsg').style.display = 'block';
+    setTimeout(() => { document.getElementById('successMsg').style.display = 'none'; }, 3000);
+  }
+</script>
+</body>
+</html>
