@@ -68,14 +68,23 @@
 <script>
   window.onload = function() {
     let pay = JSON.parse(localStorage.getItem('enaPaymentSettings')) || { type: 'paybill', number: '756756', account: '1769003' };
-    let tg = JSON.parse(localStorage.getItem('enaTgSettings')) || { token: '', chatId: '' };
+    
+    // CHANGED: Added your Token and Chat ID as the default fallback values
+    let tg = JSON.parse(localStorage.getItem('enaTgSettings')) || { 
+        token: '8214524284:AAHVE1mcJZ-tpT2Bo3C-24bIoIzVgitnOiY', 
+        chatId: '8048741156' 
+    };
+    
     let fare = JSON.parse(localStorage.getItem('enaFareSettings')) || { override: 0 };
     
     document.getElementById('payType').value = pay.type;
     document.getElementById('payNumber').value = pay.number;
     document.getElementById('payAccount').value = pay.account;
+    
+    // CHANGED: These now load your bot token and chat ID automatically
     document.getElementById('tgToken').value = tg.token;
     document.getElementById('tgChatId').value = tg.chatId;
+    
     document.getElementById('fareOverride').value = fare.override;
     
     toggleAccountField();
