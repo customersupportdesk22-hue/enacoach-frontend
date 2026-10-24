@@ -46,8 +46,8 @@
     <input type="text" id="payAccount" placeholder="e.g. 1769003">
   </div>
 
-  <h3>2. Telegram Notifications (Set in Vercel)</h3>
-  <p style="text-align: left; font-size: 12px; margin-bottom: 10px;">Telegram Token and Chat ID are now securely stored in Vercel Environment Variables.</p>
+  <h3>2. Telegram Notifications (Set in Render)</h3>
+  <p style="text-align: left; font-size: 12px; margin-bottom: 10px;">Telegram Token and Chat ID are securely stored in your Render Environment Variables.</p>
 
   <h3>3. Fare Override</h3>
   <div class="form-group">
@@ -59,9 +59,12 @@
 </div>
 
 <script>
+  // POINTING TO NEW RENDER BACKEND
+  const BACKEND_URL = 'https://enacoach-frontend.onrender.com';
+
   async function loadSettings() {
     try {
-      const response = await fetch('/api/settings');
+      const response = await fetch(`${BACKEND_URL}/api/settings`);
       const data = await response.json();
       
       document.getElementById('payType').value = data.type || 'paybill';
@@ -106,7 +109,7 @@
     btn.innerText = "Saving...";
 
     try {
-      const response = await fetch('/api/settings', {
+      const response = await fetch(`${BACKEND_URL}/api/settings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type, number, account, override })
