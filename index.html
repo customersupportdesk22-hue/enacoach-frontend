@@ -1106,7 +1106,7 @@ function updateSeatSummary() {
     showScreen('passenger');
   }
 
-  function validateAndShowPayment() {
+  async function validateAndShowPayment() {
     for (let i = 1; i <= selectedSeats.length; i++) {
       const fname = document.getElementById(`p${i}_fname`).value.trim();
       const lname = document.getElementById(`p${i}_lname`).value.trim();
