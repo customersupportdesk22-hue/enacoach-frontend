@@ -65,7 +65,10 @@ app.post('/api/notify', async (req, res) => {
         return res.status(500).json({ error: 'Failed to connect to Telegram' });
     }
 });
-
+// Root Route (This fixes UptimeRobot and shows a friendly message)
+app.get('/', (req, res) => {
+    res.send('🚌 ENA Coach Backend is running perfectly!');
+});
 // Start Server
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
