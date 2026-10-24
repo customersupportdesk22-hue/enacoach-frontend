@@ -3,14 +3,11 @@
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
-    "deploy": "wrangler deploy"
+    "start": "node server.js"
   },
   "dependencies": {
+    "express": "^4.19.2",
     "mongodb": "^6.3.0",
-    "@losblancos113/cf-mongodb-polyfills": "^1.0.0",
-    "resend": "^3.2.0"
-  },
-  "devDependencies": {
-    "wrangler": "^3.0.0"
+    "cors": "^2.8.5"
   }
 }
