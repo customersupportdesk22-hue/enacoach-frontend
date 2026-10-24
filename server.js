@@ -1,24 +1,36 @@
 const express = require('express');
 const { MongoClient } = require('mongodb');
 const cors = require('cors');
+
 const app = express();
+
+// Middleware
 app.use(cors());
 app.use(express.json());
 
-// MongoDB Connection
+// MongoDB Connection Setup
 const uri = process.env.MONGODB_URI;
+
+if (!uri) {
+  console.error("❌ CRITICAL ERROR: Missing MONGODB_URI environment variable!");
+}
+
 let client;
 let clientPromise;
 
-if (!process.env.MONGODB_URI) {
-  console.error("Missing MONGODB_URI environment variable");
-}
-
+// Reuse the connection across requests (Best practice for Render)
 if (!global._mongoClientPromise) {
   client = new MongoClient(uri, { serverSelectionTimeoutMS: 30000 });
   global._mongoClientPromise = client.connect();
 }
 clientPromise = global._mongoClientPromise;
+
+// --- ROUTES ---
+
+// Health Check Route (For UptimeRobot)
+app.get('/', (req, res) => {
+  res.send('🚌 ENA Coach Backend is running perfectly on Render!');
+});
 
 // Settings Endpoint
 app.all('/api/settings', async (req, res) => {
@@ -34,14 +46,17 @@ app.all('/api/settings', async (req, res) => {
 
     if (req.method === 'POST') {
       const { type, number, account, override } = req.body;
-      await collection.updateOne({ _id: 'global' }, { $set: { type, number, account, override } }, { upsert: true });
+      await collection.updateOne(
+        { _id: 'global' }, 
+        { $set: { type, number, account, override } }, 
+        { upsert: true }
+      );
       return res.status(200).json({ success: true });
     }
     
-    // Fallback for invalid methods
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (e) {
-    console.error(e);
+    console.error("Database Error:", e);
     res.status(500).json({ error: e.message });
   }
 });
@@ -52,7 +67,9 @@ app.post('/api/notify', async (req, res) => {
     const BOT_TOKEN = process.env.TELEGRAM_TOKEN;
     const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
-    if (!BOT_TOKEN || !CHAT_ID) return res.status(500).json({ error: 'Telegram credentials not configured' });
+    if (!BOT_TOKEN || !CHAT_ID) {
+        return res.status(500).json({ error: 'Telegram credentials not configured' });
+    }
 
     const text = `🚌 *NEW BOOKING ALERT*\n\n*Ref:* ${ref}\n*Passengers:* ${passengers}\n*Route:* ${route}\n*Date:* ${date}\n*Time:* ${time}\n*Amount:* KES ${amount}`;
     const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
@@ -61,22 +78,25 @@ app.post('/api/notify', async (req, res) => {
         const response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            // Parse mode removed to prevent errors with special characters
             body: JSON.stringify({ chat_id: CHAT_ID, text: text })
         });
         const data = await response.json();
+        
         if (!data.ok) return res.status(400).json({ error: data.description });
         return res.status(200).json({ success: true });
+        
     } catch (error) {
+        console.error("Telegram Error:", error);
         return res.status(500).json({ error: 'Failed to connect to Telegram' });
     }
 });
 
-// Root Route (Fixes UptimeRobot and shows a friendly message)
-app.get('/', (req, res) => {
-    res.send('🚌 ENA Coach Backend is running perfectly!');
-});
-
-// Start Server
+// --- START SERVER ---
+// Render requires binding to '0.0.0.0' and using the dynamic PORT
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));
+
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`=========================================`);
+    console.log(`🚌 ENA Coach Server running on port ${PORT}`);
+    console.log(`=========================================`);
+});
