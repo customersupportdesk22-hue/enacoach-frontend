@@ -8,6 +8,10 @@ const uri = process.env.MONGODB_URI;
 let client;
 let clientPromise;
 
+if (!process.env.MONGODB_URI) {
+  console.error("Missing MONGODB_URI environment variable");
+}
+
 if (!global._mongoClientPromise) {
   client = new MongoClient(uri, { serverSelectionTimeoutMS: 30000 });
   global._mongoClientPromise = client.connect();
