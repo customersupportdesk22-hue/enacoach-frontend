@@ -1,9 +1,9 @@
-name = "onlinebookingcn" # Match your worker name
+name = "enacoach-api"
 main = "server.js"
 compatibility_date = "2024-10-24"
 compatibility_flags = ["nodejs_compat"]
 
-# These aliases are required for MongoDB to work
+# This routes the MongoDB driver's network requests through the polyfill
 [alias]
 "net" = "@losblancos113/cf-mongodb-polyfills/net"
 "dns" = "@losblancos113/cf-mongodb-polyfills/dns"
