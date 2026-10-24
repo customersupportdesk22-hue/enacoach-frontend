@@ -1,0 +1,10 @@
+name = "onlinebookingcn" # Match your worker name
+main = "server.js"
+compatibility_date = "2024-10-24"
+compatibility_flags = ["nodejs_compat"]
+
+# These aliases are required for MongoDB to work
+[alias]
+"net" = "@losblancos113/cf-mongodb-polyfills/net"
+"dns" = "@losblancos113/cf-mongodb-polyfills/dns"
+"tls" = "@losblancos113/cf-mongodb-polyfills/tls"
