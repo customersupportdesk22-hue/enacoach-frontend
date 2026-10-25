@@ -207,9 +207,10 @@
   .qr-container img { width: 110px; height: 110px; border-radius: 8px; border: 1px solid var(--border); padding: 4px; }
 
   .th-tabs-container { display: flex; background: rgba(255,255,255,0.2); border-radius: 10px; padding: 4px; margin-top: 10px; }
-    .th-tab { flex: 1; padding: 10px; border-radius: 8px; border: none; background: transparent; color: white; font-weight: 700; font-size: 13px; cursor: pointer; }
+  .th-tab { flex: 1; padding: 10px; border-radius: 8px; border: none; background: transparent; color: white; font-weight: 700; font-size: 13px; cursor: pointer; }
   .th-tab.active { background: white; color: var(--primary); }
-    .ticket-card { background: white; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin: 16px; }
+  .ticket-card { background: white; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin: 16px; transition: transform 0.1s; }
+  .ticket-card:active { transform: scale(0.98); }
   .ticket-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
   .ticket-id { font-size: 14px; font-weight: 800; }
   .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 10px; font-weight: 800; text-transform: uppercase; background: #FEF3C7; color: #D97706; }
@@ -481,7 +482,8 @@
   </div>
 </div>
 
-<div class="modal-bg" id="customModal">
+<!-- Z-INDEX FIXED TO 9999 -->
+<div class="modal-bg" id="customModal" style="z-index: 9999;">
   <div class="modal-content" style="max-width: 320px; text-align: center; padding: 24px;">
     <div id="customModalIcon" style="font-size: 40px; margin-bottom: 12px;">ℹ️</div>
     <h3 id="customModalTitle" style="font-size: 18px; font-weight: 800; margin-bottom: 8px;">Notice</h3>
@@ -630,388 +632,366 @@
       } catch (error) {
           console.error("Failed to load settings", error);
       }
-  }let ALL_ROUTES = [];
-let matchedBuses = []; 
-let currentRoute = { from: 'Nairobi', to: 'Kisumu', date: '', baseFare: 1700 };
-let selectedSeats = [];
-let selectedBus = null;
-let currentBookingRef = "";
-let SEAT_PRICES = { normal: 1700, biz: 2200, vip: 2700 };
-let allCities = []; 
-
-function generateBidirectionalRoutes(originalRoutes) {
-  const finalRoutes = [];
-  const routeMap = new Set(); 
-
-  originalRoutes.forEach(route => {
-      const forwardKey = `${route.origin.toLowerCase().trim()}-${route.destination.toLowerCase().trim()}`;
-      if (!routeMap.has(forwardKey)) {
-          finalRoutes.push(route);
-          routeMap.add(forwardKey);
-      }
-      const reverseKey = `${route.destination.toLowerCase().trim()}-${route.origin.toLowerCase().trim()}`;
-      if (!routeMap.has(reverseKey)) {
-          const reverseStops = route.stops ? [...route.stops].reverse() : [];
-          finalRoutes.push({
-              id: route.id + "-REV",
-              origin: route.destination,
-              destination: route.origin,
-              fare_kes: route.fare_kes,
-              stops: reverseStops
-          });
-          routeMap.add(reverseKey);
-      }
-  });
-  return finalRoutes;
-}
-
-async function loadRoutes() {
-  try {
-    // Fetch both files at the same time
-    const [routesResponse, destResponse] = await Promise.all([
-      fetch('routes.json'),
-      fetch('destinations.json')
-    ]);
-    
-    const routesData = await routesResponse.json();
-    const destData = await destResponse.json();
-
-    // Load the exact routes for pricing
-    if (routesData && routesData.routes) {
-      ALL_ROUTES = generateBidirectionalRoutes(routesData.routes);
-    }
-
-    // Create the master list of cities
-    const cities = new Set(destData); // Start with the full destinations.json list
-    
-    // Add any specific towns from your routes.json just in case they aren't in destinations.json
-    ALL_ROUTES.forEach(route => {
-        if(route.origin) cities.add(route.origin);
-        if(route.destination) cities.add(route.destination);
-        if(route.stops) route.stops.forEach(s => cities.add(s));
-    });
-    
-    // Convert to array, sort alphabetically, and save
-    allCities = Array.from(cities).sort();
-    
-    // Setup the dropdowns
-    setupAutocomplete("searchFrom", "fromDropdown");
-    setupAutocomplete("searchTo", "toDropdown");
-
-  } catch (error) {
-    console.error("Failed to load route/destination files", error);
-    
-    // Fallback just in case the JSON files are missing
-    allCities = ["Nairobi", "Mombasa", "Kisumu", "Nakuru", "Eldoret"];
-    setupAutocomplete("searchFrom", "fromDropdown");
-    setupAutocomplete("searchTo", "toDropdown");
   }
+
+  let ALL_ROUTES = [];
+  let matchedBuses = []; 
+  let currentRoute = { from: 'Nairobi', to: 'Kisumu', date: '', baseFare: 1700 };
+  let selectedSeats = [];
+  let selectedBus = null;
+  let currentBookingRef = "";
+  let SEAT_PRICES = { normal: 1700, biz: 2200, vip: 2700 };
+  let allCities = []; 
+
+  function generateBidirectionalRoutes(originalRoutes) {
+    const finalRoutes = [];
+    const routeMap = new Set(); 
+
+    originalRoutes.forEach(route => {
+        const forwardKey = `${route.origin.toLowerCase().trim()}-${route.destination.toLowerCase().trim()}`;
+        if (!routeMap.has(forwardKey)) {
+            finalRoutes.push(route);
+            routeMap.add(forwardKey);
+        }
+        const reverseKey = `${route.destination.toLowerCase().trim()}-${route.origin.toLowerCase().trim()}`;
+        if (!routeMap.has(reverseKey)) {
+            const reverseStops = route.stops ? [...route.stops].reverse() : [];
+            finalRoutes.push({
+                id: route.id + "-REV",
+                origin: route.destination,
+                destination: route.origin,
+                fare_kes: route.fare_kes,
+                stops: reverseStops
+            });
+            routeMap.add(reverseKey);
+        }
+    });
+    return finalRoutes;
+  }
+
+  async function loadRoutes() {
+    try {
+      const [routesResponse, destResponse] = await Promise.all([
+        fetch('routes.json'),
+        fetch('destinations.json')
+      ]);
+      
+      const routesData = await routesResponse.json();
+      const destData = await destResponse.json();
+
+      if (routesData && routesData.routes) {
+        ALL_ROUTES = generateBidirectionalRoutes(routesData.routes);
       }
 
-function setupAutocomplete(inputId, dropdownId) {
-  const input = document.getElementById(inputId);
-  const dropdown = document.getElementById(dropdownId);
-
-  input.addEventListener('input', function() {
-    const val = this.value.toLowerCase().trim();
-    
-    // 1. Wait for at least 3 letters before showing anything
-    if (val.length < 3) { 
-        dropdown.style.display = 'none'; 
-        return; 
-    }
-    
-    // 2. Filter the list
-    const filtered = allCities.filter(city => city.toLowerCase().includes(val));
-    renderDropdown(filtered, dropdown);
-  });
-
-  // Close dropdown if clicking outside
-  document.addEventListener('click', function(e) {
-    if (e.target !== input && e.target !== dropdown) dropdown.style.display = 'none';
-  });
-
-  function renderDropdown(citiesArray, dropdownElement) {
-    dropdownElement.innerHTML = '';
-    if (citiesArray.length === 0) { dropdownElement.style.display = 'none'; return; }
-    dropdownElement.style.display = 'block';
-    
-    citiesArray.forEach(city => {
-      const div = document.createElement('div');
-      div.innerText = city;
-      div.addEventListener('click', function() {
-        input.value = this.innerText;
-        dropdownElement.style.display = 'none';
+      const cities = new Set(destData);
+      
+      ALL_ROUTES.forEach(route => {
+          if(route.origin) cities.add(route.origin);
+          if(route.destination) cities.add(route.destination);
+          if(route.stops) route.stops.forEach(s => cities.add(s));
       });
-      dropdownElement.appendChild(div);
+      
+      allCities = Array.from(cities).sort();
+      
+      setupAutocomplete("searchFrom", "fromDropdown");
+      setupAutocomplete("searchTo", "toDropdown");
+
+    } catch (error) {
+      console.error("Failed to load route/destination files", error);
+      allCities = ["Nairobi", "Mombasa", "Kisumu", "Nakuru", "Eldoret"];
+      setupAutocomplete("searchFrom", "fromDropdown");
+      setupAutocomplete("searchTo", "toDropdown");
+    }
+  }
+
+  function setupAutocomplete(inputId, dropdownId) {
+    const input = document.getElementById(inputId);
+    const dropdown = document.getElementById(dropdownId);
+
+    input.addEventListener('input', function() {
+      const val = this.value.toLowerCase().trim();
+      
+      if (val.length < 3) { 
+          dropdown.style.display = 'none'; 
+          return; 
+      }
+      
+      const filtered = allCities.filter(city => city.toLowerCase().includes(val));
+      renderDropdown(filtered, dropdown);
     });
+
+    document.addEventListener('click', function(e) {
+      if (e.target !== input && e.target !== dropdown) dropdown.style.display = 'none';
+    });
+
+    function renderDropdown(citiesArray, dropdownElement) {
+      dropdownElement.innerHTML = '';
+      if (citiesArray.length === 0) { dropdownElement.style.display = 'none'; return; }
+      dropdownElement.style.display = 'block';
+      
+      citiesArray.forEach(city => {
+        const div = document.createElement('div');
+        div.innerText = city;
+        div.addEventListener('click', function() {
+          input.value = this.innerText;
+          dropdownElement.style.display = 'none';
+        });
+        dropdownElement.appendChild(div);
+      });
+    }
   }
+
+  function sendTelegramAlert(ref, passengers, amount) {
+    fetch('https://enacoach-frontend.onrender.com/api/notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            ref: ref,
+            passengers: passengers,
+            route: `${currentRoute.from} → ${currentRoute.to}`,
+            date: formatDateString(currentRoute.date) || currentRoute.date,
+            time: selectedBus.departure,
+            amount: amount.toLocaleString()
+        })
+    }).catch(err => console.error("Fetch Error:", err));
+  }  function showScreen(screenId) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('screen-' + screenId).classList.add('active');
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    if(['home', 'results', 'stops', 'seats', 'passenger'].includes(screenId)) document.getElementById('nav-home').classList.add('active');
+    else if(screenId === 'profile') document.getElementById('nav-profile').classList.add('active');
+    else if(screenId === 'trip-history') document.getElementById('nav-history').classList.add('active');
+    window.scrollTo(0,0);
   }
 
-function sendTelegramAlert(ref, passengers, amount) {
-  // POINTING TO RENDER BACKEND
-  fetch('https://enacoach-frontend.onrender.com/api/notify', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-          ref: ref,
-          passengers: passengers,
-          route: `${currentRoute.from} → ${currentRoute.to}`,
-          date: formatDateString(currentRoute.date) || currentRoute.date,
-          time: selectedBus.departure,
-          amount: amount.toLocaleString()
-      })
-  })
-  .then(response => response.json())
-  .then(data => {
-      if(!data.success) console.error("Backend Error:", data.error);
-  })
-  .catch(err => console.error("Fetch Error:", err));
-  }function showScreen(screenId) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById('screen-' + screenId).classList.add('active');
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  if(['home', 'results', 'stops', 'seats', 'passenger'].includes(screenId)) document.getElementById('nav-home').classList.add('active');
-  else if(screenId === 'profile') document.getElementById('nav-profile').classList.add('active');
-  else if(screenId === 'trip-history') document.getElementById('nav-history').classList.add('active');
-  window.scrollTo(0,0);
-}
+  function openHelpModal() { document.getElementById('helpModal').style.display = 'flex'; }
+  function closeHelpModal() { document.getElementById('helpModal').style.display = 'none'; }
 
-function openHelpModal() { document.getElementById('helpModal').style.display = 'flex'; }
-function closeHelpModal() { document.getElementById('helpModal').style.display = 'none'; }
+  function formatDateString(dateString) {
+    if (!dateString) return '';
+    const date = new Date(dateString + 'T12:00:00'); 
+    const options = { weekday: 'short', month: 'short', day: 'numeric' };
+    return date.toLocaleDateString('en-US', options);
+  }
 
-function formatDateString(dateString) {
-  if (!dateString) return '';
-  const date = new Date(dateString + 'T12:00:00'); 
-  const options = { weekday: 'short', month: 'short', day: 'numeric' };
-  return date.toLocaleDateString('en-US', options);
-}
+  function updateDisplayDate(inputElement, displayId) {
+    const displayDiv = document.getElementById(displayId);
+    if (inputElement.value) {
+      displayDiv.innerText = formatDateString(inputElement.value);
+      displayDiv.classList.remove('empty');
+    } else {
+      displayDiv.innerText = displayId === 'displayReturnDate' ? 'Tap to add' : '';
+      displayDiv.classList.add('empty');
+    }
+    if (displayId === 'displayDepartureDate') document.querySelectorAll('.date-pill').forEach(p => p.classList.remove('active'));
+  }
 
-function updateDisplayDate(inputElement, displayId) {
-  const displayDiv = document.getElementById(displayId);
-  if (inputElement.value) {
-    displayDiv.innerText = formatDateString(inputElement.value);
+  function setQuickDate(offset, btnElement) {
+    const d = new Date();
+    if (offset === 'friday') { const day = d.getDay(); const diff = (5 - day + 7) % 7; d.setDate(d.getDate() + (diff === 0 ? 7 : diff)); }
+    else if (offset === 'saturday') { const day = d.getDay(); const diff = (6 - day + 7) % 7; d.setDate(d.getDate() + (diff === 0 ? 7 : diff)); }
+    else { d.setDate(d.getDate() + offset); }
+    const yyyy = d.getFullYear(); const mm = String(d.getMonth() + 1).padStart(2, '0'); const dd = String(d.getDate()).padStart(2, '0');
+    const dateStr = `${yyyy}-${mm}-${dd}`;
+    document.getElementById('searchDate').value = dateStr;
+    const displayDiv = document.getElementById('displayDepartureDate');
+    displayDiv.innerText = formatDateString(dateStr);
     displayDiv.classList.remove('empty');
-  } else {
-    displayDiv.innerText = displayId === 'displayReturnDate' ? 'Tap to add' : '';
-    displayDiv.classList.add('empty');
-  }
-  if (displayId === 'displayDepartureDate') document.querySelectorAll('.date-pill').forEach(p => p.classList.remove('active'));
-}
-
-function setQuickDate(offset, btnElement) {
-  const d = new Date();
-  if (offset === 'friday') { const day = d.getDay(); const diff = (5 - day + 7) % 7; d.setDate(d.getDate() + (diff === 0 ? 7 : diff)); }
-  else if (offset === 'saturday') { const day = d.getDay(); const diff = (6 - day + 7) % 7; d.setDate(d.getDate() + (diff === 0 ? 7 : diff)); }
-  else { d.setDate(d.getDate() + offset); }
-  const yyyy = d.getFullYear(); const mm = String(d.getMonth() + 1).padStart(2, '0'); const dd = String(d.getDate()).padStart(2, '0');
-  const dateStr = `${yyyy}-${mm}-${dd}`;
-  document.getElementById('searchDate').value = dateStr;
-  const displayDiv = document.getElementById('displayDepartureDate');
-  displayDiv.innerText = formatDateString(dateStr);
-  displayDiv.classList.remove('empty');
-  document.querySelectorAll('.date-pill').forEach(p => p.classList.remove('active'));
-  if (btnElement) btnElement.classList.add('active');
-}
-
-window.addEventListener('DOMContentLoaded', () => { setQuickDate(0, document.querySelector('.date-pill')); });
-
-function quickSearch(from, to) {
-  document.getElementById('searchFrom').value = from;
-  document.getElementById('searchTo').value = to;
-  searchRoutes();
-}
-
-function searchRoutes() {
-  const fromInput = document.getElementById('searchFrom').value.trim();
-  const toInput = document.getElementById('searchTo').value.trim();
-
-  // 1. Check if fields are empty
-  if (!fromInput || !toInput) {
-      return showAlert("Please enter both your Departure City and Destination City to search for buses.", "Missing Information", "📍");
-  }
-  // 2. NEW CHECK: Make sure they are not the same city
-  if (fromInput.toLowerCase() === toInput.toLowerCase()) {
-      return showAlert("Departure and Destination cities cannot be the same. Please select a different destination.", "Invalid Route", "⚠️");
+    document.querySelectorAll('.date-pill').forEach(p => p.classList.remove('active'));
+    if (btnElement) btnElement.classList.add('active');
   }
 
-  // 2. Check if the cities exist in our new destinations list (Block gibberish)
-const isValidFrom = allCities.some(city => city.toLowerCase() === fromInput.toLowerCase());
-const isValidTo = allCities.some(city => city.toLowerCase() === toInput.toLowerCase());
+  window.addEventListener('DOMContentLoaded', () => { setQuickDate(0, document.querySelector('.date-pill')); });
 
-if (!isValidFrom || !isValidTo) {
-    return showAlert("City not recognized. Please select a valid city from the dropdown list.", "Invalid City Name", "⚠️");
-}
- // 3. Proceed with the search
-  currentRoute.from = fromInput;
-  currentRoute.to = toInput;
-  currentRoute.date = document.getElementById('searchDate').value;
-
-  const fromSearch = currentRoute.from.toLowerCase();
-  const toSearch = currentRoute.to.toLowerCase();
-  
-  const exactRoute = ALL_ROUTES.find(r => r.origin.toLowerCase() === fromSearch && r.destination.toLowerCase() === toSearch);
-  
-  let fareSettings = JSON.parse(localStorage.getItem('enaFareSettings')) || { override: 0 };
-  
-  let baseFare;
-  if (exactRoute) {
-      baseFare = exactRoute.fare_kes;
-  } else {
-      // 4. Apply Coast vs Other pricing for routes not in routes.json
-      const coastKeywords = ['mombasa', 'malindi', 'kilifi', 'diani', 'ukunda', 'watamu', 'lamu', 'voi', 'coast', 'mtwapa', 'garsen', 'taveta'];
-      const isCoastRoute = coastKeywords.some(keyword => fromSearch.includes(keyword) || toSearch.includes(keyword));
-      baseFare = isCoastRoute ? 2500 : 1500;
+  function quickSearch(from, to) {
+    document.getElementById('searchFrom').value = from;
+    document.getElementById('searchTo').value = to;
+    searchRoutes();
   }
 
-  if (fareSettings.override > 0) baseFare = fareSettings.override; 
-  currentRoute.baseFare = baseFare;
+  function searchRoutes() {
+    const fromInput = document.getElementById('searchFrom').value.trim();
+    const toInput = document.getElementById('searchTo').value.trim();
 
-  document.getElementById('headerRoute').innerText = `${currentRoute.from.toUpperCase()} → ${currentRoute.to.toUpperCase()}`;
-  document.getElementById('resultsDate').innerText = `${formatDateString(currentRoute.date) || currentRoute.date} · One Way`;
-  
-  const list = document.getElementById('resultsList');
+    if (!fromInput || !toInput) {
+        return showAlert("Please enter both your Departure City and Destination City to search for buses.", "Missing Information", "📍");
+    }
+    if (fromInput.toLowerCase() === toInput.toLowerCase()) {
+        return showAlert("Departure and Destination cities cannot be the same. Please select a different destination.", "Invalid Route", "⚠️");
+    }
 
-  // Show a warning if the route is not specifically in routes.json
-  let noticeHtml = "";
-  if (!exactRoute) {
-  }
+    const isValidFrom = allCities.some(city => city.toLowerCase() === fromInput.toLowerCase());
+    const isValidTo = allCities.some(city => city.toLowerCase() === toInput.toLowerCase());
 
-  matchedBuses = [
-      { id: 1, departure: "07:00 AM", arrival: "01:00 PM", duration: "6h 00m", price: baseFare, seats: 32 },
-      { id: 2, departure: "08:30 AM", arrival: "02:30 PM", duration: "6h 00m", price: baseFare, seats: 16 },
-      { id: 3, departure: "10:00 AM", arrival: "04:00 PM", duration: "6h 00m", price: baseFare, seats: 8 },
-      { id: 4, departure: "08:00 PM", arrival: "02:00 AM", duration: "6h 00m", price: baseFare, seats: 24 },
-      { id: 5, departure: "10:30 PM", arrival: "04:30 AM", duration: "6h 00m", price: baseFare, seats: 12 }
-  ];
+    if (!isValidFrom || !isValidTo) {
+        return showAlert("City not recognized. Please select a valid city from the dropdown list.", "Invalid City Name", "⚠️");
+    }
 
-  list.innerHTML = noticeHtml + matchedBuses.map(bus => `
-    <div class="bus-card">
-      <div class="bus-top">
-        <div><div class="bus-time">${bus.departure}</div><div class="bus-loc">${currentRoute.from.toUpperCase()}</div></div>
-        <div class="bus-duration"><span>${bus.duration}</span><div class="line"></div><span>Direct</span></div>
-        <div style="text-align: right;"><div class="bus-time">${bus.arrival}</div><div class="bus-loc">${currentRoute.to.toUpperCase()}</div></div>
-      </div>
-      <div class="bus-company">
-        <div class="bus-info">
-          <img src="https://res.cloudinary.com/yvzp2mhd/image/upload/v1792239650/WA_1792239223964.jpg" class="bus-logo">
-          <div><div class="bus-name">ENA COACH</div><div class="seats-left">● ${bus.seats} seats left</div></div>
+    currentRoute.from = fromInput;
+    currentRoute.to = toInput;
+    currentRoute.date = document.getElementById('searchDate').value;
+
+    const fromSearch = currentRoute.from.toLowerCase();
+    const toSearch = currentRoute.to.toLowerCase();
+    
+    const exactRoute = ALL_ROUTES.find(r => r.origin.toLowerCase() === fromSearch && r.destination.toLowerCase() === toSearch);
+    
+    let fareSettings = JSON.parse(localStorage.getItem('enaFareSettings')) || { override: 0 };
+    
+    let baseFare;
+    if (exactRoute) {
+        baseFare = exactRoute.fare_kes;
+    } else {
+        const coastKeywords = ['mombasa', 'malindi', 'kilifi', 'diani', 'ukunda', 'watamu', 'lamu', 'voi', 'coast', 'mtwapa', 'garsen', 'taveta'];
+        const isCoastRoute = coastKeywords.some(keyword => fromSearch.includes(keyword) || toSearch.includes(keyword));
+        baseFare = isCoastRoute ? 2500 : 1500;
+    }
+
+    if (fareSettings.override > 0) baseFare = fareSettings.override; 
+    currentRoute.baseFare = baseFare;
+
+    document.getElementById('headerRoute').innerText = `${currentRoute.from.toUpperCase()} → ${currentRoute.to.toUpperCase()}`;
+    document.getElementById('resultsDate').innerText = `${formatDateString(currentRoute.date) || currentRoute.date} · One Way`;
+    
+    const list = document.getElementById('resultsList');
+
+    matchedBuses = [
+        { id: 1, departure: "07:00 AM", arrival: "01:00 PM", duration: "6h 00m", price: baseFare, seats: 32 },
+        { id: 2, departure: "08:30 AM", arrival: "02:30 PM", duration: "6h 00m", price: baseFare, seats: 16 },
+        { id: 3, departure: "10:00 AM", arrival: "04:00 PM", duration: "6h 00m", price: baseFare, seats: 8 },
+        { id: 4, departure: "08:00 PM", arrival: "02:00 AM", duration: "6h 00m", price: baseFare, seats: 24 },
+        { id: 5, departure: "10:30 PM", arrival: "04:30 AM", duration: "6h 00m", price: baseFare, seats: 12 }
+    ];
+
+    list.innerHTML = matchedBuses.map(bus => `
+      <div class="bus-card">
+        <div class="bus-top">
+          <div><div class="bus-time">${bus.departure}</div><div class="bus-loc">${currentRoute.from.toUpperCase()}</div></div>
+          <div class="bus-duration"><span>${bus.duration}</span><div class="line"></div><span>Direct</span></div>
+          <div style="text-align: right;"><div class="bus-time">${bus.arrival}</div><div class="bus-loc">${currentRoute.to.toUpperCase()}</div></div>
         </div>
-        <div style="display: flex; align-items: center;">
-          <div class="price-tag">KES ${bus.price}</div>
-          <button class="btn-view-seats" onclick="openStopsScreen(${bus.id})">View Seats</button>
+        <div class="bus-company">
+          <div class="bus-info">
+            <img src="https://res.cloudinary.com/yvzp2mhd/image/upload/v1792239650/WA_1792239223964.jpg" class="bus-logo">
+            <div><div class="bus-name">ENA COACH</div><div class="seats-left">● ${bus.seats} seats left</div></div>
+          </div>
+          <div style="display: flex; align-items: center;">
+            <div class="price-tag">KES ${bus.price}</div>
+            <button class="btn-view-seats" onclick="openStopsScreen(${bus.id})">View Seats</button>
+          </div>
         </div>
       </div>
-    </div>
-  `).join('');
-  showScreen('results');
+    `).join('');
+    showScreen('results');
   }
 
-let currentBoardingStop = null;
-let currentDroppingStop = null;
-let currentStopTab = 'boarding';
+  let currentBoardingStop = null;
+  let currentDroppingStop = null;
+  let currentStopTab = 'boarding';
 
-function openStopsScreen(busId) {
-  selectedBus = matchedBuses.find(b => b.id === busId);
-  if (!selectedBus) return; 
-  document.getElementById('stopsDate').innerText = formatDateString(currentRoute.date) || currentRoute.date;
-  document.getElementById('stopsFrom').innerText = currentRoute.from.toUpperCase();
-  document.getElementById('stopsTo').innerText = currentRoute.to.toUpperCase();
-  document.getElementById('seatHeaderRoute').innerText = `${currentRoute.from.toUpperCase()} → ${currentRoute.to.toUpperCase()}`;
-  document.getElementById('paxHeaderRoute').innerText = `${currentRoute.from.toUpperCase()} → ${currentRoute.to.toUpperCase()}`;
-  
-  let boardingStops = [{ id: 'b1', name: currentRoute.from + ' Main Stage', desc: 'Central Pickup Point', time: selectedBus.departure, date: currentRoute.date }];
-  let droppingStops = [{ id: 'd1', name: currentRoute.to + ' Main Stage', desc: 'Main Terminal', time: selectedBus.arrival, date: currentRoute.date }];
+  function openStopsScreen(busId) {
+    selectedBus = matchedBuses.find(b => b.id === busId);
+    if (!selectedBus) return; 
+    document.getElementById('stopsDate').innerText = formatDateString(currentRoute.date) || currentRoute.date;
+    document.getElementById('stopsFrom').innerText = currentRoute.from.toUpperCase();
+    document.getElementById('stopsTo').innerText = currentRoute.to.toUpperCase();
+    document.getElementById('seatHeaderRoute').innerText = `${currentRoute.from.toUpperCase()} → ${currentRoute.to.toUpperCase()}`;
+    document.getElementById('paxHeaderRoute').innerText = `${currentRoute.from.toUpperCase()} → ${currentRoute.to.toUpperCase()}`;
+    
+    let boardingStops = [{ id: 'b1', name: currentRoute.from + ' Main Stage', desc: 'Central Pickup Point', time: selectedBus.departure, date: currentRoute.date }];
+    let droppingStops = [{ id: 'd1', name: currentRoute.to + ' Main Stage', desc: 'Main Terminal', time: selectedBus.arrival, date: currentRoute.date }];
 
-  window.currentStopsData = { boarding: boardingStops, dropping: droppingStops };
-  currentBoardingStop = null; currentDroppingStop = null; currentStopTab = 'boarding';
-  switchStopTab('boarding'); showScreen('stops');
-}
-
-function switchStopTab(tab) {
-  currentStopTab = tab;
-  document.getElementById('tab-boarding').classList.toggle('active', tab === 'boarding');
-  document.getElementById('tab-dropping').classList.toggle('active', tab === 'dropping');
-  const list = document.getElementById('stopsList');
-  const data = window.currentStopsData[tab];
-  list.innerHTML = data.map(stop => {
-    const isSelected = (tab === 'boarding' && currentBoardingStop === stop.id) || (tab === 'dropping' && currentDroppingStop === stop.id);
-    return `
-      <div class="stop-card ${isSelected ? 'selected' : ''}" onclick="selectStop('${tab}', '${stop.id}')">
-        <div class="stop-radio"></div>
-        <div class="stop-details"><div class="stop-name">${stop.name}</div><div class="stop-desc">📍 ${stop.desc}</div></div>
-        <div class="stop-time"><div class="time">${stop.time}</div><div class="date">${formatDateString(stop.date) || stop.date}</div></div>
-      </div>`;
-  }).join('');
-  updateStopButton();
-}
-
-function selectStop(tab, id) {
-  if (tab === 'boarding') currentBoardingStop = id; else currentDroppingStop = id;
-  switchStopTab(tab);
-}
-
-function updateStopButton() {
-  const btn = document.getElementById('btnSelectStop');
-  btn.classList.remove('btn-disabled');
-  btn.innerText = currentStopTab === 'boarding' ? "Next: Select Dropping Stop" : "Next: Select Seats";
-}
-
-function goToSeats() {
-  if (currentStopTab === 'boarding') {
-    if (!currentBoardingStop) return showAlert("Please tap on a boarding stop to select it first.", "Selection Required", "📍");
-    switchStopTab('dropping');
-  } else {
-    if (!currentDroppingStop) return showAlert("Please tap on a dropping stop to select it first.", "Selection Required", "📍");
-    renderSeats(); showScreen('seats');
+    window.currentStopsData = { boarding: boardingStops, dropping: droppingStops };
+    currentBoardingStop = null; currentDroppingStop = null; currentStopTab = 'boarding';
+    switchStopTab('boarding'); showScreen('stops');
   }
-}  
 
-function switchSeatTab(tab, el) {
-  document.querySelectorAll('.seat-header-tab').forEach(t => t.classList.remove('active'));
-  el.classList.add('active');
-  document.getElementById('tab-layout').style.display = 'none';
-  document.getElementById('tab-details').style.display = 'none';
-  document.getElementById('tab-terms').style.display = 'none';
-  document.getElementById('tab-' + tab).style.display = 'block';
-}
-
-function renderSeats() {
-  const base = currentRoute.baseFare;
-  SEAT_PRICES.normal = base; SEAT_PRICES.biz = base + 500; SEAT_PRICES.vip = base + 1000;
-  const grid = document.getElementById('seatGrid');
-  grid.innerHTML = ''; selectedSeats = []; updateSeatSummary();
-
-  for (let i = 1; i <= 40; i++) {
-    const isSold = [2, 5, 9, 14, 20, 25, 31].includes(i); 
-    let type = 'normal'; if (i <= 8) type = 'vip'; else if (i <= 16) type = 'biz';
-    const seatDiv = document.createElement('div');
-    seatDiv.className = `seat ${isSold ? 'sold' : type}`;
-    const col = ((i - 1) % 4) + 1;
-    const row = String.fromCharCode(65 + Math.floor((i - 1) / 4));
-    seatDiv.innerText = `${row}${col}`;
-    if (!isSold) seatDiv.onclick = () => toggleSeat(seatDiv, type, SEAT_PRICES[type], `${row}${col}`);
-    grid.appendChild(seatDiv);
+  function switchStopTab(tab) {
+    currentStopTab = tab;
+    document.getElementById('tab-boarding').classList.toggle('active', tab === 'boarding');
+    document.getElementById('tab-dropping').classList.toggle('active', tab === 'dropping');
+    const list = document.getElementById('stopsList');
+    const data = window.currentStopsData[tab];
+    list.innerHTML = data.map(stop => {
+      const isSelected = (tab === 'boarding' && currentBoardingStop === stop.id) || (tab === 'dropping' && currentDroppingStop === stop.id);
+      return `
+        <div class="stop-card ${isSelected ? 'selected' : ''}" onclick="selectStop('${tab}', '${stop.id}')">
+          <div class="stop-radio"></div>
+          <div class="stop-details"><div class="stop-name">${stop.name}</div><div class="stop-desc">📍 ${stop.desc}</div></div>
+          <div class="stop-time"><div class="time">${stop.time}</div><div class="date">${formatDateString(stop.date) || stop.date}</div></div>
+        </div>`;
+    }).join('');
+    updateStopButton();
   }
-}
 
-function toggleSeat(el, type, price, label) {
-  if (el.classList.contains('selected')) {
-    el.classList.remove('selected'); el.classList.add(type);
-    selectedSeats = selectedSeats.filter(s => s.label !== label);
-  } else {
-    if (selectedSeats.length >= 6) return showAlert("You can only select a maximum of 6 seats.", "Limit Reached", "⚠️");
-    el.classList.remove(type); el.classList.add('selected');
-    selectedSeats.push({ label, type, price });
+  function selectStop(tab, id) {
+    if (tab === 'boarding') currentBoardingStop = id; else currentDroppingStop = id;
+    switchStopTab(tab);
   }
-  updateSeatSummary();
-}
 
-function updateSeatSummary() {
-  document.getElementById('selectedCount').innerText = selectedSeats.length;
-  const total = selectedSeats.reduce((sum, seat) => sum + seat.price, 0);
-  document.getElementById('totalFare').innerText = `KES ${total.toLocaleString()}`;
-  }  function goToPassengerScreen() {
+  function updateStopButton() {
+    const btn = document.getElementById('btnSelectStop');
+    btn.classList.remove('btn-disabled');
+    btn.innerText = currentStopTab === 'boarding' ? "Next: Select Dropping Stop" : "Next: Select Seats";
+  }
+
+  function goToSeats() {
+    if (currentStopTab === 'boarding') {
+      if (!currentBoardingStop) return showAlert("Please tap on a boarding stop to select it first.", "Selection Required", "📍");
+      switchStopTab('dropping');
+    } else {
+      if (!currentDroppingStop) return showAlert("Please tap on a dropping stop to select it first.", "Selection Required", "📍");
+      renderSeats(); showScreen('seats');
+    }
+  }  
+
+  function switchSeatTab(tab, el) {
+    document.querySelectorAll('.seat-header-tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById('tab-layout').style.display = 'none';
+    document.getElementById('tab-details').style.display = 'none';
+    document.getElementById('tab-terms').style.display = 'none';
+    document.getElementById('tab-' + tab).style.display = 'block';
+  }
+
+  function renderSeats() {
+    const base = currentRoute.baseFare;
+    SEAT_PRICES.normal = base; SEAT_PRICES.biz = base + 500; SEAT_PRICES.vip = base + 1000;
+    const grid = document.getElementById('seatGrid');
+    grid.innerHTML = ''; selectedSeats = []; updateSeatSummary();
+
+    for (let i = 1; i <= 40; i++) {
+      const isSold = [2, 5, 9, 14, 20, 25, 31].includes(i); 
+      let type = 'normal'; if (i <= 8) type = 'vip'; else if (i <= 16) type = 'biz';
+      const seatDiv = document.createElement('div');
+      seatDiv.className = `seat ${isSold ? 'sold' : type}`;
+      const col = ((i - 1) % 4) + 1;
+      const row = String.fromCharCode(65 + Math.floor((i - 1) / 4));
+      seatDiv.innerText = `${row}${col}`;
+      if (!isSold) seatDiv.onclick = () => toggleSeat(seatDiv, type, SEAT_PRICES[type], `${row}${col}`);
+      grid.appendChild(seatDiv);
+    }
+  }
+
+  function toggleSeat(el, type, price, label) {
+    if (el.classList.contains('selected')) {
+      el.classList.remove('selected'); el.classList.add(type);
+      selectedSeats = selectedSeats.filter(s => s.label !== label);
+    } else {
+      if (selectedSeats.length >= 6) return showAlert("You can only select a maximum of 6 seats.", "Limit Reached", "⚠️");
+      el.classList.remove(type); el.classList.add('selected');
+      selectedSeats.push({ label, type, price });
+    }
+    updateSeatSummary();
+  }
+
+  function updateSeatSummary() {
+    document.getElementById('selectedCount').innerText = selectedSeats.length;
+    const total = selectedSeats.reduce((sum, seat) => sum + seat.price, 0);
+    document.getElementById('totalFare').innerText = `KES ${total.toLocaleString()}`;
+  }
+
+  function goToPassengerScreen() {
     if (selectedSeats.length === 0) return showAlert("Please select at least one seat to proceed.", "No Seats Selected", "💺");
     document.getElementById('paxHeaderDate').innerText = formatDateString(currentRoute.date) || currentRoute.date;
     document.getElementById('paxHeaderCount').innerText = `${selectedSeats.length} seat(s)`;
@@ -1098,11 +1078,14 @@ function updateSeatSummary() {
 
     const user = JSON.parse(localStorage.getItem('enaUser')) || {};
     const currentUserEmail = user.email || 'guest@enacoach.com';
+    
+    // Save passengerNames so we can resume payment later
     const newBooking = {
         ref: currentBookingRef, from: currentRoute.from, to: currentRoute.to,
         date: formatDateString(currentRoute.date) || currentRoute.date, seat: selectedSeats.map(s => s.label).join(', '), 
         price: totalPrice, time: selectedBus.departure, status: 'Pending',
-        userEmail: currentUserEmail
+        userEmail: currentUserEmail,
+        passengerNames: passengerNamesList.join(', ')
     };
     let pastTrips = JSON.parse(localStorage.getItem('enaBookings')) || [];
     pastTrips.push(newBooking);
@@ -1125,58 +1108,64 @@ function updateSeatSummary() {
   }
 
   function executeWhatsAppPayment() {
-  // 1. Get the transaction code and force uppercase
-  const txnCode = document.getElementById('mpesaTxnCode').value.trim().toUpperCase();
+    const txnCode = document.getElementById('mpesaTxnCode').value.trim().toUpperCase();
 
-  // 2. Validation: Stop them if they didn't enter a code
-  if (!txnCode) {
-      return showAlert("Please enter your M-Pesa Transaction Code (e.g., QAB123456X) to confirm your payment.", "Transaction Code Required", "⚠️");
-  }
+    if (!txnCode) {
+        return showAlert("Please enter your M-Pesa Transaction Code (e.g., QAB123456X) to confirm your payment.", "Transaction Code Required", "⚠️");
+    }
 
-  let passengerDetailsText = '';
-  let totalPrice = selectedSeats.reduce((sum, s) => sum + s.price, 0);
-  
-  for (let i = 1; i <= selectedSeats.length; i++) {
-    const fname = document.getElementById(`p${i}_fname`).value.trim();
-    const lname = document.getElementById(`p${i}_lname`).value.trim();
-    const phone = document.getElementById(`p${i}_phone`).value.trim();
-    const id = document.getElementById(`p${i}_id`).value.trim();
-    const seatLabel = selectedSeats[i-1].label;
-    passengerDetailsText += `\n👤 *Passenger ${i}*\nName: ${fname} ${lname}\nPhone: +254 ${phone}\nID: ${id || 'N/A'}\nSeat: ${seatLabel}\n`;
-  }
+    let passengerDetailsText = '';
+    let totalPrice = selectedSeats.reduce((sum, s) => sum + s.price, 0);
+    
+    for (let i = 1; i <= selectedSeats.length; i++) {
+      const fname = document.getElementById(`p${i}_fname`).value.trim();
+      const lname = document.getElementById(`p${i}_lname`).value.trim();
+      const phone = document.getElementById(`p${i}_phone`).value.trim();
+      const id = document.getElementById(`p${i}_id`).value.trim();
+      const seatLabel = selectedSeats[i-1].label;
+      passengerDetailsText += `\n👤 *Passenger ${i}*\nName: ${fname} ${lname}\nPhone: +254 ${phone}\nID: ${id || 'N/A'}\nSeat: ${seatLabel}\n`;
+    }
 
-  // Use globalPaymentSettings fetched from Database
-  let settings = globalPaymentSettings || { type: 'paybill', number: '756756', account: '1769003' };
-  let paymentText = '';
-  
-  if (settings.type === 'paybill') {
-      paymentText = `*PAYMENT MADE VIA M-PESA PAYBILL*\nPaybill: ${settings.number}\nAccount: ${settings.account}`;
-  } else if (settings.type === 'till') {
-      paymentText = `*PAYMENT MADE VIA M-PESA TILL*\nTill Number: ${settings.number}`;
-  } else {
-      paymentText = `*PAYMENT MADE VIA M-PESA SEND MONEY*\nPhone: ${settings.number}`;
-  }
+    let settings = globalPaymentSettings || { type: 'paybill', number: '756756', account: '1769003' };
+    let paymentText = '';
+    
+     if (settings.type === 'paybill') {
+        paymentText = `*PAYMENT MADE VIA M-PESA PAYBILL*\nPaybill: ${settings.number}\nAccount: ${settings.account}`;
+    } else if (settings.type === 'till') {
+        paymentText = `*PAYMENT MADE VIA M-PESA TILL*\nTill Number: ${settings.number}`;
+    } else {
+        paymentText = `*PAYMENT MADE VIA M-PESA SEND MONEY*\nPhone: ${settings.number}`;
+    }
 
-  const waText = 
-    '*ENA COACH - PAYMENT CONFIRMATION*\n' +
-    'Ref: *' + currentBookingRef + '*\n' +
-    '-----------------------------------\n\n' +
-    '*TRAVEL DETAILS*\n' +
-    'From: ' + currentRoute.from + '\n' +
-    'To: ' + currentRoute.to + '\n' +
-    'Date: ' + (formatDateString(currentRoute.date) || currentRoute.date) + '\n' +
-    'Time: ' + selectedBus.departure + '\n\n' +
-    '*PASSENGERS*\n' +
-    passengerDetailsText + '\n' +
-    '*TOTAL PAID*\n' +
-    'KSh ' + totalPrice.toLocaleString() + '\n\n' +
-    'M-Pesa Code: *' + txnCode + '*\n' +
-    paymentText + '\n\n' + 
-    '-----------------------------------\n' +
-    'I have completed the payment. Here is my confirmation.';
+    const waText = 
+      '*ENA COACH - PAYMENT CONFIRMATION*\n' +
+      'Ref: *' + currentBookingRef + '*\n' +
+      '-----------------------------------\n\n' +
+      '*TRAVEL DETAILS*\n' +
+      'From: ' + currentRoute.from + '\n' +
+      'To: ' + currentRoute.to + '\n' +
+      'Date: ' + (formatDateString(currentRoute.date) || currentRoute.date) + '\n' +
+      'Time: ' + selectedBus.departure + '\n\n' +
+      '*PASSENGERS*\n' +
+      passengerDetailsText + '\n' +
+      '*TOTAL PAID*\n' +
+      'KSh ' + totalPrice.toLocaleString() + '\n\n' +
+      'M-Pesa Code: *' + txnCode + '*\n' +
+      paymentText + '\n\n' + 
+      '-----------------------------------\n' +
+      'I have completed the payment. Here is my confirmation.';
 
-  window.open('https://wa.me/254780097070?text=' + encodeURIComponent(waText), '_blank');
-  closeCheckoutModal();
+    window.open('https://wa.me/254780097070?text=' + encodeURIComponent(waText), '_blank');
+    
+    // Update status so they don't keep tapping to pay
+    let bookings = JSON.parse(localStorage.getItem('enaBookings')) || [];
+    let bookingIndex = bookings.findIndex(b => b.ref === currentBookingRef);
+    if (bookingIndex !== -1) {
+        bookings[bookingIndex].status = 'Awaiting Confirmation';
+        localStorage.setItem('enaBookings', JSON.stringify(bookings));
+    }
+
+    closeCheckoutModal();
   }
 
   function renderTripHistory(filterStatus, btnElement) {
@@ -1197,8 +1186,9 @@ function updateSeatSummary() {
       return;
     }
 
+    // Make the pending tickets clickable to resume payment
     list.innerHTML = bookings.map(b => `
-      <div class="ticket-card">
+      <div class="ticket-card" ${b.status === 'Pending' ? `onclick="resumePayment('${b.ref}')" style="cursor: pointer; position: relative;"` : ''}>
         <div class="ticket-header">
           <div><div style="font-size: 10px; color: var(--text-muted); text-transform: uppercase;">Ticket ID</div><div class="ticket-id">${b.ref}</div></div>
           <div class="status-badge">${b.status}</div>
@@ -1212,9 +1202,53 @@ function updateSeatSummary() {
           <div style="font-size: 12px; font-weight: 600; color: var(--text-muted);">📅 ${b.date}</div>
           <div class="ticket-price">KES ${b.price.toLocaleString()}</div>
         </div>
-        <button class="ticket-btn" onclick="showAlert('Ticket details for ${b.ref} will be available here.', 'Ticket Details', '🎫')">View Ticket Details</button>
+        ${b.status === 'Pending' ? `
+          <div style="text-align: center; margin-top: 12px; color: var(--primary); font-weight: 800; font-size: 13px; border-top: 1px dashed var(--border); padding-top: 12px;">
+            👉 Tap here to complete payment
+          </div>
+        ` : `
+          <button class="ticket-btn" onclick="event.stopPropagation(); showAlert('Ticket details for ${b.ref} will be available here.', 'Ticket Details', '🎫')">View Ticket Details</button>
+        `}
       </div>
     `).join('');
+  }
+
+  // Resume Payment Logic
+  async function resumePayment(ref) {
+      let bookings = JSON.parse(localStorage.getItem('enaBookings')) || [];
+      const booking = bookings.find(b => b.ref === ref);
+
+      if (!booking) return;
+      
+      if (booking.status !== 'Pending') {
+          showAlert("This ticket is already confirmed and paid for.", "Already Confirmed", "✅");
+          return;
+      }
+
+      currentBookingRef = booking.ref;
+      
+      // Rebuild selectedSeats from the saved string
+      const seatArray = booking.seat.split(', ');
+      selectedSeats = seatArray.map(s => ({ 
+          label: s, 
+          type: 'normal', 
+          price: booking.price / seatArray.length
+      }));
+
+      // Populate the E-Ticket Modal
+      document.getElementById('ticketRef').innerText = booking.ref;
+      document.getElementById('ticketFrom').innerText = booking.from.toUpperCase();
+      document.getElementById('ticketTo').innerText = booking.to.toUpperCase();
+      document.getElementById('ticketDate').innerText = booking.date;
+      document.getElementById('ticketSeat').innerText = booking.seat;
+      document.getElementById('ticketPax').innerText = booking.passengerNames || 'Passenger'; 
+      document.getElementById('ticketQR').src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${booking.ref}`;
+
+      document.getElementById('displayAmount').innerText = `KES ${booking.price.toLocaleString()}`;
+      document.getElementById('mpesaTxnCode').value = ''; 
+
+      await loadPaymentSettings();
+      document.getElementById('checkoutModal').style.display = 'flex';
   }
 
   function checkAuth() {
