@@ -82,6 +82,43 @@ app.post('/api/notify', async (req, res) => {
         return res.status(500).json({ error: 'Failed to connect to Telegram' });
     }
 });
+// House Viewing Telegram Endpoint
+app.post('/api/notify-viewing', async (req, res) => {
+    const { name, pickup, people, houseType, budget, date, time, meeting } = req.body;
+    const BOT_TOKEN = process.env.TELEGRAM_TOKEN;
+    const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+
+    if (!BOT_TOKEN || !CHAT_ID) {
+        return res.status(500).json({ error: 'Telegram credentials not configured' });
+    }
+
+    const text = `🏠 *NEW HOUSE VIEWING BOOKING*\n\n` +
+                 `*Name:* ${name}\n` +
+                 `*Pickup:* ${pickup}\n` +
+                 `*People:* ${people}\n` +
+                 `*House Type:* ${houseType}\n` +
+                 `*Budget:* KES ${budget}\n` +
+                 `*Meeting:* ${meeting}\n` +
+                 `*Date:* ${date}\n` +
+                 `*Time:* ${time}\n\n` +
+                 `*Fee:* KES 1,000`;
+
+    const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: CHAT_ID, text: text })
+        });
+        const data = await response.json();
+        
+        if (!data.ok) return res.status(400).json({ error: data.description });
+        return res.status(200).json({ success: true });
+    } catch (error) {
+        return res.status(500).json({ error: 'Failed to connect to Telegram' });
+    }
+});
 
 // Root Route
 app.get('/', (req, res) => {
