@@ -3,9 +3,16 @@ const { MongoClient } = require('mongodb');
 const cors = require('cors');
 const app = express();
 
-// Enable CORS so your Cloudflare frontend can talk to this Render backend
 app.use(cors());
 app.use(express.json());
+
+// Global error handlers to prevent crashes
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception thrown:', err);
+});
 
 // MongoDB Connection
 const uri = process.env.MONGODB_URI;
@@ -16,14 +23,17 @@ if (!process.env.MONGODB_URI) {
   console.error("Missing MONGODB_URI environment variable");
 }
 
-// Reuse the connection across requests (fixes timeout issues)
 if (!global._mongoClientPromise) {
   client = new MongoClient(uri, { serverSelectionTimeoutMS: 30000 });
-  global._mongoClientPromise = client.connect();
+  // Wrap in try/catch to handle connection failures gracefully
+  global._mongoClientPromise = client.connect().catch(err => {
+    console.error("MongoDB connection error:", err);
+    throw err; 
+  });
 }
 clientPromise = global._mongoClientPromise;
 
-// Settings Endpoint (GET and POST)
+// Settings Endpoint
 app.all('/api/settings', async (req, res) => {
   try {
     const client = await clientPromise;
@@ -41,7 +51,6 @@ app.all('/api/settings', async (req, res) => {
       return res.status(200).json({ success: true });
     }
     
-    // Fallback for invalid methods
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (e) {
     console.error(e);
@@ -64,7 +73,6 @@ app.post('/api/notify', async (req, res) => {
         const response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            // parse_mode is removed so special characters in names don't crash Telegram
             body: JSON.stringify({ chat_id: CHAT_ID, text: text })
         });
         const data = await response.json();
@@ -75,11 +83,11 @@ app.post('/api/notify', async (req, res) => {
     }
 });
 
-// Root Route (This fixes UptimeRobot and shows a friendly message)
+// Root Route
 app.get('/', (req, res) => {
     res.send('🚌 ENA Coach Backend is running perfectly!');
 });
 
-// Start Server (Binding to 0.0.0.0 so Render detects the port)
+// Start Server
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));
