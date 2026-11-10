@@ -1,10 +1,15 @@
 const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
 const { MongoClient } = require('mongodb');
 const cors = require('cors');
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server, { cors: { origin: '*' } });
 
 app.use(cors());
 app.use(express.json());
+app.use(express.static('public')); // serves chat-widget.js and agent.html
 
 // Global error handlers to prevent crashes
 process.on('unhandledRejection', (reason, promise) => {
@@ -120,6 +125,101 @@ app.post('/api/notify-viewing', async (req, res) => {
     }
 });
 
+// =====================  LIVE CHAT  =====================
+const AGENT_PASSWORD = process.env.AGENT_PASSWORD || 'change-me';
+const chatSessions = {}; // id -> { id, name, phone, msgs, unread, last }
+let chatCol = null;
+
+(async () => {
+  try {
+    const c = await clientPromise;
+    chatCol = c.db('enacoach').collection('chats');
+    (await chatCol.find().toArray()).forEach((d) => {
+      chatSessions[d._id] = { id: d._id, name: d.name, phone: d.phone, msgs: d.msgs || [], unread: d.unread || 0, last: d.last || 0 };
+    });
+    console.log('Chat history loaded');
+  } catch (e) {
+    console.error('Chat DB unavailable, using memory only:', e.message);
+  }
+})();
+
+function saveChat(c) {
+  if (!chatCol) return;
+  chatCol.updateOne({ _id: c.id },
+    { $set: { name: c.name, phone: c.phone, msgs: c.msgs, unread: c.unread, last: c.last } },
+    { upsert: true }).catch(console.error);
+}
+const clip = (v, n) => String(v || '').slice(0, n);
+
+async function chatTelegram(text) {
+  const T = process.env.TELEGRAM_TOKEN, C = process.env.TELEGRAM_CHAT_ID;
+  if (!T || !C) return;
+  try {
+    await fetch(`https://api.telegram.org/bot${T}/sendMessage`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: C, text })
+    });
+  } catch (e) { console.error('Telegram chat alert failed'); }
+}
+
+const agents = io.of('/agent');
+agents.use((s, next) =>
+  s.handshake.auth.password === AGENT_PASSWORD ? next() : next(new Error('Wrong password')));
+
+function pushMsg(c, m) {
+  m.t = Date.now();
+  c.msgs.push(m); c.last = m.t;
+  if (m.from === 'client') c.unread++;
+  io.to(c.id).emit('msg', m);
+  agents.emit('update', c);
+  saveChat(c);
+}
+
+agents.on('connection', (s) => {
+  s.emit('sessions', Object.values(chatSessions));
+  s.on('reply', ({ id, text }) => {
+    const c = chatSessions[id];
+    if (!c || !text) return;
+    pushMsg(c, { from: 'agent', text: clip(text, 2000) });
+  });
+  s.on('ticket', ({ id, t }) => {
+    const c = chatSessions[id];
+    if (!c || !t) return;
+    const ticket = {
+      no: 'ENA' + Math.floor(100000 + Math.random() * 900000),
+      name: clip(t.name, 60), phone: clip(t.phone, 20),
+      from: clip(t.from, 40), to: clip(t.to, 40),
+      date: clip(t.date, 20), time: clip(t.time, 10),
+      bus: clip(t.bus, 20), seat: clip(t.seat, 10), price: clip(t.price, 12)
+    };
+    pushMsg(c, { from: 'agent', type: 'ticket', ticket, text: 'Ticket ' + ticket.no });
+  });
+  s.on('read', (id) => {
+    if (chatSessions[id]) { chatSessions[id].unread = 0; saveChat(chatSessions[id]); agents.emit('update', chatSessions[id]); }
+  });
+});
+
+io.on('connection', (s) => {
+  s.on('join', ({ id, name, phone }) => {
+    if (!id) return;
+    id = clip(id, 40);
+    const c = chatSessions[id] || (chatSessions[id] = { id, name: '', phone: '', msgs: [], unread: 0, last: Date.now() });
+    c.name = clip(name || c.name, 60);
+    c.phone = clip(phone || c.phone, 20);
+    s.join(id); s.data.id = id;
+    s.emit('history', c.msgs);
+    agents.emit('update', c); saveChat(c);
+  });
+  s.on('msg', (text) => {
+    const c = chatSessions[s.data.id];
+    if (!c || !text) return;
+    const isFirst = !c.msgs.some((m) => m.from === 'client');
+    pushMsg(c, { from: 'client', text: clip(text, 2000) });
+    if (isFirst) chatTelegram(`💬 NEW CHAT\n${c.name} (${c.phone})\n"${clip(text, 200)}"\n\nReply: https://enacoach-frontend.onrender.com/agent.html`);
+  });
+});
+// ===================  END LIVE CHAT  ===================
+
 // Root Route
 app.get('/', (req, res) => {
     res.send('🚌 ENA Coach Backend is running perfectly!');
@@ -127,4 +227,4 @@ app.get('/', (req, res) => {
 
 // Start Server
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));
+server.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));
