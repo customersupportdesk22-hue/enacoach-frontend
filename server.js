@@ -194,6 +194,19 @@ agents.on('connection', (s) => {
     };
     pushMsg(c, { from: 'agent', type: 'ticket', ticket, text: 'Ticket ' + ticket.no });
   });
+  s.on('payment', ({ id, p }) => {
+    const c = chatSessions[id];
+    if (!c || !p) return;
+    const payment = {
+      method: clip(p.method, 30) || 'M-Pesa',
+      accountLabel: clip(p.accountLabel, 20) || 'Paybill',
+      number: clip(p.number, 30), account: clip(p.account, 40),
+      name: clip(p.name, 60), amount: clip(p.amount, 12),
+      note: clip(p.note, 200)
+    };
+    if (!payment.number || !payment.amount) return;
+    pushMsg(c, { from: 'agent', type: 'payment', payment, text: 'Payment details: KES ' + payment.amount });
+  });
   s.on('read', (id) => {
     if (chatSessions[id]) { chatSessions[id].unread = 0; saveChat(chatSessions[id]); agents.emit('update', chatSessions[id]); }
   });
