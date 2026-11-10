@@ -17,8 +17,10 @@ main{flex:1;display:flex;min-height:0}
 #bar{display:flex;gap:8px;padding:10px;background:#fff;border-top:1px solid #eee}
 input{flex:1;padding:11px;border:1px solid #d1d5db;border-radius:10px;font-size:15px}
 button.go{background:#ff5c00;color:#fff;border:0;border-radius:10px;padding:11px 16px;font-weight:700}
-#tf{display:none;grid-template-columns:1fr 1fr;gap:6px;padding:10px;background:#fff;border-top:1px solid #eee}
-#tf input{min-width:0}#tf button{grid-column:1/3}
+#tf,#pf{display:none;grid-template-columns:1fr 1fr;gap:6px;padding:10px;background:#fff;border-top:1px solid #eee}
+#tf input,#pf input,#pf select{min-width:0}#tf button,#pf button.go,#pf #p_note{grid-column:1/3}
+#pf select{padding:11px;border:1px solid #d1d5db;border-radius:10px;font-size:15px;background:#fff}
+#pf{grid-template-columns:1fr 1fr;gap:6px;padding:10px;background:#fff;border-top:1px solid #eee}
 #login{margin:auto;display:flex;gap:8px;padding:20px}
 @media(max-width:700px){#list{width:100%}#chat{display:none}main.open #list{display:none}main.open #chat{display:flex}#back{display:block}}
 </style></head><body>
@@ -32,7 +34,12 @@ button.go{background:#ff5c00;color:#fff;border:0;border-radius:10px;padding:11px
       <input id="f_date" type="date"><input id="f_time" type="time">
       <input id="f_bus" placeholder="Bus no."><input id="f_seat" placeholder="Seat">
       <input id="f_price" type="number" placeholder="Fare KES"><button class="go" id="mk">Generate &amp; send ticket</button></div>
-    <div id="bar"><button class="go" id="tk">🎫</button><input id="t" placeholder="Reply..."><button class="go" id="send">Send</button></div></div>
+    <div id="pf"><input id="p_method" placeholder="Method (e.g. M-Pesa)" value="M-Pesa">
+      <select id="p_label"><option>Paybill</option><option>Till</option><option>Phone</option><option>Bank</option></select>
+      <input id="p_number" placeholder="Paybill / Till / number"><input id="p_account" placeholder="Account no.">
+      <input id="p_name" placeholder="Account name"><input id="p_amount" type="number" placeholder="Amount KES">
+      <input id="p_note" placeholder="Note (optional)"><button class="go" id="pk">Send payment details</button></div>
+    <div id="bar"><button class="go" id="tk">🎫</button><button class="go" id="pay">💳</button><input id="t" placeholder="Reply..."><button class="go" id="send">Send</button></div></div>
 </main>
 <script src="/socket.io/socket.io.js"></script>
 <script>
@@ -45,7 +52,7 @@ $('in').onclick=function(){
   sock.on('update',function(c){var o=S[c.id];if(o&&c.msgs.length>o.msgs.length&&c.msgs[c.msgs.length-1].from==='client')beep();S[c.id]=c;render();if(cur===c.id){show();sock.emit('read',cur)}});
 };
 function beep(){try{var x=new (window.AudioContext||window.webkitAudioContext)(),o=x.createOscillator();o.connect(x.destination);o.frequency.value=880;o.start();o.stop(x.currentTime+.25)}catch(e){}}
-$('tk').onclick=function(){var f=$('tf');f.style.display=f.style.display==='grid'?'none':'grid';
+$('tk').onclick=function(){$('pf').style.display='none';var f=$('tf');f.style.display=f.style.display==='grid'?'none':'grid';
   if(cur){$('f_name').value=S[cur].name;$('f_phone').value=S[cur].phone}};
 $('mk').onclick=function(){
   if(!cur)return;var t={};['name','phone','from','to','date','time','bus','seat','price'].forEach(function(k){t[k]=$('f_'+k).value.trim()});
@@ -62,9 +69,20 @@ function render(){
     l.appendChild(d)})}
 function show(){
   var m=$('msgs');m.innerHTML='';
-  S[cur].msgs.forEach(function(x){var d=document.createElement('div');d.className='m '+x.from;d.textContent=x.type==='ticket'?'🎫 '+x.ticket.no+' · '+x.ticket.from+' → '+x.ticket.to+' · seat '+x.ticket.seat+' · KES '+x.ticket.price:x.text;m.appendChild(d)});
+  S[cur].msgs.forEach(function(x){var d=document.createElement('div');d.className='m '+x.from;d.textContent=x.type==='payment'?'💳 Payment sent · '+x.payment.accountLabel+' '+x.payment.number+' · KES '+x.payment.amount:x.type==='ticket'?'🎫 '+x.ticket.no+' · '+x.ticket.from+' → '+x.ticket.to+' · seat '+x.ticket.seat+' · KES '+x.ticket.price:x.text;m.appendChild(d)});
   m.scrollTop=m.scrollHeight}
 function send(){var v=$('t').value.trim();if(v&&cur){sock.emit('reply',{id:cur,text:v});$('t').value=''}}
+var PK=['method','label','number','account','name'],DEF={};
+fetch('/api/settings').then(function(r){return r.json()}).then(function(o){
+  DEF={label:o.type==='till'?'Till':'Paybill',number:o.number||'',account:o.account||''};fillPay()}).catch(function(){});
+function fillPay(){PK.forEach(function(k){var v=localStorage.getItem('pay_'+k)||DEF[k];if(v)$('p_'+k).value=v})}
+$('pay').onclick=function(){$('tf').style.display='none';var f=$('pf');f.style.display=f.style.display==='grid'?'none':'grid';fillPay()};
+$('pk').onclick=function(){
+  if(!cur)return;var p={};['method','label','number','account','name','amount','note'].forEach(function(k){p[k]=$('p_'+k).value.trim()});
+  if(!p.number||!p.amount)return alert('Enter the number and the amount');
+  PK.forEach(function(k){localStorage.setItem('pay_'+k,p[k])});
+  p.accountLabel=p.label;delete p.label;
+  sock.emit('payment',{id:cur,p:p});$('pf').style.display='none';$('p_amount').value='';$('p_note').value=''};
 $('send').onclick=send;$('t').onkeydown=function(e){if(e.key==='Enter')send()};
 $('back').onclick=function(){$('main').classList.remove('open');$('title').textContent='ENA Chat – Agent'};
 </script>
