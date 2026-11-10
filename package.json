@@ -8,6 +8,7 @@
   "dependencies": {
     "express": "^4.19.2",
     "mongodb": "^6.3.0",
-    "cors": "^2.8.5"
+    "cors": "^2.8.5",
+    "socket.io": "^4.7.5"
   }
 }
