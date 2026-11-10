@@ -2,36 +2,54 @@
   var base = document.currentScript.src.replace(/\/chat-widget\.js.*$/, '');
   var css = document.createElement('style');
   css.textContent = `
-#enc-btn{position:fixed;right:16px;bottom:90px;width:58px;height:58px;border-radius:50%;background:#ff5c00;color:#fff;border:0;font-size:26px;box-shadow:0 4px 14px rgba(0,0,0,.3);z-index:99999}
-#enc-box{position:fixed;right:12px;bottom:90px;width:min(360px,calc(100vw - 24px));height:min(520px,75vh);background:#fff;border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,.3);display:none;flex-direction:column;overflow:hidden;z-index:99999;font-family:system-ui,sans-serif}
-#enc-box header{background:#ff5c00;color:#fff;padding:14px;font-weight:700;display:flex;justify-content:space-between}
-#enc-box header span{cursor:pointer}
-#enc-msgs{flex:1;overflow-y:auto;padding:12px;background:#f6f7f9;display:flex;flex-direction:column;gap:8px}
-.enc-m{max-width:80%;padding:9px 12px;border-radius:14px;font-size:15px;line-height:1.35;word-wrap:break-word}
-.enc-c{align-self:flex-end;background:#ff5c00;color:#fff}
-.enc-a{align-self:flex-start;background:#fff;color:#111;border:1px solid #e5e7eb}
+#enc-btn{position:fixed;right:16px;bottom:90px;width:60px;height:60px;border-radius:50%;background:#25D366;color:#fff;border:0;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 18px rgba(37,211,102,.55);z-index:99998}
+#enc-btn::before{content:"";position:absolute;inset:0;border-radius:50%;background:#25D366;animation:encPulse 1.8s ease-out infinite;z-index:-1}
+#enc-btn::after{content:"";position:absolute;top:2px;right:2px;width:14px;height:14px;background:#4ade80;border:2px solid #fff;border-radius:50%}
+@keyframes encPulse{0%{transform:scale(1);opacity:.6}100%{transform:scale(1.7);opacity:0}}
+#enc-lbl{position:fixed;right:88px;bottom:104px;background:#fff;color:#075E54;padding:8px 12px;border-radius:18px;font:600 13px system-ui,sans-serif;box-shadow:0 4px 12px rgba(0,0,0,.18);z-index:99998}
+#enc-box{position:fixed;inset:0;width:100%;height:100vh;height:100dvh;background:#f0f2f5;display:none;flex-direction:column;overflow:hidden;z-index:99999;font-family:system-ui,sans-serif}
+#enc-box header{background:#075E54;color:#fff;padding:calc(env(safe-area-inset-top,0px) + 10px) 12px 10px;display:flex;align-items:center;gap:10px}
+#enc-back{background:none;border:0;color:#fff;font-size:26px;line-height:1;padding:4px 8px;cursor:pointer}
+#enc-av{width:40px;height:40px;border-radius:50%;background:#ff5c00;display:flex;align-items:center;justify-content:center;font-weight:700}
+#enc-ti{display:flex;flex-direction:column;line-height:1.25}
+#enc-ti b{font-size:16px}
+#enc-ti small{font-size:12px;color:#b9f5d0}
+#enc-msgs{flex:1;overflow-y:auto;padding:14px;background:#efeae2;display:flex;flex-direction:column;gap:8px}
+.enc-m{max-width:80%;padding:9px 12px;border-radius:14px;font-size:15px;line-height:1.35;word-wrap:break-word;box-shadow:0 1px 1px rgba(0,0,0,.08)}
+.enc-c{align-self:flex-end;background:#d9fdd3;color:#111;border-bottom-right-radius:4px}
+.enc-a{align-self:flex-start;background:#fff;color:#111;border-bottom-left-radius:4px}
 .enc-t{max-width:95%;padding:0;border:2px dashed #ff5c00;background:#fff;color:#111}
 .tk{padding:10px}.tk h4{margin:0 0 6px;color:#ff5c00}.tk td{padding:2px 8px 2px 0;font-size:14px}.tk td:first-child{color:#6b7280}
 .tk .go{margin-top:8px;width:100%}
-#enc-chips{display:none;gap:6px;padding:6px 10px 0;flex-wrap:wrap}
-#enc-chips span{background:#fff3ec;color:#ff5c00;border:1px solid #ff5c00;border-radius:16px;padding:5px 10px;font-size:13px}
-#enc-form,#enc-send{padding:10px;display:flex;gap:8px;border-top:1px solid #eee}
-#enc-form{flex-direction:column}
-#enc-box input{flex:1;padding:11px;border:1px solid #d1d5db;border-radius:10px;font-size:15px}
-#enc-box button.go{background:#ff5c00;color:#fff;border:0;border-radius:10px;padding:11px 16px;font-weight:700}`;
+.enc-p{max-width:95%;padding:0;border:2px solid #25D366;background:#fff;color:#111}
+.pay{padding:12px}.pay h4{margin:0 0 8px;color:#075E54}.pay table{width:100%}.pay td{padding:4px 0;font-size:14px;vertical-align:middle}.pay td:first-child{color:#6b7280;padding-right:10px}
+.pay .cp{background:#e7fbe9;color:#075E54;border:1px solid #25D366;border-radius:12px;padding:3px 10px;font-size:12px;margin-left:6px}
+.pay .amt{font-size:20px;color:#075E54}
+.pay p{margin:8px 0 0;font-size:12px;color:#6b7280}
+#enc-chips{display:none;gap:6px;padding:8px 12px 0;overflow-x:auto;white-space:nowrap;background:#fff}
+#enc-chips span{background:#e7fbe9;color:#075E54;border:1px solid #25D366;border-radius:16px;padding:6px 12px;font-size:13px;flex:0 0 auto}
+#enc-form,#enc-send{padding:10px 12px calc(env(safe-area-inset-bottom,0px) + 10px);display:flex;gap:8px;background:#fff;border-top:1px solid #eee}
+#enc-send{border-top:0}
+#enc-form{flex-direction:column;gap:10px;padding-top:16px}
+#enc-box input{flex:1;padding:12px;border:1px solid #d1d5db;border-radius:22px;font-size:16px;outline:0}
+#enc-box button.go{background:#25D366;color:#fff;border:0;border-radius:22px;padding:12px 20px;font-weight:700;font-size:15px}
+body.enc-open{overflow:hidden}`;
   document.head.appendChild(css);
 
   var box = document.createElement('div'); box.id = 'enc-box';
-  box.innerHTML = '<header>Chat with ENA Coach <span id="enc-x">✕</span></header>' +
+  box.innerHTML = '<header><button id="enc-back" aria-label="Back">←</button><div id="enc-av">E</div>' +
+    '<div id="enc-ti"><b>ENA Coach Support</b><small>● Online</small></div></header>' +
     '<div id="enc-msgs"></div>' +
     '<div id="enc-form"><input id="enc-n" placeholder="Your name"><input id="enc-p" placeholder="Phone (07xx...)" type="tel"><button class="go" id="enc-start">Start chat</button></div>' +
     '<div id="enc-chips"><span>🎫 Book a ticket</span><span>💰 Check price</span><span>🕒 Departure times</span></div>' +
     '<div id="enc-send" style="display:none"><input id="enc-t" placeholder="Type a message..."><button class="go" id="enc-s">Send</button></div>';
-  var btn = document.createElement('button'); btn.id = 'enc-btn'; btn.textContent = '💬';
-  document.body.appendChild(box); document.body.appendChild(btn);
+  var btn = document.createElement('button'); btn.id = 'enc-btn'; btn.setAttribute('aria-label', 'Chat with us');
+  btn.innerHTML = '<svg width="30" height="30" viewBox="0 0 24 24" fill="#fff"><path d="M4 3h16a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H9l-5 4v-4H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/></svg>';
+  var lbl = document.createElement('div'); lbl.id = 'enc-lbl'; lbl.textContent = 'Chat with us 💬';
+  document.body.appendChild(box); document.body.appendChild(lbl); document.body.appendChild(btn);
 
   var $ = function (id) { return document.getElementById(id); };
-  var msgs = $('enc-msgs'), socket;
+  var msgs = $('enc-msgs'), socket, pushed = false;
   var id = localStorage.getItem('enc_id') || ('c' + Math.random().toString(36).slice(2, 12));
   localStorage.setItem('enc_id', id);
 
@@ -52,9 +70,28 @@
     };
     return d;
   }
+  function payment(p) {
+    var d = document.createElement('div'); d.className = 'enc-m enc-a enc-p';
+    var r = [['Pay via', p.method || 'M-Pesa'], [p.accountLabel || 'Paybill', p.number, 1], ['Account', p.account, 1],
+      ['Name', p.name]].filter(function (x) { return x[1]; });
+    d.innerHTML = '<div class="pay"><h4>💳 PAYMENT DETAILS</h4><table>' +
+      r.map(function (x) { return '<tr><td>' + esc(x[0]) + '</td><td><b>' + esc(x[1]) + '</b>' +
+        (x[2] ? '<button class="cp" data-v="' + esc(x[1]) + '">Copy</button>' : '') + '</td></tr>'; }).join('') +
+      '<tr><td>Amount</td><td><b class="amt">KES ' + esc(p.amount) + '</b></td></tr></table>' +
+      '<p>' + esc(p.note || 'Send the payment, then reply here with the confirmation message.') + '</p></div>';
+    Array.prototype.forEach.call(d.querySelectorAll('.cp'), function (b) {
+      b.onclick = function () {
+        var v = b.getAttribute('data-v');
+        if (navigator.clipboard) navigator.clipboard.writeText(v);
+        b.textContent = 'Copied'; setTimeout(function () { b.textContent = 'Copy'; }, 1500);
+      };
+    });
+    return d;
+  }
   function add(m) {
     var d;
-    if (m.type === 'ticket') d = ticket(m.ticket);
+    if (m.type === 'payment') d = payment(m.payment);
+    else if (m.type === 'ticket') d = ticket(m.ticket);
     else { d = document.createElement('div'); d.className = 'enc-m ' + (m.from === 'client' ? 'enc-c' : 'enc-a'); d.textContent = m.text; }
     msgs.appendChild(d); msgs.scrollTop = msgs.scrollHeight;
   }
@@ -71,9 +108,23 @@
     document.head.appendChild(s);
     $('enc-form').style.display = 'none'; $('enc-chips').style.display = 'flex'; $('enc-send').style.display = 'flex';
   }
-  btn.onclick = function () { box.style.display = 'flex'; btn.style.display = 'none';
-    var n = localStorage.getItem('enc_n'); if (n && !socket) connect(n, localStorage.getItem('enc_ph')); };
-  $('enc-x').onclick = function () { box.style.display = 'none'; btn.style.display = 'block'; };
+
+  function openChat() {
+    box.style.display = 'flex'; btn.style.display = 'none'; lbl.style.display = 'none';
+    document.body.classList.add('enc-open');
+    if (!pushed) { history.pushState({ enc: 1 }, ''); pushed = true; }
+    var n = localStorage.getItem('enc_n'); if (n && !socket) connect(n, localStorage.getItem('enc_ph'));
+  }
+  function closeUI() {
+    box.style.display = 'none'; btn.style.display = 'flex'; lbl.style.display = 'block';
+    document.body.classList.remove('enc-open');
+  }
+  function closeChat() { if (pushed) { pushed = false; history.back(); } else closeUI(); }
+  window.addEventListener('popstate', function () { if (box.style.display === 'flex') { pushed = false; closeUI(); } });
+
+  btn.onclick = openChat;
+  lbl.onclick = openChat;
+  $('enc-back').onclick = closeChat;
   $('enc-start').onclick = function () {
     var n = $('enc-n').value.trim(), p = $('enc-p').value.trim();
     if (!n || !p) return alert('Enter your name and phone');
@@ -85,5 +136,5 @@
   function send() { var v = $('enc-t').value.trim(); if (v && socket) { socket.emit('msg', v); $('enc-t').value = ''; } }
   $('enc-s').onclick = send;
   $('enc-t').onkeydown = function (e) { if (e.key === 'Enter') send(); };
-  window.ENAChat = { open: function () { btn.onclick(); } };
+  window.ENAChat = { open: openChat };
 })();
