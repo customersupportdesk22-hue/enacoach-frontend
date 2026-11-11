@@ -16,7 +16,7 @@
 #enc-ti b{font-size:16px}
 #enc-ti small{font-size:12px;color:#b9f5d0}
 #enc-msgs{flex:1;overflow-y:auto;padding:14px;background:#efeae2;display:flex;flex-direction:column;gap:8px}
-.enc-m{max-width:80%;padding:9px 12px;border-radius:14px;font-size:15px;line-height:1.35;word-wrap:break-word;box-shadow:0 1px 1px rgba(0,0,0,.08)}
+.enc-m{white-space:pre-wrap;max-width:80%;padding:9px 12px;border-radius:14px;font-size:15px;line-height:1.35;word-wrap:break-word;box-shadow:0 1px 1px rgba(0,0,0,.08)}
 .enc-c{align-self:flex-end;background:#d9fdd3;color:#111;border-bottom-right-radius:4px}
 .enc-a{align-self:flex-start;background:#fff;color:#111;border-bottom-left-radius:4px}
 .enc-t{max-width:95%;padding:0;border:2px dashed #ff5c00;background:#fff;color:#111}
@@ -32,6 +32,8 @@
 #enc-form,#enc-send{padding:10px 12px calc(env(safe-area-inset-bottom,0px) + 10px);display:flex;gap:8px;background:#fff;border-top:1px solid #eee}
 #enc-send{border-top:0}
 #enc-form{flex-direction:column;gap:10px;padding-top:16px}
+#enc-box textarea{flex:1;padding:12px 14px;border:1px solid #d1d5db;border-radius:22px;font:16px/1.35 system-ui,sans-serif;outline:0;resize:none;max-height:120px;min-width:0}
+#enc-send{align-items:flex-end}
 #enc-box input{flex:1;padding:12px;border:1px solid #d1d5db;border-radius:22px;font-size:16px;outline:0}
 #enc-box button.go{background:#25D366;color:#fff;border:0;border-radius:22px;padding:12px 20px;font-weight:700;font-size:15px}
 body.enc-open{overflow:hidden}`;
@@ -43,7 +45,7 @@ body.enc-open{overflow:hidden}`;
     '<div id="enc-msgs"></div>' +
     '<div id="enc-form"><input id="enc-n" placeholder="Your name"><input id="enc-p" placeholder="Phone (07xx...)" type="tel"><button class="go" id="enc-start">Start chat</button></div>' +
     '<div id="enc-chips"><span>🎫 Book a ticket</span><span>💰 Check price</span><span>🕒 Departure times</span></div>' +
-    '<div id="enc-send" style="display:none"><input id="enc-t" placeholder="Type a message..."><button class="go" id="enc-s">Send</button></div>';
+    '<div id="enc-send" style="display:none"><textarea id="enc-t" rows="1" placeholder="Type a message..."></textarea><button class="go" id="enc-s">Send</button></div>';
   var btn = document.createElement('button'); btn.id = 'enc-btn'; btn.setAttribute('aria-label', 'Chat with us');
   btn.innerHTML = '<svg width="30" height="30" viewBox="0 0 24 24" fill="#fff"><path d="M4 3h16a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H9l-5 4v-4H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/></svg>';
   var bd = document.createElement('span'); bd.id = 'enc-bd'; btn.appendChild(bd);
@@ -148,9 +150,10 @@ body.enc-open{overflow:hidden}`;
   Array.prototype.forEach.call($('enc-chips').children, function (c) {
     c.onclick = function () { if (socket) socket.emit('msg', c.textContent.replace(/^\S+\s/, '')); };
   });
-  function send() { var v = $('enc-t').value.trim(); if (v && socket) { tone('out'); socket.emit('msg', v); $('enc-t').value = ''; } }
+  function send() { var v = $('enc-t').value.trim(); if (v && socket) { tone('out'); socket.emit('msg', v); $('enc-t').value = ''; $('enc-t').style.height = 'auto'; } }
   $('enc-s').onclick = send;
-  $('enc-t').onkeydown = function (e) { if (e.key === 'Enter') send(); };
+  $('enc-t').oninput = function () { this.style.height = 'auto'; this.style.height = Math.min(this.scrollHeight, 120) + 'px'; };
+  $('enc-t').onkeydown = function (e) { if (e.key === 'Enter' && !e.shiftKey && window.matchMedia('(pointer:fine)').matches) { e.preventDefault(); send(); } };
   // show the button and label on the Home screen only
   function onHome() {
     var h = document.getElementById('screen-home');
