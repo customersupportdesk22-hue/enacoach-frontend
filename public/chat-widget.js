@@ -136,14 +136,10 @@ body.enc-open{overflow:hidden}`;
   function send() { var v = $('enc-t').value.trim(); if (v && socket) { socket.emit('msg', v); $('enc-t').value = ''; } }
   $('enc-s').onclick = send;
   $('enc-t').onkeydown = function (e) { if (e.key === 'Enter') send(); };
-  // show the button and label on the Home page only (the page with the "Search Bus" button)
+  // show the button and label on the Home screen only
   function onHome() {
-    var els = document.querySelectorAll('button, a, div');
-    for (var i = 0; i < els.length; i++) {
-      var e = els[i];
-      if (e.children.length === 0 && e.textContent.trim() === 'Search Bus' && e.offsetParent !== null) return true;
-    }
-    return false;
+    var h = document.getElementById('screen-home');
+    return !!(h && h.classList.contains('active'));
   }
   function sync() {
     if (box.style.display === 'flex') return;
