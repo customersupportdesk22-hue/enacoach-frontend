@@ -116,8 +116,8 @@ body.enc-open{overflow:hidden}`;
     var n = localStorage.getItem('enc_n'); if (n && !socket) connect(n, localStorage.getItem('enc_ph'));
   }
   function closeUI() {
-    box.style.display = 'none'; btn.style.display = 'flex'; lbl.style.display = 'block';
-    document.body.classList.remove('enc-open');
+    box.style.display = 'none';
+    document.body.classList.remove('enc-open'); sync();
   }
   function closeChat() { if (pushed) { pushed = false; history.back(); } else closeUI(); }
   window.addEventListener('popstate', function () { if (box.style.display === 'flex') { pushed = false; closeUI(); } });
@@ -136,5 +136,22 @@ body.enc-open{overflow:hidden}`;
   function send() { var v = $('enc-t').value.trim(); if (v && socket) { socket.emit('msg', v); $('enc-t').value = ''; } }
   $('enc-s').onclick = send;
   $('enc-t').onkeydown = function (e) { if (e.key === 'Enter') send(); };
+  // show the button and label on the Home page only (the page with the "Search Bus" button)
+  function onHome() {
+    var els = document.querySelectorAll('button, a, div');
+    for (var i = 0; i < els.length; i++) {
+      var e = els[i];
+      if (e.children.length === 0 && e.textContent.trim() === 'Search Bus' && e.offsetParent !== null) return true;
+    }
+    return false;
+  }
+  function sync() {
+    if (box.style.display === 'flex') return;
+    [lbl, btn].forEach(function (el) { if (!document.body.contains(el)) document.body.appendChild(el); });
+    var show = onHome();
+    lbl.style.display = show ? 'block' : 'none';
+    btn.style.display = show ? 'flex' : 'none';
+  }
+  setInterval(sync, 400); sync();
   window.ENAChat = { open: openChat };
 })();
