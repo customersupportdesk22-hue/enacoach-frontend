@@ -229,6 +229,7 @@ io.on('connection', (s) => {
     const isFirst = !c.msgs.some((m) => m.from === 'client');
     pushMsg(c, { from: 'client', text: clip(text, 2000) });
     if (isFirst) chatTelegram(`💬 NEW CHAT\n${c.name} (${c.phone})\n"${clip(text, 200)}"\n\nReply: https://enacoach-frontend.onrender.com/agent.html`);
+    else chatTelegram(`💬 ${c.name} (${c.phone}):\n"${clip(text, 200)}"\n\nReply: https://enacoach-frontend.onrender.com/agent.html`);
   });
 });
 // ===================  END LIVE CHAT  ===================
