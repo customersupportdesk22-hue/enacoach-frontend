@@ -36,7 +36,22 @@
 #enc-send{align-items:flex-end}
 #enc-box input{flex:1;padding:12px;border:1px solid #d1d5db;border-radius:22px;font-size:16px;outline:0}
 #enc-box button.go{background:#25D366;color:#fff;border:0;border-radius:22px;padding:12px 20px;font-weight:700;font-size:15px}
-body.enc-open{overflow:hidden}`;
+body.enc-open{overflow:hidden}
+#enc-msgs,#enc-chips{scrollbar-width:none;-ms-overflow-style:none}
+#enc-msgs::-webkit-scrollbar,#enc-chips::-webkit-scrollbar{display:none;width:0;height:0}
+.enc-m{position:relative;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.enc-un{font-style:italic;color:#6b7280;background:#f3f4f6;border:1px dashed #d1d5db;box-shadow:none}
+.enc-lk{position:absolute;bottom:-11px;right:10px;background:#fff;border-radius:12px;padding:0 6px;font-size:13px;line-height:20px;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.enc-liked{margin-bottom:10px}
+.enc-sel{outline:2px solid #25D366}
+#enc-menu{position:absolute;inset:0;background:rgba(0,0,0,.4);display:none;align-items:flex-end;z-index:5}
+.enc-mc{width:100%;background:#fff;border-radius:18px 18px 0 0;padding:8px 8px calc(env(safe-area-inset-bottom,0px) + 10px)}
+.enc-mc button{display:flex;align-items:center;gap:12px;width:100%;background:none;border:0;padding:15px 14px;font:16px system-ui,sans-serif;text-align:left;color:#111;border-radius:10px}
+.enc-mc button:active{background:#f0f2f5}
+.enc-mc .dg{color:#dc2626}
+.enc-pv{padding:8px 14px 10px;font-size:13px;color:#6b7280;border-bottom:1px solid #eee;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#enc-toast{position:absolute;left:50%;bottom:90px;transform:translateX(-50%);background:#111;color:#fff;padding:8px 16px;border-radius:999px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:6}
+`;
   document.head.appendChild(css);
 
   var box = document.createElement('div'); box.id = 'enc-box';
@@ -99,20 +114,85 @@ body.enc-open{overflow:hidden}`;
     });
     return d;
   }
-  function add(m) {
+  var store = {};
+  function build(m) {
     var d;
     if (m.type === 'payment') d = payment(m.payment);
     else if (m.type === 'ticket') d = ticket(m.ticket);
-    else { d = document.createElement('div'); d.className = 'enc-m ' + (m.from === 'client' ? 'enc-c' : 'enc-a'); d.textContent = m.text; }
-    msgs.appendChild(d); msgs.scrollTop = msgs.scrollHeight;
+    else { d = document.createElement('div'); d.className = 'enc-m ' + (m.from === 'client' ? 'enc-c' : 'enc-a') + (m.unsent ? ' enc-un' : ''); d.textContent = m.text; }
+    if (m.id) { d.setAttribute('data-id', m.id); store[m.id] = m; }
+    if (m.likes && m.likes.client) { d.classList.add('enc-liked'); var h = document.createElement('span'); h.className = 'enc-lk'; h.textContent = '\u2764\uFE0F'; d.appendChild(h); }
+    return d;
   }
+  function add(m) { msgs.appendChild(build(m)); msgs.scrollTop = msgs.scrollHeight; }
+  function findEl(mid) { return msgs.querySelector('[data-id="' + mid + '"]'); }
+
+  /* ---- press & hold a message: Like / Copy / Unsend / Delete ---- */
+  var menu = document.createElement('div'); menu.id = 'enc-menu'; menu.innerHTML = '<div class="enc-mc"></div>'; box.appendChild(menu);
+  var toastEl = document.createElement('div'); toastEl.id = 'enc-toast'; box.appendChild(toastEl);
+  var menuOpen = false, menuAt = 0, selEl = null, selId = null, lpTimer, lpX = 0, lpY = 0;
+  function toast(t) { toastEl.textContent = t; toastEl.style.opacity = 1; clearTimeout(toastEl._h); toastEl._h = setTimeout(function () { toastEl.style.opacity = 0; }, 1300); }
+  function copyText(t) {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t);
+      else { var ta = document.createElement('textarea'); ta.value = t; ta.style.cssText = 'position:fixed;opacity:0'; box.appendChild(ta); ta.select(); document.execCommand('copy'); box.removeChild(ta); }
+      toast('Copied');
+    } catch (e) {}
+  }
+  function closeMenu() {
+    menuOpen = false; menu.style.display = 'none';
+    if (selEl) selEl.classList.remove('enc-sel'); selEl = null;
+  }
+  function openMenu(b) {
+    var mid = b.getAttribute('data-id'), m = store[mid];
+    if (!m || menuOpen) return;
+    menuOpen = true; menuAt = Date.now(); selEl = b; selId = mid; b.classList.add('enc-sel');
+    try { navigator.vibrate && navigator.vibrate(15); } catch (e) {}
+    var liked = !!(m.likes && m.likes.client), mine = m.from === 'client' && !m.unsent;
+    var h = '<div class="enc-pv">' + esc(m.text || '') + '</div>';
+    if (!m.unsent) h += '<button data-a="like">' + (liked ? '\uD83D\uDC94 Remove like' : '\u2764\uFE0F Like') + '</button><button data-a="copy">\uD83D\uDCCB Copy</button>';
+    if (mine) h += '<button data-a="unsend">\u21A9\uFE0F Unsend</button>';
+    h += '<button data-a="del" class="dg">\uD83D\uDDD1\uFE0F Delete</button><button data-a="x">Cancel</button>';
+    menu.firstChild.innerHTML = h; menu.style.display = 'flex';
+  }
+  menu.onclick = function (e) {
+    if (Date.now() - menuAt < 350) return;
+    var a = e.target.closest ? e.target.closest('[data-a]') : null;
+    if (!a) { if (e.target === menu) closeMenu(); return; }
+    var act = a.getAttribute('data-a'), mid = selId, m = store[mid];
+    closeMenu();
+    if (!m || act === 'x') return;
+    if (act === 'copy') return copyText(m.text || '');
+    if (!socket) return;
+    if (act === 'like') socket.emit('like', mid);
+    else if (act === 'unsend') socket.emit('unsend', mid);
+    else if (act === 'del') socket.emit('delete', mid);
+  };
+  function cancelLP() { clearTimeout(lpTimer); }
+  function bubbleOf(t) { return t && t.closest ? t.closest('.enc-m') : null; }
+  msgs.addEventListener('pointerdown', function (e) {
+    if (e.pointerType === 'mouse') return;
+    var b = bubbleOf(e.target);
+    if (!b || !b.getAttribute('data-id') || e.target.closest('button')) return;
+    lpX = e.clientX; lpY = e.clientY; cancelLP();
+    lpTimer = setTimeout(function () { openMenu(b); }, 450);
+  });
+  msgs.addEventListener('pointermove', function (e) { if (Math.abs(e.clientX - lpX) > 10 || Math.abs(e.clientY - lpY) > 10) cancelLP(); });
+  ['pointerup', 'pointercancel', 'pointerleave', 'scroll'].forEach(function (ev) { msgs.addEventListener(ev, cancelLP); });
+  msgs.addEventListener('contextmenu', function (e) {
+    var b = bubbleOf(e.target); if (!b) return;
+    e.preventDefault();
+    if (b.getAttribute('data-id')) openMenu(b);
+  });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && menuOpen) closeMenu(); });
+
   function connect(name, phone) {
     var s = document.createElement('script');
     s.src = base + '/socket.io/socket.io.js';
     s.onload = function () {
       socket = io(base);
       socket.on('connect', function () { socket.emit('join', { id: id, name: name, phone: phone }); });
-      socket.on('history', function (h) { msgs.innerHTML = ''; h.forEach(add);
+      socket.on('history', function (h) { msgs.innerHTML = ''; store = {}; closeMenu(); h.forEach(add);
         if (!h.length) add({ from: 'agent', text: 'Hello! 👋 Tell us where you are travelling from, to, and the date, and we will book your ticket.' }); });
       socket.on('msg', function (m) {
         add(m);
@@ -120,6 +200,14 @@ body.enc-open{overflow:hidden}`;
           tone('in'); try { navigator.vibrate && navigator.vibrate([150, 80, 150]); } catch (e) {}
           if (box.style.display !== 'flex') { unread++; setBadge(); }
         }
+      });
+      socket.on('msgUpdate', function (m) {
+        var old = findEl(m.id), n = build(m);
+        if (old) msgs.replaceChild(n, old); else add(m);
+      });
+      socket.on('msgDelete', function (mid) {
+        if (menuOpen && selId === mid) closeMenu();
+        var e = findEl(mid); if (e) msgs.removeChild(e); delete store[mid];
       });
     };
     document.head.appendChild(s);
@@ -133,7 +221,7 @@ body.enc-open{overflow:hidden}`;
     var n = localStorage.getItem('enc_n'); if (n && !socket) connect(n, localStorage.getItem('enc_ph'));
   }
   function closeUI() {
-    box.style.display = 'none';
+    closeMenu(); box.style.display = 'none';
     document.body.classList.remove('enc-open'); sync();
   }
   function closeChat() { if (pushed) { pushed = false; history.back(); } else closeUI(); }
