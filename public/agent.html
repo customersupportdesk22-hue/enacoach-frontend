@@ -15,6 +15,9 @@ main{flex:1;display:flex;min-height:0}
 .m{max-width:75%;padding:9px 12px;border-radius:14px}.client{background:#fff;border:1px solid #e5e7eb;align-self:flex-start}
 .agent{background:#ff5c00;color:#fff;align-self:flex-end}
 #bar{display:flex;gap:8px;padding:10px;background:#fff;border-top:1px solid #eee}
+textarea{flex:1;padding:11px;border:1px solid #d1d5db;border-radius:10px;font:15px/1.35 system-ui,sans-serif;resize:none;max-height:120px;min-width:0;outline:0}
+#bar{align-items:flex-end}
+.m{white-space:pre-wrap}
 input{flex:1;padding:11px;border:1px solid #d1d5db;border-radius:10px;font-size:15px}
 button.go{background:#ff5c00;color:#fff;border:0;border-radius:10px;padding:11px 16px;font-weight:700}
 #tf,#pf{display:none;grid-template-columns:1fr 1fr;gap:6px;padding:10px;background:#fff;border-top:1px solid #eee}
@@ -39,7 +42,7 @@ button.go{background:#ff5c00;color:#fff;border:0;border-radius:10px;padding:11px
       <input id="p_number" placeholder="Paybill / Till / number"><input id="p_account" placeholder="Account no.">
       <input id="p_name" placeholder="Account name"><input id="p_amount" type="number" placeholder="Amount KES">
       <input id="p_note" placeholder="Note (optional)"><button class="go" id="pk">Send payment details</button></div>
-    <div id="bar"><button class="go" id="tk">🎫</button><button class="go" id="pay">💳</button><input id="t" placeholder="Reply..."><button class="go" id="send">Send</button></div></div>
+    <div id="bar"><button class="go" id="tk">🎫</button><button class="go" id="pay">💳</button><textarea id="t" rows="1" placeholder="Reply..."></textarea><button class="go" id="send">Send</button></div></div>
 </main>
 <script src="/socket.io/socket.io.js"></script>
 <script>
@@ -88,7 +91,7 @@ function show(){
   var m=$('msgs');m.innerHTML='';
   S[cur].msgs.forEach(function(x){var d=document.createElement('div');d.className='m '+x.from;d.textContent=x.type==='payment'?'💳 Payment sent · '+x.payment.accountLabel+' '+x.payment.number+' · KES '+x.payment.amount:x.type==='ticket'?'🎫 '+x.ticket.no+' · '+x.ticket.from+' → '+x.ticket.to+' · seat '+x.ticket.seat+' · KES '+x.ticket.price:x.text;m.appendChild(d)});
   m.scrollTop=m.scrollHeight}
-function send(){var v=$('t').value.trim();if(v&&cur){sock.emit('reply',{id:cur,text:v});tone('out');$('t').value=''}}
+function send(){var v=$('t').value.trim();if(v&&cur){sock.emit('reply',{id:cur,text:v});tone('out');$('t').value='';$('t').style.height='auto'}}
 var PK=['method','label','number','account','name'],DEF={};
 fetch('/api/settings').then(function(r){return r.json()}).then(function(o){
   DEF={label:o.type==='till'?'Till':'Paybill',number:o.number||'',account:o.account||''};fillPay()}).catch(function(){});
@@ -100,7 +103,8 @@ $('pk').onclick=function(){
   PK.forEach(function(k){localStorage.setItem('pay_'+k,p[k])});
   p.accountLabel=p.label;delete p.label;
   sock.emit('payment',{id:cur,p:p});tone('out');$('pf').style.display='none';$('p_amount').value='';$('p_note').value=''};
-$('send').onclick=send;$('t').onkeydown=function(e){if(e.key==='Enter')send()};
+$('send').onclick=send;$('t').oninput=function(){this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px'};
+$('t').onkeydown=function(e){if(e.key==='Enter'&&!e.shiftKey&&window.matchMedia('(pointer:fine)').matches){e.preventDefault();send()}};
 $('back').onclick=function(){$('main').classList.remove('open');$('title').textContent='ENA Chat – Agent'};
 </script>
 </body>
