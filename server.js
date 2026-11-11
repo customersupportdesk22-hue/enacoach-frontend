@@ -5,7 +5,7 @@ const { MongoClient } = require('mongodb');
 const cors = require('cors');
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: '*' } });
+const io = new Server(server, { cors: { origin: '*' }, pingInterval: 10000, pingTimeout: 10000, maxHttpBufferSize: 3e6 });
 
 app.use(cors());
 app.use(express.json());
@@ -129,11 +129,15 @@ app.post('/api/notify-viewing', async (req, res) => {
 const AGENT_PASSWORD = process.env.AGENT_PASSWORD || 'change-me';
 const chatSessions = {}; // id -> { id, name, phone, msgs, unread, last }
 let chatCol = null;
+let chatFileCol = null;
+const memFiles = {}; // fallback when the database is unavailable
+const { randomBytes } = require('crypto');
 
 (async () => {
   try {
     const c = await clientPromise;
     chatCol = c.db('enacoach').collection('chats');
+    chatFileCol = c.db('enacoach').collection('chatFiles');
     (await chatCol.find().toArray()).forEach((d) => {
       chatSessions[d._id] = { id: d._id, name: d.name, phone: d.phone, msgs: d.msgs || [], unread: d.unread || 0, last: d.last || 0 };
       ensureIds(chatSessions[d._id]);
@@ -154,6 +158,30 @@ const clip = (v, n) => String(v || '').slice(0, n);
 const newId = () => 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const ensureIds = (c) => c.msgs.forEach((m) => { if (!m.id) m.id = newId(); });
 const clientView = (c) => c.msgs.filter((m) => !m.hiddenForClient);
+
+// ---- customer photo / screenshot storage ----
+async function putFile(id, type, buf) {
+  if (chatFileCol) await chatFileCol.insertOne({ _id: id, type, data: buf.toString('base64'), t: Date.now() });
+  else memFiles[id] = { type, buf };
+}
+async function getFile(id) {
+  if (memFiles[id]) return memFiles[id];
+  if (!chatFileCol) return null;
+  const d = await chatFileCol.findOne({ _id: id });
+  return d ? { type: d.type, buf: Buffer.from(d.data, 'base64') } : null;
+}
+function delFile(id) {
+  delete memFiles[id];
+  if (chatFileCol) chatFileCol.deleteOne({ _id: id }).catch(console.error);
+}
+app.get('/chatfile/:id', async (req, res) => {
+  try {
+    const f = await getFile(String(req.params.id).slice(0, 60));
+    if (!f) return res.status(404).end();
+    res.set({ 'Content-Type': f.type, 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'private, max-age=86400', 'Cross-Origin-Resource-Policy': 'cross-origin' });
+    res.send(f.buf);
+  } catch (e) { res.status(500).end(); }
+});
 
 async function chatTelegram(text) {
   const T = process.env.TELEGRAM_TOKEN, C = process.env.TELEGRAM_CHAT_ID;
@@ -213,7 +241,8 @@ agents.on('connection', (s) => {
     pushMsg(c, { from: 'agent', type: 'payment', payment, text: 'Payment details: KES ' + payment.amount });
   });
   s.on('read', (id) => {
-    if (chatSessions[id]) { chatSessions[id].unread = 0; saveChat(chatSessions[id]); agents.emit('update', chatSessions[id]); }
+    // only act when there is something to mark as read (prevents an endless update <-> read loop)
+    if (chatSessions[id] && chatSessions[id].unread) { chatSessions[id].unread = 0; saveChat(chatSessions[id]); agents.emit('update', chatSessions[id]); }
   });
 });
 
@@ -238,6 +267,33 @@ io.on('connection', (s) => {
     else chatTelegram(`💬 ${c.name} (${c.phone}):\n"${clip(text, 200)}"\n\nReply: https://enacoach-frontend.onrender.com/agent.html`);
   });
 
+  // ---- customer sends a photo / screenshot (e.g. payment proof) ----
+  s.on('file', async (p) => {
+    try {
+      const c = chatSessions[s.data.id];
+      if (!c || !p || typeof p.data !== 'string' || p.data.length > 3e6) return;
+      const now = Date.now();
+      s.data.ft = (s.data.ft || []).filter((t) => now - t < 60000);
+      if (s.data.ft.length >= 6) return s.emit('fileError', 'Too many uploads. Please wait a minute.');
+      const mt = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+\/=]+)$/.exec(p.data);
+      if (!mt) return s.emit('fileError', 'Please send a photo or screenshot (JPG or PNG).');
+      const buf = Buffer.from(mt[2], 'base64');
+      const isJpg = buf[0] === 0xFF && buf[1] === 0xD8;
+      const isPng = buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4E && buf[3] === 0x47;
+      const isWebp = buf.slice(0, 4).toString() === 'RIFF' && buf.slice(8, 12).toString() === 'WEBP';
+      if (!(isJpg || isPng || isWebp) || buf.length > 1.5e6) return s.emit('fileError', 'That image could not be sent. Try a smaller screenshot.');
+      s.data.ft.push(now);
+      const fid = 'f' + randomBytes(12).toString('hex');
+      await putFile(fid, mt[1], buf);
+      const caption = clip(p.caption, 200);
+      pushMsg(c, { from: 'client', type: 'image', file: fid, caption, text: '📷 Photo' + (caption ? ': ' + caption : '') });
+      chatTelegram(`📎 ${c.name} (${c.phone}) sent a photo${caption ? ': "' + caption + '"' : ''}\n\nReply: https://enacoach-frontend.onrender.com/agent.html`);
+    } catch (e) {
+      console.error('Chat file upload failed:', e.message);
+      s.emit('fileError', 'Upload failed. Please try again.');
+    }
+  });
+
   // ---- customer actions on a message (press & hold) ----
   const findMsg = (mid) => {
     const c = chatSessions[s.data.id];
@@ -257,6 +313,8 @@ io.on('connection', (s) => {
     const [c, m] = findMsg(mid);
     if (!m || m.from !== 'client' || m.unsent) return;
     m.unsent = true; m.text = '🚫 This message was unsent'; delete m.likes;
+    if (m.file) delFile(m.file);
+    delete m.file; delete m.type; delete m.caption;
     io.to(c.id).emit('msgUpdate', m); agents.emit('update', c); saveChat(c);
   });
   // Delete: removed from the customer's own chat view only
