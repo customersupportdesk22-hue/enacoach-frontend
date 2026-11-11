@@ -45,20 +45,37 @@ button.go{background:#ff5c00;color:#fff;border:0;border-radius:10px;padding:11px
 <script>
 var $=function(i){return document.getElementById(i)},S={},cur=null,sock;
 $('in').onclick=function(){
+  unlock();
+  try{if('Notification' in window&&Notification.permission==='default')Notification.requestPermission()}catch(e){}
+  try{if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js')}catch(e){}
   sock=io('/agent',{auth:{password:$('pw').value}});
   sock.on('connect_error',function(e){alert(e.message)});
   sock.on('connect',function(){$('login').style.display='none';$('main').style.display='flex'});
   sock.on('sessions',function(a){a.forEach(function(c){S[c.id]=c});render()});
-  sock.on('update',function(c){var o=S[c.id];if(o&&c.msgs.length>o.msgs.length&&c.msgs[c.msgs.length-1].from==='client')beep();S[c.id]=c;render();if(cur===c.id){show();sock.emit('read',cur)}});
+  sock.on('update',function(c){var o=S[c.id],ol=o?o.msgs.length:0,lm=c.msgs[c.msgs.length-1];if(c.msgs.length>ol&&lm&&lm.from==='client'){beep();notify(c)}S[c.id]=c;render();if(cur===c.id){show();sock.emit('read',cur)}});
 };
-function beep(){try{var x=new (window.AudioContext||window.webkitAudioContext)(),o=x.createOscillator();o.connect(x.destination);o.frequency.value=880;o.start();o.stop(x.currentTime+.25)}catch(e){}}
+var AC;
+function unlock(){try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume()}catch(e){}}
+function note(f,t,d,v){var o=AC.createOscillator(),g=AC.createGain();o.type='sine';o.frequency.value=f;o.connect(g);g.connect(AC.destination);
+  g.gain.setValueAtTime(0.0001,AC.currentTime+t);g.gain.exponentialRampToValueAtTime(v,AC.currentTime+t+.02);g.gain.exponentialRampToValueAtTime(0.0001,AC.currentTime+t+d);o.start(AC.currentTime+t);o.stop(AC.currentTime+t+d+.02)}
+function tone(k){try{unlock();if(k==='in'){note(880,0,.18,.35);note(1175,.16,.28,.35)}else{note(660,0,.12,.18)}}catch(e){}}
+function beep(){tone('in');try{navigator.vibrate&&navigator.vibrate([200,100,200])}catch(e){}}
+function notify(c){
+  try{
+    if(!('Notification' in window)||Notification.permission!=='granted')return;
+    if(!document.hidden&&cur===c.id)return;
+    var m=c.msgs[c.msgs.length-1],title=(c.name||'Guest')+(c.phone?' · '+c.phone:''),opt={body:m.text||'New message',tag:'enc-'+c.id,renotify:true};
+    var fb=function(){try{new Notification(title,opt)}catch(e){}};
+    if(navigator.serviceWorker&&navigator.serviceWorker.getRegistration)navigator.serviceWorker.getRegistration().then(function(r){r?r.showNotification(title,opt):fb()}).catch(fb);else fb();
+  }catch(e){}}
 $('tk').onclick=function(){$('pf').style.display='none';var f=$('tf');f.style.display=f.style.display==='grid'?'none':'grid';
   if(cur){$('f_name').value=S[cur].name;$('f_phone').value=S[cur].phone}};
 $('mk').onclick=function(){
   if(!cur)return;var t={};['name','phone','from','to','date','time','bus','seat','price'].forEach(function(k){t[k]=$('f_'+k).value.trim()});
   if(!t.from||!t.to||!t.date||!t.seat||!t.price)return alert('Fill from, to, date, seat and fare');
-  sock.emit('ticket',{id:cur,t:t});$('tf').style.display='none';['from','to','seat','price'].forEach(function(k){$('f_'+k).value=''})};
+  sock.emit('ticket',{id:cur,t:t});tone('out');$('tf').style.display='none';['from','to','seat','price'].forEach(function(k){$('f_'+k).value=''})};
 function render(){
+  var n=Object.values(S).reduce(function(a,c){return a+(c.unread||0)},0);document.title=(n?'('+n+') ':'')+'ENA Chat – Agent';
   var l=$('list');l.innerHTML='';
   Object.values(S).sort(function(a,b){return b.last-a.last}).forEach(function(c){
     var d=document.createElement('div');d.className='s';
@@ -71,7 +88,7 @@ function show(){
   var m=$('msgs');m.innerHTML='';
   S[cur].msgs.forEach(function(x){var d=document.createElement('div');d.className='m '+x.from;d.textContent=x.type==='payment'?'💳 Payment sent · '+x.payment.accountLabel+' '+x.payment.number+' · KES '+x.payment.amount:x.type==='ticket'?'🎫 '+x.ticket.no+' · '+x.ticket.from+' → '+x.ticket.to+' · seat '+x.ticket.seat+' · KES '+x.ticket.price:x.text;m.appendChild(d)});
   m.scrollTop=m.scrollHeight}
-function send(){var v=$('t').value.trim();if(v&&cur){sock.emit('reply',{id:cur,text:v});$('t').value=''}}
+function send(){var v=$('t').value.trim();if(v&&cur){sock.emit('reply',{id:cur,text:v});tone('out');$('t').value=''}}
 var PK=['method','label','number','account','name'],DEF={};
 fetch('/api/settings').then(function(r){return r.json()}).then(function(o){
   DEF={label:o.type==='till'?'Till':'Paybill',number:o.number||'',account:o.account||''};fillPay()}).catch(function(){});
@@ -82,7 +99,7 @@ $('pk').onclick=function(){
   if(!p.number||!p.amount)return alert('Enter the number and the amount');
   PK.forEach(function(k){localStorage.setItem('pay_'+k,p[k])});
   p.accountLabel=p.label;delete p.label;
-  sock.emit('payment',{id:cur,p:p});$('pf').style.display='none';$('p_amount').value='';$('p_note').value=''};
+  sock.emit('payment',{id:cur,p:p});tone('out');$('pf').style.display='none';$('p_amount').value='';$('p_note').value=''};
 $('send').onclick=send;$('t').onkeydown=function(e){if(e.key==='Enter')send()};
 $('back').onclick=function(){$('main').classList.remove('open');$('title').textContent='ENA Chat – Agent'};
 </script>
