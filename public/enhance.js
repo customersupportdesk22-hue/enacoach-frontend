@@ -15,13 +15,8 @@
   var ws = document.createElement('script');
   ws.src = BASE + '/chat-widget.js';
   ws.onload = function () {
-    var m = document.querySelector('#helpModal .modal-content');
-    if (!m) return;
-    var a = document.createElement('a');
-    a.href = '#'; a.className = 'help-btn call';
-    a.innerHTML = '<div class="help-icon">💬</div><div><div style="font-size:15px">Live Chat</div><div style="font-size:12px;font-weight:400;opacity:.8">Book with an agent</div></div>';
-    a.onclick = function (e) { e.preventDefault(); closeHelpModal(); window.ENAChat.open(); };
-    m.insertBefore(a, m.querySelector('.help-btn'));
+    var c = document.querySelector('#screen-help .why-card');
+    if (c) { c.style.cursor = 'pointer'; c.onclick = function () { if (window.ENAChat) window.ENAChat.open(); }; }
   };
   document.head.appendChild(ws);
 
@@ -45,7 +40,7 @@
   var st = document.createElement('style');
   st.textContent =
     '.es-sec{padding:0 16px 28px}' +
-    '.es-sec h3{font-size:16px;font-weight:800;margin-bottom:12px}' +
+    '.es-sec h3{font-size:26px;font-weight:800;margin-bottom:12px}' +
     '.es-wrap{position:relative;overflow:hidden;border-radius:18px;aspect-ratio:16/9;background:linear-gradient(135deg,#FF5E00,#FF8C42);box-shadow:0 8px 25px rgba(0,0,0,.15);touch-action:pan-y}' +
     '.es-s{position:absolute;inset:0;opacity:0;transition:opacity .8s ease}' +
     '.es-s.on{opacity:1}' +
@@ -72,7 +67,8 @@
     }).join('') +
     '<button class="es-a es-p" aria-label="Previous">\u2039</button><button class="es-a es-n" aria-label="Next">\u203A</button>' +
     '<div class="es-d">' + IMGS.map(function () { return '<i></i>'; }).join('') + '</div><div class="es-bar"></div></div>';
-  home.appendChild(sec);
+  var routesAnchor = home.querySelector('.routes-card');
+  if (routesAnchor) home.insertBefore(sec, routesAnchor); else home.appendChild(sec);
 
   var wrap = sec.querySelector('.es-wrap'), bar = sec.querySelector('.es-bar');
   var slides = sec.querySelectorAll('.es-s'), imgs = sec.querySelectorAll('.es-s img'), dots = sec.querySelectorAll('.es-d i');
