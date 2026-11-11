@@ -136,6 +136,7 @@ let chatCol = null;
     chatCol = c.db('enacoach').collection('chats');
     (await chatCol.find().toArray()).forEach((d) => {
       chatSessions[d._id] = { id: d._id, name: d.name, phone: d.phone, msgs: d.msgs || [], unread: d.unread || 0, last: d.last || 0 };
+      ensureIds(chatSessions[d._id]);
     });
     console.log('Chat history loaded');
   } catch (e) {
@@ -150,6 +151,9 @@ function saveChat(c) {
     { upsert: true }).catch(console.error);
 }
 const clip = (v, n) => String(v || '').slice(0, n);
+const newId = () => 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const ensureIds = (c) => c.msgs.forEach((m) => { if (!m.id) m.id = newId(); });
+const clientView = (c) => c.msgs.filter((m) => !m.hiddenForClient);
 
 async function chatTelegram(text) {
   const T = process.env.TELEGRAM_TOKEN, C = process.env.TELEGRAM_CHAT_ID;
@@ -168,6 +172,7 @@ agents.use((s, next) =>
 
 function pushMsg(c, m) {
   m.t = Date.now();
+  m.id = newId();
   c.msgs.push(m); c.last = m.t;
   if (m.from === 'client') c.unread++;
   io.to(c.id).emit('msg', m);
@@ -220,7 +225,8 @@ io.on('connection', (s) => {
     c.name = clip(name || c.name, 60);
     c.phone = clip(phone || c.phone, 20);
     s.join(id); s.data.id = id;
-    s.emit('history', c.msgs);
+    ensureIds(c);
+    s.emit('history', clientView(c));
     agents.emit('update', c); saveChat(c);
   });
   s.on('msg', (text) => {
@@ -230,6 +236,35 @@ io.on('connection', (s) => {
     pushMsg(c, { from: 'client', text: clip(text, 2000) });
     if (isFirst) chatTelegram(`💬 NEW CHAT\n${c.name} (${c.phone})\n"${clip(text, 200)}"\n\nReply: https://enacoach-frontend.onrender.com/agent.html`);
     else chatTelegram(`💬 ${c.name} (${c.phone}):\n"${clip(text, 200)}"\n\nReply: https://enacoach-frontend.onrender.com/agent.html`);
+  });
+
+  // ---- customer actions on a message (press & hold) ----
+  const findMsg = (mid) => {
+    const c = chatSessions[s.data.id];
+    return c ? [c, c.msgs.find((m) => m.id === mid)] : [];
+  };
+  // Like / unlike a message
+  s.on('like', (mid) => {
+    const [c, m] = findMsg(mid);
+    if (!m || m.unsent || m.hiddenForClient) return;
+    m.likes = m.likes || {};
+    if (m.likes.client) delete m.likes.client; else m.likes.client = true;
+    if (!Object.keys(m.likes).length) delete m.likes;
+    io.to(c.id).emit('msgUpdate', m); agents.emit('update', c); saveChat(c);
+  });
+  // Unsend: customer's own message, removed for everyone (agent sees it as unsent)
+  s.on('unsend', (mid) => {
+    const [c, m] = findMsg(mid);
+    if (!m || m.from !== 'client' || m.unsent) return;
+    m.unsent = true; m.text = '🚫 This message was unsent'; delete m.likes;
+    io.to(c.id).emit('msgUpdate', m); agents.emit('update', c); saveChat(c);
+  });
+  // Delete: removed from the customer's own chat view only
+  s.on('delete', (mid) => {
+    const [c, m] = findMsg(mid);
+    if (!m) return;
+    m.hiddenForClient = true;
+    io.to(c.id).emit('msgDelete', mid); agents.emit('update', c); saveChat(c);
   });
 });
 // ===================  END LIVE CHAT  ===================
