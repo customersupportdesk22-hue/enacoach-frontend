@@ -37,6 +37,16 @@
 #enc-box input{flex:1;padding:12px;border:1px solid #d1d5db;border-radius:22px;font-size:16px;outline:0}
 #enc-box button.go{background:#25D366;color:#fff;border:0;border-radius:22px;padding:12px 20px;font-weight:700;font-size:15px}
 body.enc-open{overflow:hidden}
+#enc-at{background:none;border:0;font-size:24px;padding:8px 4px;align-self:flex-end;cursor:pointer}
+.enc-img{padding:4px}
+.enc-img img{display:block;width:220px;max-width:100%;border-radius:10px;cursor:pointer;background:#eee;min-height:60px}
+#enc-lb,#enc-prev{position:absolute;inset:0;background:rgba(0,0,0,.92);display:none;align-items:center;justify-content:center;flex-direction:column;z-index:7;padding:16px;gap:12px}
+#enc-lb img,#enc-prev img{max-width:100%;max-height:68%;object-fit:contain;border-radius:8px}
+#enc-lb img{max-height:92%}
+#enc-prev input{flex:none;width:100%;max-width:420px}
+#enc-prev .pb{display:flex;gap:10px;width:100%;max-width:420px}
+#enc-prev .pb button{flex:1;border-radius:22px;padding:12px;font-weight:700;font-size:15px;border:0}
+#enc-prev .pb .x{background:#fff;color:#111}
 #enc-msgs,#enc-chips{scrollbar-width:none;-ms-overflow-style:none}
 #enc-msgs::-webkit-scrollbar,#enc-chips::-webkit-scrollbar{display:none;width:0;height:0}
 .enc-m{position:relative;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
@@ -119,9 +129,20 @@ body.enc-open{overflow:hidden}
     var d;
     if (m.type === 'payment') d = payment(m.payment);
     else if (m.type === 'ticket') d = ticket(m.ticket);
+    else if (m.type === 'image' && m.file) d = imageBubble(m);
     else { d = document.createElement('div'); d.className = 'enc-m ' + (m.from === 'client' ? 'enc-c' : 'enc-a') + (m.unsent ? ' enc-un' : ''); d.textContent = m.text; }
     if (m.id) { d.setAttribute('data-id', m.id); store[m.id] = m; }
     if (m.likes && m.likes.client) { d.classList.add('enc-liked'); var h = document.createElement('span'); h.className = 'enc-lk'; h.textContent = '\u2764\uFE0F'; d.appendChild(h); }
+    return d;
+  }
+  function imageBubble(m) {
+    var d = document.createElement('div'); d.className = 'enc-m enc-img ' + (m.from === 'client' ? 'enc-c' : 'enc-a');
+    var im = document.createElement('img'), src = base + '/chatfile/' + encodeURIComponent(m.file);
+    im.src = src; im.alt = 'Photo';
+    im.onload = function () { if (msgs.lastChild === d) msgs.scrollTop = msgs.scrollHeight; };
+    im.onclick = function () { if (Date.now() - menuAt > 700) viewImg(src); };
+    d.appendChild(im);
+    if (m.caption) { var cp = document.createElement('div'); cp.textContent = m.caption; cp.style.cssText = 'margin:6px 6px 2px'; d.appendChild(cp); }
     return d;
   }
   function add(m) { msgs.appendChild(build(m)); msgs.scrollTop = msgs.scrollHeight; }
@@ -150,7 +171,7 @@ body.enc-open{overflow:hidden}
     try { navigator.vibrate && navigator.vibrate(15); } catch (e) {}
     var liked = !!(m.likes && m.likes.client), mine = m.from === 'client' && !m.unsent;
     var h = '<div class="enc-pv">' + esc(m.text || '') + '</div>';
-    if (!m.unsent) h += '<button data-a="like">' + (liked ? '\uD83D\uDC94 Remove like' : '\u2764\uFE0F Like') + '</button><button data-a="copy">\uD83D\uDCCB Copy</button>';
+    if (!m.unsent) h += '<button data-a="like">' + (liked ? '\uD83D\uDC94 Remove like' : '\u2764\uFE0F Like') + '</button>' + (m.type === 'image' ? '' : '<button data-a="copy">\uD83D\uDCCB Copy</button>');
     if (mine) h += '<button data-a="unsend">\u21A9\uFE0F Unsend</button>';
     h += '<button data-a="del" class="dg">\uD83D\uDDD1\uFE0F Delete</button><button data-a="x">Cancel</button>';
     menu.firstChild.innerHTML = h; menu.style.display = 'flex';
@@ -186,6 +207,52 @@ body.enc-open{overflow:hidden}
   });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && menuOpen) closeMenu(); });
 
+  /* ---- send a photo / screenshot (e.g. payment proof) ---- */
+  var sendBar = $('enc-send'), at = document.createElement('button'), fi = document.createElement('input');
+  at.id = 'enc-at'; at.type = 'button'; at.setAttribute('aria-label', 'Attach photo'); at.textContent = '\uD83D\uDCCE';
+  fi.type = 'file'; fi.accept = 'image/*'; fi.style.display = 'none';
+  sendBar.insertBefore(at, sendBar.firstChild); sendBar.appendChild(fi);
+  var prev = document.createElement('div'); prev.id = 'enc-prev';
+  prev.innerHTML = '<img alt=""><input id="enc-cap" placeholder="Add a message (optional)" maxlength="200"><div class="pb"><button type="button" class="x">Cancel</button><button type="button" class="go ok">Send</button></div>';
+  box.appendChild(prev);
+  var lb = document.createElement('div'); lb.id = 'enc-lb'; lb.innerHTML = '<img alt="">'; box.appendChild(lb);
+  var pendingImg = null;
+  function viewImg(src) { lb.firstChild.src = src; lb.style.display = 'flex'; }
+  lb.onclick = function () { lb.style.display = 'none'; };
+  function closeOverlays() { lb.style.display = 'none'; prev.style.display = 'none'; pendingImg = null; }
+  function compress(file, cb) {
+    var img = new Image(), url = URL.createObjectURL(file);
+    img.onload = function () {
+      var r = Math.min(1, 1600 / Math.max(img.width, img.height)), cv = document.createElement('canvas');
+      cv.width = Math.max(1, Math.round(img.width * r)); cv.height = Math.max(1, Math.round(img.height * r));
+      var cx = cv.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, cv.width, cv.height); cx.drawImage(img, 0, 0, cv.width, cv.height);
+      URL.revokeObjectURL(url);
+      var q = 0.8, out = cv.toDataURL('image/jpeg', q);
+      while (out.length > 1000000 && q > 0.35) { q -= 0.1; out = cv.toDataURL('image/jpeg', q); }
+      cb(out.length > 1900000 ? null : out);
+    };
+    img.onerror = function () { URL.revokeObjectURL(url); cb(null); };
+    img.src = url;
+  }
+  at.onclick = function () { if (!socket) return toast('Please wait, connecting...'); fi.click(); };
+  fi.onchange = function () {
+    var f = fi.files && fi.files[0]; fi.value = '';
+    if (!f) return;
+    if (!/^image\//.test(f.type)) return toast('Please choose a photo or screenshot');
+    toast('Preparing photo...');
+    compress(f, function (d) {
+      if (!d) return toast('Could not use that image');
+      pendingImg = d; prev.querySelector('img').src = d; $('enc-cap').value = ''; prev.style.display = 'flex';
+    });
+  };
+  prev.querySelector('.x').onclick = closeOverlays;
+  prev.querySelector('.ok').onclick = function () {
+    if (!pendingImg) return;
+    if (!socket || !socket.connected) return toast('Not connected. Please try again.');
+    socket.emit('file', { data: pendingImg, caption: $('enc-cap').value.trim() });
+    tone('out'); closeOverlays(); toast('Sending...');
+  };
+
   function connect(name, phone) {
     var s = document.createElement('script');
     s.src = base + '/socket.io/socket.io.js';
@@ -201,6 +268,7 @@ body.enc-open{overflow:hidden}
           if (box.style.display !== 'flex') { unread++; setBadge(); }
         }
       });
+      socket.on('fileError', function (t) { toast(t); });
       socket.on('msgUpdate', function (m) {
         var old = findEl(m.id), n = build(m);
         if (old) msgs.replaceChild(n, old); else add(m);
@@ -221,7 +289,7 @@ body.enc-open{overflow:hidden}
     var n = localStorage.getItem('enc_n'); if (n && !socket) connect(n, localStorage.getItem('enc_ph'));
   }
   function closeUI() {
-    closeMenu(); box.style.display = 'none';
+    closeMenu(); closeOverlays(); box.style.display = 'none';
     document.body.classList.remove('enc-open'); sync();
   }
   function closeChat() { if (pushed) { pushed = false; history.back(); } else closeUI(); }
@@ -257,5 +325,13 @@ body.enc-open{overflow:hidden}
   setInterval(sync, 400); sync();
   // returning customers reconnect in the background so replies still reach them
   if (localStorage.getItem('enc_n')) connect(localStorage.getItem('enc_n'), localStorage.getItem('enc_ph'));
+  // reconnect right away when the phone wakes up / comes back online, so new messages never need a refresh
+  var hiddenAt = 0;
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) { hiddenAt = Date.now(); return; }
+    if (socket && Date.now() - hiddenAt > 4000) { socket.disconnect(); socket.connect(); }
+  });
+  window.addEventListener('online', function () { if (socket) { socket.disconnect(); socket.connect(); } });
+  setInterval(function () { if (socket && !socket.connected) socket.connect(); }, 5000);
   window.ENAChat = { open: openChat };
 })();
