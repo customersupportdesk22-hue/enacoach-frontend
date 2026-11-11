@@ -6,6 +6,7 @@
 #enc-btn::before{content:"";position:absolute;inset:0;border-radius:50%;background:#25D366;animation:encPulse 1.8s ease-out infinite;z-index:-1}
 #enc-btn::after{content:"";position:absolute;top:2px;right:2px;width:14px;height:14px;background:#4ade80;border:2px solid #fff;border-radius:50%}
 @keyframes encPulse{0%{transform:scale(1);opacity:.6}100%{transform:scale(1.7);opacity:0}}
+#enc-bd{position:absolute;top:-4px;left:-4px;min-width:22px;height:22px;padding:0 6px;border-radius:11px;background:#ef4444;color:#fff;font:700 13px/22px system-ui,sans-serif;text-align:center;border:2px solid #fff;display:none}
 #enc-lbl{position:fixed;right:88px;bottom:104px;background:#fff;color:#075E54;padding:8px 12px;border-radius:18px;font:600 13px system-ui,sans-serif;box-shadow:0 4px 12px rgba(0,0,0,.18);z-index:99998}
 #enc-box{position:fixed;inset:0;width:100%;height:100vh;height:100dvh;background:#f0f2f5;display:none;flex-direction:column;overflow:hidden;z-index:99999;font-family:system-ui,sans-serif}
 #enc-box header{background:#075E54;color:#fff;padding:calc(env(safe-area-inset-top,0px) + 10px) 12px 10px;display:flex;align-items:center;gap:10px}
@@ -45,11 +46,19 @@ body.enc-open{overflow:hidden}`;
     '<div id="enc-send" style="display:none"><input id="enc-t" placeholder="Type a message..."><button class="go" id="enc-s">Send</button></div>';
   var btn = document.createElement('button'); btn.id = 'enc-btn'; btn.setAttribute('aria-label', 'Chat with us');
   btn.innerHTML = '<svg width="30" height="30" viewBox="0 0 24 24" fill="#fff"><path d="M4 3h16a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H9l-5 4v-4H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/></svg>';
+  var bd = document.createElement('span'); bd.id = 'enc-bd'; btn.appendChild(bd);
   var lbl = document.createElement('div'); lbl.id = 'enc-lbl'; lbl.textContent = 'Chat with us 💬';
   document.body.appendChild(box); document.body.appendChild(lbl); document.body.appendChild(btn);
 
   var $ = function (id) { return document.getElementById(id); };
-  var msgs = $('enc-msgs'), socket, pushed = false;
+  var msgs = $('enc-msgs'), socket, pushed = false, unread = 0, AC;
+  function unlock() { try { AC = AC || new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume(); } catch (e) {} }
+  document.addEventListener('pointerdown', unlock);
+  function note(f, t, d, v) { var o = AC.createOscillator(), g = AC.createGain(); o.type = 'sine'; o.frequency.value = f; o.connect(g); g.connect(AC.destination);
+    g.gain.setValueAtTime(0.0001, AC.currentTime + t); g.gain.exponentialRampToValueAtTime(v, AC.currentTime + t + .02);
+    g.gain.exponentialRampToValueAtTime(0.0001, AC.currentTime + t + d); o.start(AC.currentTime + t); o.stop(AC.currentTime + t + d + .02); }
+  function tone(k) { try { unlock(); if (!AC) return; if (k === 'in') { note(880, 0, .18, .35); note(1175, .16, .28, .35); } else note(660, 0, .12, .18); } catch (e) {} }
+  function setBadge() { bd.textContent = unread > 9 ? '9+' : unread; bd.style.display = unread ? 'block' : 'none'; }
   var id = localStorage.getItem('enc_id') || ('c' + Math.random().toString(36).slice(2, 12));
   localStorage.setItem('enc_id', id);
 
@@ -103,7 +112,13 @@ body.enc-open{overflow:hidden}`;
       socket.on('connect', function () { socket.emit('join', { id: id, name: name, phone: phone }); });
       socket.on('history', function (h) { msgs.innerHTML = ''; h.forEach(add);
         if (!h.length) add({ from: 'agent', text: 'Hello! 👋 Tell us where you are travelling from, to, and the date, and we will book your ticket.' }); });
-      socket.on('msg', add);
+      socket.on('msg', function (m) {
+        add(m);
+        if (m.from === 'agent') {
+          tone('in'); try { navigator.vibrate && navigator.vibrate([150, 80, 150]); } catch (e) {}
+          if (box.style.display !== 'flex') { unread++; setBadge(); }
+        }
+      });
     };
     document.head.appendChild(s);
     $('enc-form').style.display = 'none'; $('enc-chips').style.display = 'flex'; $('enc-send').style.display = 'flex';
@@ -111,7 +126,7 @@ body.enc-open{overflow:hidden}`;
 
   function openChat() {
     box.style.display = 'flex'; btn.style.display = 'none'; lbl.style.display = 'none';
-    document.body.classList.add('enc-open');
+    document.body.classList.add('enc-open'); unread = 0; setBadge();
     if (!pushed) { history.pushState({ enc: 1 }, ''); pushed = true; }
     var n = localStorage.getItem('enc_n'); if (n && !socket) connect(n, localStorage.getItem('enc_ph'));
   }
@@ -133,7 +148,7 @@ body.enc-open{overflow:hidden}`;
   Array.prototype.forEach.call($('enc-chips').children, function (c) {
     c.onclick = function () { if (socket) socket.emit('msg', c.textContent.replace(/^\S+\s/, '')); };
   });
-  function send() { var v = $('enc-t').value.trim(); if (v && socket) { socket.emit('msg', v); $('enc-t').value = ''; } }
+  function send() { var v = $('enc-t').value.trim(); if (v && socket) { tone('out'); socket.emit('msg', v); $('enc-t').value = ''; } }
   $('enc-s').onclick = send;
   $('enc-t').onkeydown = function (e) { if (e.key === 'Enter') send(); };
   // show the button and label on the Home screen only
@@ -149,5 +164,7 @@ body.enc-open{overflow:hidden}`;
     btn.style.display = show ? 'flex' : 'none';
   }
   setInterval(sync, 400); sync();
+  // returning customers reconnect in the background so replies still reach them
+  if (localStorage.getItem('enc_n')) connect(localStorage.getItem('enc_n'), localStorage.getItem('enc_ph'));
   window.ENAChat = { open: openChat };
 })();
