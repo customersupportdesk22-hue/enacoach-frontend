@@ -1,4 +1,5 @@
 (function () {
+  if (window.ENAChat) return;
   var base = document.currentScript.src.replace(/\/chat-widget\.js.*$/, '');
   var css = document.createElement('style');
   css.textContent = `
@@ -37,6 +38,12 @@
 #enc-box input{flex:1;padding:12px;border:1px solid #d1d5db;border-radius:22px;font-size:16px;outline:0}
 #enc-box button.go{background:#25D366;color:#fff;border:0;border-radius:22px;padding:12px 20px;font-weight:700;font-size:15px}
 body.enc-open{overflow:hidden}
+#enc-box.kb #enc-send{padding-bottom:10px}
+#enc-lbl{transition:opacity .6s,transform .6s}
+#enc-lbl.gone{opacity:0;transform:translateX(10px);pointer-events:none}
+.enc-b{max-width:92%;padding:0;background:#d9fdd3;color:#111;border-bottom-right-radius:4px;align-self:flex-end}
+.bk{padding:10px 12px}.bk h4{margin:0 0 6px;color:#075E54;font-size:14px}.bk td{padding:2px 8px 2px 0;font-size:13px;vertical-align:top}.bk td:first-child{color:#6b7280}
+.bk .st{margin-top:6px;font-size:12px;font-weight:700;color:#b45309}.bk .st.ok{color:#047857}
 #enc-at{background:none;border:0;font-size:24px;padding:8px 4px;align-self:flex-end;cursor:pointer}
 .enc-img{padding:4px}
 .enc-img img{display:block;width:220px;max-width:100%;border-radius:10px;cursor:pointer;background:#eee;min-height:60px}
@@ -95,12 +102,12 @@ body.enc-open{overflow:hidden}
   function ticket(t) {
     var d = document.createElement('div'); d.className = 'enc-m enc-a enc-t';
     d.innerHTML = '<div class="tk"><h4>🎫 ENA COACH TICKET</h4><table>' +
-      rows(t).map(function (r) { return '<tr><td>' + r[0] + '</td><td><b>' + esc(r[1]) + '</b></td></tr>'; }).join('') +
+      rows(t).filter(function (r) { return r[1]; }).map(function (r) { return '<tr><td>' + r[0] + '</td><td><b>' + esc(r[1]) + '</b></td></tr>'; }).join('') +
       '</table><button class="go">Print / Save PDF</button></div>';
     d.querySelector('button').onclick = function () {
       var w = window.open('', '_blank');
       w.document.write('<title>' + esc(t.no) + '</title><body style="font-family:sans-serif;max-width:420px;margin:20px auto;border:3px dashed #ff5c00;padding:16px"><h2 style="color:#ff5c00">ENA COACH TICKET</h2><table cellpadding=5>' +
-        rows(t).map(function (r) { return '<tr><td>' + r[0] + '</td><td><b>' + esc(r[1]) + '</b></td></tr>'; }).join('') +
+        rows(t).filter(function (r) { return r[1]; }).map(function (r) { return '<tr><td>' + r[0] + '</td><td><b>' + esc(r[1]) + '</b></td></tr>'; }).join('') +
         '</table><p>Show this ticket when boarding.</p>');
       w.document.close(); w.print();
     };
@@ -124,10 +131,20 @@ body.enc-open{overflow:hidden}
     });
     return d;
   }
+  function bookingCard(b) {
+    var d = document.createElement('div'); d.className = 'enc-m enc-b';
+    var r = [['Ref', b.ref], ['Passenger', b.pax], ['Route', b.from + ' → ' + b.to], ['Date', b.date], ['Time', b.time], ['Seat', b.seat], ['Amount', 'KES ' + b.amount]];
+    var paid = b.status === 'paid';
+    d.innerHTML = '<div class="bk"><h4>🎫 My booking</h4><table>' +
+      r.map(function (x) { return '<tr><td>' + x[0] + '</td><td><b>' + esc(x[1]) + '</b></td></tr>'; }).join('') +
+      '</table><div class="st' + (paid ? ' ok' : '') + '">' + (paid ? '✅ Paid - ticket issued' : '⏳ Awaiting payment') + '</div></div>';
+    return d;
+  }
   var store = {};
   function build(m) {
     var d;
-    if (m.type === 'payment') d = payment(m.payment);
+    if (m.type === 'booking' && m.booking) d = bookingCard(m.booking);
+    else if (m.type === 'payment') d = payment(m.payment);
     else if (m.type === 'ticket') d = ticket(m.ticket);
     else if (m.type === 'image' && m.file) d = imageBubble(m);
     else { d = document.createElement('div'); d.className = 'enc-m ' + (m.from === 'client' ? 'enc-c' : 'enc-a') + (m.unsent ? ' enc-un' : ''); d.textContent = m.text; }
@@ -146,6 +163,10 @@ body.enc-open{overflow:hidden}
     return d;
   }
   function add(m) { msgs.appendChild(build(m)); msgs.scrollTop = msgs.scrollHeight; }
+  // last agent message the customer has actually seen (kept on this phone, used for the red badge)
+  function getSeen() { try { return +localStorage.getItem('enc_seen') || 0; } catch (e) { return 0; } }
+  function setSeen(t) { try { if (t > getSeen()) localStorage.setItem('enc_seen', String(t)); } catch (e) {} }
+  var lastT = 0;
   function findEl(mid) { return msgs.querySelector('[data-id="' + mid + '"]'); }
 
   /* ---- press & hold a message: Like / Copy / Unsend / Delete ---- */
@@ -254,18 +275,34 @@ body.enc-open{overflow:hidden}
   };
 
   function connect(name, phone) {
+    if (socket || connecting) { applyStartUI(); return; }
+    connecting = true;
     var s = document.createElement('script');
     s.src = base + '/socket.io/socket.io.js';
     s.onload = function () {
-      socket = io(base);
-      socket.on('connect', function () { socket.emit('join', { id: id, name: name, phone: phone }); });
-      socket.on('history', function (h) { msgs.innerHTML = ''; store = {}; closeMenu(); h.forEach(add);
-        if (!h.length) add({ from: 'agent', text: 'Hello! 👋 Tell us where you are travelling from, to, and the date, and we will book your ticket.' }); });
+      socket = io(base, {
+        transports: ['websocket', 'polling'], reconnection: true, reconnectionDelay: 500, reconnectionDelayMax: 3000, timeout: 8000,
+        auth: function (cb) { cb({ id: id, name: localStorage.getItem('enc_n') || name, phone: localStorage.getItem('enc_ph') || phone }); }
+      });
+      socket.on('history', function (h) {
+        msgs.innerHTML = ''; store = {}; closeMenu(); h.forEach(add);
+        h.forEach(function (m) { if (m.t > lastT) lastT = m.t; });
+        if (!h.length) add({ from: 'agent', text: 'Hello! 👋 Tell us where you are travelling from, to, and the date, and we will book your ticket.' });
+        if (box.style.display === 'flex') setSeen(lastT);
+        else {
+          // customer came back to the site: count agent messages sent while they were away
+          var seen = getSeen(); unread = h.filter(function (m) { return m.from === 'agent' && m.t > seen; }).length; setBadge(); sync();
+        }
+        flushOut();
+      });
       socket.on('msg', function (m) {
-        add(m);
+        if (m.id && store[m.id]) return; // already shown
+        add(m); if (m.t > lastT) lastT = m.t;
+        if (m.type === 'ticket' && m.ticket) { try { window.dispatchEvent(new CustomEvent('enaTicket', { detail: m.ticket })); } catch (e) {} }
         if (m.from === 'agent') {
-          tone('in'); try { navigator.vibrate && navigator.vibrate([150, 80, 150]); } catch (e) {}
-          if (box.style.display !== 'flex') { unread++; setBadge(); }
+          if (box.style.display === 'flex') setSeen(m.t);
+          else { tone('in'); try { navigator.vibrate && navigator.vibrate([150, 80, 150]); } catch (e) {} unread++; setBadge(); sync(); }
+          if (box.style.display === 'flex' && !m.auto) { tone('in'); try { navigator.vibrate && navigator.vibrate([150, 80, 150]); } catch (e) {} }
         }
       });
       socket.on('fileError', function (t) { toast(t); });
@@ -279,22 +316,40 @@ body.enc-open{overflow:hidden}
       });
     };
     document.head.appendChild(s);
-    $('enc-form').style.display = 'none'; $('enc-chips').style.display = 'flex'; $('enc-send').style.display = 'flex';
+    applyStartUI();
   }
+  function applyStartUI() { $('enc-form').style.display = 'none'; $('enc-chips').style.display = 'flex'; $('enc-send').style.display = 'flex'; }
+  // actions waiting for the socket to be ready (e.g. booking opened straight after "Proceed to Payment")
+  var outbox = [], connecting = false;
+  function flushOut() { if (!socket || !socket.connected) return; while (outbox.length) outbox.shift()(); }
 
   function openChat() {
-    box.style.display = 'flex'; btn.style.display = 'none'; lbl.style.display = 'none';
-    document.body.classList.add('enc-open'); unread = 0; setBadge();
+    box.style.display = 'flex'; btn.style.display = 'none'; lbl.style.display = 'none'; lblGone = true;
+    document.body.classList.add('enc-open'); unread = 0; setBadge(); setSeen(lastT); baseH = 0; fit();
     if (!pushed) { history.pushState({ enc: 1 }, ''); pushed = true; }
     var n = localStorage.getItem('enc_n'); if (n && !socket) connect(n, localStorage.getItem('enc_ph'));
   }
   function closeUI() {
     closeMenu(); closeOverlays(); box.style.display = 'none';
-    document.body.classList.remove('enc-open'); sync();
+    document.body.classList.remove('enc-open'); box.style.height = ''; box.style.top = ''; box.classList.remove('kb'); sync();
+    if (afterClose) { var f = afterClose; afterClose = null; try { f(); } catch (e) {} }
   }
+  var afterClose = null;
   function closeChat() { if (pushed) { pushed = false; history.back(); } else closeUI(); }
   window.addEventListener('popstate', function () { if (box.style.display === 'flex') { pushed = false; closeUI(); } });
 
+  var baseH = 0;
+  function fit() {
+    if (box.style.display !== 'flex') return;
+    var vv = window.visualViewport; if (!vv) return;
+    baseH = Math.max(baseH, vv.height + vv.offsetTop);
+    box.style.height = vv.height + 'px'; box.style.top = vv.offsetTop + 'px'; box.style.bottom = 'auto';
+    box.classList.toggle('kb', vv.height < baseH - 120);
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+  if (window.visualViewport) { visualViewport.addEventListener('resize', fit); visualViewport.addEventListener('scroll', fit); }
+  window.addEventListener('resize', fit);
+  $('enc-t').addEventListener('focus', function () { setTimeout(fit, 150); setTimeout(fit, 400); });
   btn.onclick = openChat;
   lbl.onclick = openChat;
   $('enc-back').onclick = closeChat;
@@ -306,7 +361,7 @@ body.enc-open{overflow:hidden}
   Array.prototype.forEach.call($('enc-chips').children, function (c) {
     c.onclick = function () { if (socket) socket.emit('msg', c.textContent.replace(/^\S+\s/, '')); };
   });
-  function send() { var v = $('enc-t').value.trim(); if (v && socket) { tone('out'); socket.emit('msg', v); $('enc-t').value = ''; $('enc-t').style.height = 'auto'; } }
+  function send() { var v = $('enc-t').value.trim(); if (v && socket) { $('enc-t').focus(); tone('out'); socket.emit('msg', v); $('enc-t').value = ''; $('enc-t').style.height = 'auto'; } }
   $('enc-s').onclick = send;
   $('enc-t').oninput = function () { this.style.height = 'auto'; this.style.height = Math.min(this.scrollHeight, 120) + 'px'; };
   $('enc-t').onkeydown = function (e) { if (e.key === 'Enter' && !e.shiftKey && window.matchMedia('(pointer:fine)').matches) { e.preventDefault(); send(); } };
@@ -318,10 +373,12 @@ body.enc-open{overflow:hidden}
   function sync() {
     if (box.style.display === 'flex') return;
     [lbl, btn].forEach(function (el) { if (!document.body.contains(el)) document.body.appendChild(el); });
-    var show = onHome();
-    lbl.style.display = show ? 'block' : 'none';
-    btn.style.display = show ? 'flex' : 'none';
+    var home = onHome(), showBtn = home || unread > 0;
+    if (home && !lblTimer && !lblGone) lblTimer = setTimeout(function () { lblGone = true; lbl.classList.add('gone'); setTimeout(function () { lbl.style.display = 'none'; }, 700); }, 7000);
+    lbl.style.display = (home && !lblGone && !unread) ? 'block' : 'none';
+    btn.style.display = showBtn ? 'flex' : 'none';
   }
+  var lblTimer = null, lblGone = false;
   setInterval(sync, 400); sync();
   // returning customers reconnect in the background so replies still reach them
   if (localStorage.getItem('enc_n')) connect(localStorage.getItem('enc_n'), localStorage.getItem('enc_ph'));
@@ -333,5 +390,15 @@ body.enc-open{overflow:hidden}
   });
   window.addEventListener('online', function () { if (socket) { socket.disconnect(); socket.connect(); } });
   setInterval(function () { if (socket && !socket.connected) socket.connect(); }, 5000);
-  window.ENAChat = { open: openChat };
+  // called by the booking page when the customer presses "Proceed to Payment"
+  function openBooking(b, done) {
+    try { if (b.pax && !localStorage.getItem('enc_n')) localStorage.setItem('enc_n', String(b.pax).split(',')[0].trim()); } catch (e) {}
+    try { if (b.phone && !localStorage.getItem('enc_ph')) localStorage.setItem('enc_ph', b.phone); } catch (e) {}
+    afterClose = done || null;
+    openChat();
+    $('enc-t').placeholder = 'Type the M-Pesa number you will pay with...';
+    outbox.push(function () { socket.emit('booking', b); });
+    flushOut();
+  }
+  window.ENAChat = { open: openChat, openBooking: openBooking };
 })();

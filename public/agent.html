@@ -56,7 +56,7 @@ $('in').onclick=function(){
   unlock();
   try{if('Notification' in window&&Notification.permission==='default')Notification.requestPermission()}catch(e){}
   try{if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js')}catch(e){}
-  sock=io('/agent',{auth:{password:$('pw').value}});
+  sock=io('/agent',{auth:{password:$('pw').value},transports:['websocket','polling'],reconnectionDelay:500,reconnectionDelayMax:3000});
   sock.on('connect_error',function(e){alert(e.message)});
   sock.on('connect',function(){$('login').style.display='none';$('main').style.display='flex'});
   sock.on('sessions',function(a){a.forEach(function(c){S[c.id]=c});render();if(cur&&S[cur])show(false)});
@@ -99,6 +99,14 @@ function show(force){
   m.innerHTML='';
   list.forEach(function(x){var d=document.createElement('div');d.className='m '+x.from+(x.unsent?' unsent':'')+(x.likes&&x.likes.client?' liked':'');d.textContent=x.type==='payment'?'💳 Payment sent · '+x.payment.accountLabel+' '+x.payment.number+' · KES '+x.payment.amount:x.type==='ticket'?'🎫 '+x.ticket.no+' · '+x.ticket.from+' → '+x.ticket.to+' · seat '+x.ticket.seat+' · KES '+x.ticket.price:x.text;
     if(x.type==='image'&&x.file){d.textContent='';var im=document.createElement('img');im.src='/chatfile/'+encodeURIComponent(x.file);im.style.cssText='display:block;width:240px;max-width:100%;min-height:60px;border-radius:10px;cursor:pointer;background:#eee';im.onclick=function(){window.open(im.src,'_blank')};im.onload=function(){if(stick)m.scrollTop=m.scrollHeight};d.appendChild(im);if(x.caption){var cp=document.createElement('div');cp.textContent=x.caption;cp.style.marginTop='6px';d.appendChild(cp)}}
+    if(x.type==='booking'&&x.booking){var bk=x.booking;d.textContent='';
+      var bt=document.createElement('div');bt.textContent='🎫 BOOKING '+bk.ref+' · '+(bk.status==='paid'?'✅ PAID':'⏳ UNPAID')+'\n'+bk.pax+' · '+bk.phone+'\n'+bk.from+' → '+bk.to+'\n'+bk.date+' '+bk.time+' · seat '+bk.seat+'\nKES '+bk.amount;d.appendChild(bt);
+      if(bk.status!=='paid'){var rw=document.createElement('div');rw.style.cssText='display:flex;gap:6px;margin-top:8px;flex-wrap:wrap';
+        var b1=document.createElement('button');b1.className='go';b1.textContent='💳 Send payment';
+        b1.onclick=function(){$('tf').style.display='none';$('pf').style.display='grid';fillPay();$('p_amount').value=String(bk.amount).replace(/[^0-9]/g,'');$('p_note').value='Booking '+bk.ref+'. Pay, then reply with the M-Pesa message.'};
+        var b2=document.createElement('button');b2.className='go';b2.style.background='#16a34a';b2.textContent='✅ Paid - send ticket';
+        b2.onclick=function(){if(confirm('Payment received for '+bk.ref+'? This sends the official ticket to the customer.')){sock.emit('confirmPaid',{id:cur,ref:bk.ref});tone('out')}};
+        rw.appendChild(b1);rw.appendChild(b2);d.appendChild(rw)}}
     if(x.likes&&x.likes.client){var h=document.createElement('span');h.className='lk';h.textContent='❤️';d.appendChild(h)}
     if(x.hiddenForClient){var g=document.createElement('small');g.className='tag';g.textContent='🗑️ deleted by customer';d.appendChild(g)}
     m.appendChild(d)});
@@ -107,6 +115,9 @@ function show(force){
   shown={id:cur,n:list.length}}
 $('msgs').onscroll=function(){if(atBottom(this))$('newbtn').style.display='none'};
 $('newbtn').onclick=function(){var m=$('msgs');m.scrollTop=m.scrollHeight;this.style.display='none'};
+// keep the reply box visible above the phone keyboard
+function fitKb(){var v=window.visualViewport;if(!v)return;document.body.style.height=v.height+'px';window.scrollTo(0,0);var m=$('msgs');if(m&&atBottom(m))m.scrollTop=m.scrollHeight}
+if(window.visualViewport){visualViewport.addEventListener('resize',fitKb);visualViewport.addEventListener('scroll',fitKb)}
 // reconnect straight away when the phone wakes up / comes back online
 var hiddenAt=0;
 function reconnect(){if(sock){sock.disconnect();sock.connect()}}
