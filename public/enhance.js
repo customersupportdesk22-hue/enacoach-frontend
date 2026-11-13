@@ -22,24 +22,25 @@
 
   /* ---------- 2. BUS SLIDESHOW ---------- */
   var IMGS = [
-    { u: 'https://res.cloudinary.com/yvzp2mhd/image/upload/v1794348774/images_12.jpg', c: 'Travel in comfort with ENA Coach' },
-    { u: 'https://res.cloudinary.com/yvzp2mhd/image/upload/v1794348774/images_10.jpg', c: 'Safe and reliable journeys' },
-    { u: 'https://res.cloudinary.com/yvzp2mhd/image/upload/v1794348773/images_17.jpg', c: 'East Africa\u2019s largest bus network' },
-    { u: 'https://res.cloudinary.com/yvzp2mhd/image/upload/v1794348773/images_9.jpg',  c: 'Book your seat in minutes' },
-    { u: 'https://res.cloudinary.com/yvzp2mhd/image/upload/v1794348773/images_14.jpg', c: 'Modern, clean coaches' },
-    { u: 'https://res.cloudinary.com/yvzp2mhd/image/upload/v1794348773/images_16.jpg', c: 'Daily departures, every route' },
-    { u: 'https://res.cloudinary.com/yvzp2mhd/image/upload/v1794348773/images_13.jpg', c: 'Your journey starts here' },
-    { u: 'https://res.cloudinary.com/yvzp2mhd/image/upload/v1794348773/images_15.jpg', c: 'Travel with ENA Coach' }
+    { u: BASE + '/buses/bus2.webp', c: 'Safe and reliable journeys' },
+    { u: BASE + '/buses/bus3.webp', c: 'Daily departures, every route' },
+    { u: BASE + '/buses/bus4.webp', c: 'Comfortable coaches for every trip' },
+    { u: BASE + '/buses/bus5.webp', c: 'Travel across Kenya with ENA Coach' },
+    { u: BASE + '/buses/bus6.webp', c: 'Modern, clean coaches' },
+    { u: BASE + '/buses/bus7.webp', c: 'Your journey starts here' },
+    { u: BASE + '/buses/bus8.webp', c: 'Book your seat in minutes' },
+    { u: BASE + '/buses/bus9.webp', c: 'Exemplary service on every route' },
+    { u: BASE + '/buses/bus10.webp', c: 'Travel with ENA Coach' }
   ];
   var N = IMGS.length, DELAY = 4500;
-  function opt(x) { return x.replace('/upload/', '/upload/f_auto,q_auto,w_900,h_506,c_fill,g_auto/'); }
+  function opt(x) { return x; }
 
   var pc = document.createElement('link');
   pc.rel = 'preconnect'; pc.href = 'https://res.cloudinary.com'; document.head.appendChild(pc);
 
   var st = document.createElement('style');
   st.textContent =
-    '.es-sec{padding:0 16px 28px}' +
+    '.es-sec{padding:0 16px 28px}.es-static{width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:18px;display:block;margin-bottom:14px;box-shadow:0 8px 25px rgba(0,0,0,.15)}' +
     '.es-sec h3{font-size:26px;font-weight:800;margin-bottom:12px}' +
     '.es-wrap{position:relative;overflow:hidden;border-radius:18px;aspect-ratio:16/9;background:linear-gradient(135deg,#FF5E00,#FF8C42);box-shadow:0 8px 25px rgba(0,0,0,.15);touch-action:pan-y}' +
     '.es-s{position:absolute;inset:0;opacity:0;transition:opacity .8s ease}' +
@@ -60,7 +61,7 @@
   if (!home) return;
   var sec = document.createElement('div');
   sec.className = 'es-sec';
-  sec.innerHTML = '<h3>Our Buses</h3><div class="es-wrap">' +
+  sec.innerHTML = '<h3>Our Buses</h3><img class="es-static" alt="ENA Coach buses on the road" src="' + BASE + '/buses/bus1.webp"><div class="es-wrap">' +
     IMGS.map(function (p, k) {
       return '<div class="es-s"><img alt="ENA Coach bus" decoding="async"' +
         (k === 0 ? ' fetchpriority="high" src="' + opt(p.u) + '"' : '') + '><span>' + p.c + '</span></div>';
