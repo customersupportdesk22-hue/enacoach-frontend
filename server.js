@@ -240,6 +240,18 @@ agents.on('connection', (s) => {
     if (!payment.number || !payment.amount) return;
     pushMsg(c, { from: 'agent', type: 'payment', payment, text: 'Payment details: KES ' + payment.amount });
   });
+  s.on('confirmPaid', ({ id, ref }) => {
+    const c = chatSessions[id];
+    if (!c) return;
+    const m = c.msgs.find((x) => x.type === 'booking' && x.booking && x.booking.ref === ref);
+    if (!m || m.booking.status === 'paid') return;
+    m.booking.status = 'paid';
+    io.to(c.id).emit('msgUpdate', m);
+    const b = m.booking;
+    const ticket = { no: b.ref, name: b.pax, phone: b.phone, from: b.from, to: b.to, date: b.date, time: b.time, bus: '', seat: b.seat, price: b.amount };
+    pushMsg(c, { from: 'agent', type: 'ticket', ticket, text: 'Ticket ' + ticket.no });
+    pushMsg(c, { from: 'agent', text: '✅ Payment received. Thank you! Your official ticket is above. Safe travels with ENA Coach 🚌' });
+  });
   s.on('read', (id) => {
     // only act when there is something to mark as read (prevents an endless update <-> read loop)
     if (chatSessions[id] && chatSessions[id].unread) { chatSessions[id].unread = 0; saveChat(chatSessions[id]); agents.emit('update', chatSessions[id]); }
@@ -247,7 +259,8 @@ agents.on('connection', (s) => {
 });
 
 io.on('connection', (s) => {
-  s.on('join', ({ id, name, phone }) => {
+  function joinSession(p) {
+    let { id, name, phone } = p || {};
     if (!id) return;
     id = clip(id, 40);
     const c = chatSessions[id] || (chatSessions[id] = { id, name: '', phone: '', msgs: [], unread: 0, last: Date.now() });
@@ -257,6 +270,33 @@ io.on('connection', (s) => {
     ensureIds(c);
     s.emit('history', clientView(c));
     agents.emit('update', c); saveChat(c);
+  }
+  s.on('join', joinSession);
+  // join automatically on every (re)connect, so messages sent right after a reconnect are never lost
+  if (s.handshake.auth && s.handshake.auth.id) joinSession(s.handshake.auth);
+
+  // ---- customer pressed "Proceed to Payment": booking details arrive in the chat ----
+  s.on('booking', (b) => {
+    const c = chatSessions[s.data.id];
+    if (!c || !b) return;
+    const ref = clip(b.ref, 12);
+    if (!/^ENA\d{6}$/.test(ref)) return;
+    if (c.msgs.some((m) => m.type === 'booking' && m.booking && m.booking.ref === ref)) return; // already in chat
+    const now = Date.now();
+    s.data.bt = (s.data.bt || []).filter((t) => now - t < 60000);
+    if (s.data.bt.length >= 5) return;
+    s.data.bt.push(now);
+    const booking = {
+      ref, from: clip(b.from, 40), to: clip(b.to, 40), date: clip(b.date, 30), time: clip(b.time, 12),
+      seat: clip(b.seat, 40), pax: clip(b.pax, 120), phone: clip(b.phone, 20), amount: clip(b.amount, 12), status: 'pending'
+    };
+    pushMsg(c, { from: 'client', type: 'booking', booking,
+      text: `🎫 Booking ${ref}: ${booking.from} → ${booking.to}, ${booking.date} ${booking.time}, seat ${booking.seat}, KES ${booking.amount}` });
+    chatTelegram(`💳 BOOKING CHAT - awaiting payment\n${booking.pax} (${booking.phone})\nRef: ${ref}\n${booking.from} → ${booking.to}\n${booking.date} ${booking.time}\nSeat: ${booking.seat}\nAmount: KES ${booking.amount}\n\nReply: https://enacoach-frontend.onrender.com/agent.html`);
+    const sw = b.lang === 'sw';
+    setTimeout(() => pushMsg(c, { from: 'agent', auto: true, text: sw
+      ? `Karibu ${clip(booking.pax.split(',')[0], 40)}! 👋 Tumepokea uhifadhi wako ${ref}. Tafadhali tuandikie nambari ya simu ya M-Pesa utakayotumia kulipa, kisha subiri ombi la M-Pesa au maelezo ya malipo kutoka kwa wakala wetu. Tiketi yako rasmi itatumwa hapa baada ya malipo kuthibitishwa.`
+      : `Welcome ${clip(booking.pax.split(',')[0], 40)}! 👋 We have received your booking ${ref}. Please type the M-Pesa phone number you will use to pay, then wait for an M-Pesa prompt or payment details from our agent. Your official ticket will be sent here once payment is confirmed.` }), 600);
   });
   s.on('msg', (text) => {
     const c = chatSessions[s.data.id];
