@@ -108,6 +108,7 @@ function show(force){
         b2.onclick=function(){if(confirm('Payment received for '+bk.ref+'? This sends the official ticket to the customer.')){sock.emit('confirmPaid',{id:cur,ref:bk.ref});tone('out')}};
         rw.appendChild(b1);rw.appendChild(b2);d.appendChild(rw)}}
     if(x.likes&&x.likes.client){var h=document.createElement('span');h.className='lk';h.textContent='❤️';d.appendChild(h)}
+    if(x.ai){var ai=document.createElement('small');ai.className='tag';ai.textContent='🤖 sent by AI assistant';d.appendChild(ai)}
     if(x.hiddenForClient){var g=document.createElement('small');g.className='tag';g.textContent='🗑️ deleted by customer';d.appendChild(g)}
     m.appendChild(d)});
   if(stick){m.scrollTop=m.scrollHeight;$('newbtn').style.display='none'}
