@@ -145,6 +145,42 @@ body.enc-open{overflow:hidden}
     return d;
   }
   var store = {};
+  // pc-poster
+  function fmt(n) { var v = Number(String(n).replace(/[^0-9.]/g, '')); return v ? v.toLocaleString('en-US') : String(n); }
+  function payment(p) {
+    var d = document.createElement('div'); d.className = 'enc-m enc-a';
+    d.style.cssText = 'width:300px;max-width:92%;padding:0;border:2px solid #2f9e44;border-radius:14px;overflow:hidden;background:#fff';
+    function row(label, val, size, fill) {
+      var r = document.createElement('div'); r.style.cssText = 'padding:8px 12px 0;text-align:center';
+      var l = document.createElement('div'); l.textContent = label; l.style.cssText = 'color:#e5252a;font:bold 12px Arial,sans-serif;letter-spacing:.5px';
+      var v = document.createElement('div'); v.textContent = val;
+      v.style.cssText = 'margin:4px 0 6px;border:2px solid #2f9e44;border-radius:8px;padding:8px 6px;font:bold ' + size + 'px Arial,sans-serif;letter-spacing:1px;word-break:break-all;' + (fill ? 'background:#2f9e44;color:#fff' : 'background:#fff;color:#111');
+      r.appendChild(l); r.appendChild(v); return r;
+    }
+    var h = document.createElement('div'); h.style.cssText = 'background:#2f9e44;color:#fff;padding:10px 12px;display:flex;align-items:center;gap:10px';
+    var lg = document.createElement('img'); lg.src = base + '/logo.png?v=2'; lg.style.cssText = 'width:38px;height:38px;border-radius:50%;background:#fff;object-fit:contain';
+    var t = document.createElement('div'); t.innerHTML = '<b style="font:bold 17px Arial,sans-serif">ENA COACH</b><br><span style="font:11px Arial,sans-serif;color:#d7f5dd">OFFICIAL PAYMENT DETAILS</span>';
+    h.appendChild(lg); h.appendChild(t); d.appendChild(h);
+    d.appendChild(row(String(p.accountLabel || 'Paybill').toUpperCase() + ' NUMBER', String(p.number || ''), 26));
+    if (p.account) d.appendChild(row('ACCOUNT NUMBER', String(p.account), 22));
+    d.appendChild(row('ACCOUNT NAME', String(p.name || 'ENA COACH'), 20));
+    if (p.amount) d.appendChild(row('AMOUNT TO PAY', 'KES ' + fmt(p.amount), 24, true));
+    var bar = document.createElement('div'); bar.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;padding:6px 12px 4px';
+    function cp(label, v) {
+      var b = document.createElement('button'); b.type = 'button'; b.textContent = label;
+      b.style.cssText = 'background:#e7fbe9;color:#075E54;border:1px solid #25D366;border-radius:12px;padding:5px 12px;font:13px system-ui,sans-serif';
+      b.onclick = function () { if (navigator.clipboard) navigator.clipboard.writeText(v); b.textContent = 'Copied'; setTimeout(function () { b.textContent = label; }, 1500); };
+      bar.appendChild(b);
+    }
+    cp('Copy ' + String(p.accountLabel || 'Paybill').toLowerCase(), String(p.number || ''));
+    if (p.account) cp('Copy account', String(p.account));
+    d.appendChild(bar);
+    var n = document.createElement('div'); n.textContent = 'Pay via M-Pesa, then reply here with your confirmation message.';
+    n.style.cssText = 'padding:0 12px 10px;text-align:center;color:#475569;font:12px Arial,sans-serif';
+    d.appendChild(n);
+    return d;
+  }
+
   function build(m) {
     var d;
     if (m.type === 'booking' && m.booking) d = bookingCard(m.booking);
