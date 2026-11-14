@@ -134,32 +134,7 @@ body.enc-open{overflow:hidden}
     };
     return d;
   }
-  function digits(s) { return String(s).split('').map(function (ch) { return '<span>' + esc(ch) + '</span>'; }).join(''); }
-  function copyBtn(v) { return '<div><button class="pc-cp" data-v="' + esc(v) + '">Copy</button></div>'; }
-  function payment(p) {
-    var d = document.createElement('div'); d.className = 'enc-m enc-a enc-p';
-    var lab = String(p.accountLabel || 'Paybill').toUpperCase();
-    var h = '<div class="pc-h"><span class="pc-lh"></span><div><div class="pc-bn">ENA COACH</div><div class="pc-bs">Official payment details</div></div></div><div class="pc-b">' +
-      '<div class="pc-l">' + esc(lab) + ' NUMBER</div><div class="pc-d">' + digits(p.number) + '</div>' + copyBtn(p.number);
-    if (p.account) h += '<div class="pc-l">ACCOUNT NUMBER</div><div class="pc-d">' + digits(p.account) + '</div>' + copyBtn(p.account);
-    h += '<div class="pc-l">ACCOUNT NAME</div><div class="pc-nm">' + esc(p.name || 'ENA COACH') + '</div>';
-    if (p.amount) h += '<div class="pc-am"><small>AMOUNT TO PAY</small>KES ' + esc(p.amount) + '</div>';
-    h += '<div class="pc-nt">' + esc(p.note || 'Pay via M-Pesa, then reply here with the confirmation message.') + '</div></div>';
-    d.innerHTML = h;
-    var slot = d.querySelector('.pc-lh'), lg = new Image();
-    lg.className = 'pc-lg'; lg.alt = 'ENA Coach';
-    lg.onload = function () { slot.appendChild(lg); };
-    lg.onerror = function () { var f = document.createElement('div'); f.className = 'pc-lf'; f.textContent = 'E'; slot.appendChild(f); };
-    lg.src = base + '/logo.png';
-    Array.prototype.forEach.call(d.querySelectorAll('.pc-cp'), function (b) {
-      b.onclick = function () {
-        var v = b.getAttribute('data-v');
-        if (navigator.clipboard) navigator.clipboard.writeText(v);
-        b.textContent = 'Copied'; setTimeout(function () { b.textContent = 'Copy'; }, 1500);
-      };
-    });
-    return d;
-  }
+
   function bookingCard(b) {
     var d = document.createElement('div'); d.className = 'enc-m enc-b';
     var r = [['Ref', b.ref], ['Passenger', b.pax], ['Route', b.from + ' → ' + b.to], ['Date', b.date], ['Time', b.time], ['Seat', b.seat], ['Amount', 'KES ' + b.amount]];
