@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>ENA Coach - Book Bus Tickets</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
+<title>ENA Coach - Exemplary Service</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -209,14 +209,117 @@
   .auth-btn { width: 100%; padding: 14px; border: none; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 10px; background: var(--primary); color: white; }
   .empty-state { text-align: center; padding: 40px 20px; color: var(--text-muted); }
   .fab { position: fixed; bottom: 80px; right: 20px; background: var(--primary); color: white; border-radius: 50px; padding: 14px 20px; font-weight: 700; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 15px rgba(255,94,0,0.4); z-index: 50; cursor: pointer; border: none; font-size: 15px; }
+  /* ===== ENA Coach official-style upgrade ===== */
+  .site-header { align-items: center; padding: 10px 16px; }
+  .brand-logo { cursor: pointer; display: flex; flex-direction: column; align-items: flex-start; }
+  .brand-mark { display: inline-flex; align-items: baseline; gap: 3px; background: linear-gradient(135deg,#FF7A1A,#F25C00); border: 2px solid #111; border-radius: 8px 14px 4px 8px; padding: 2px 10px 3px; transform: skew(-8deg); }
+  .brand-mark b { font-size: 26px; font-weight: 900; font-style: italic; color: #111; line-height: 1; }
+  .brand-mark small { font-size: 10px; font-weight: 800; font-style: italic; color: #fff; }
+  .brand-tag { font-family: Georgia, 'Times New Roman', serif; font-style: italic; font-size: 10.5px; color: #111; margin-top: 3px; }
+  .brand-img { height: 48px; width: auto; max-width: 170px; object-fit: contain; display: block; }
+  .date-box:first-child { border-right: none; padding-right: 0; }
+  .flag-btn svg { width: 38px; height: 38px; border-radius: 50%; display: block; }
+  .lang-toast { position: fixed; top: 76px; left: 50%; transform: translateX(-50%); background: #1A1A1A; color: #fff; padding: 10px 18px; border-radius: 999px; font-size: 13px; font-weight: 700; z-index: 500; opacity: 0; transition: opacity .25s; pointer-events: none; }
+  .lang-toast.show { opacity: 1; }
+  .header-actions { display: flex; align-items: center; gap: 14px; }
+  .flag-btn { background: none; border: none; padding: 0; display: flex; cursor: pointer; }
+  .menu-btn { width: 46px; height: 46px; border-radius: 50%; border: none; background: var(--primary); display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 12px rgba(255,94,0,0.3); }
+  .menu-btn svg { width: 24px; height: 24px; }
+  .menu-overlay { position: fixed; inset: 0; z-index: 300; display: none; }
+  .menu-overlay.open { display: block; }
+  .menu-panel { position: fixed; top: 64px; right: 12px; width: 230px; background: #fff; border-radius: 16px; box-shadow: 0 12px 30px rgba(0,0,0,0.18); padding: 8px; z-index: 301; display: none; }
+  .menu-panel.open { display: block; }
+  .menu-panel a { display: block; padding: 14px 12px; font-weight: 700; font-size: 14px; border-radius: 10px; cursor: pointer; color: var(--text-main); }
+  .menu-panel a:active { background: var(--primary-light); color: var(--primary); }
+
+  .search-container { padding: 20px 16px 8px; margin-top: 12px; margin-bottom: 24px; }
+  .search-card { background: #FFF6F0; box-shadow: none; border-radius: 18px; padding: 20px 16px; }
+  .input-group label { color: #1A1A1A; font-size: 14px; font-weight: 800; letter-spacing: 0; }
+  .input-box, .date-container { background: #fff; border: 1px solid #F5D3BD; border-radius: 10px; }
+  .btn-primary { border-radius: 999px; }
+  .pt-title { font-size: 28px; font-weight: 800; margin-bottom: 18px; }
+  .pt-actions { display: flex; justify-content: flex-end; }
+  .pt-btn { width: auto; margin-top: 0; padding: 14px 24px; }
+
+  .bottom-nav { background: linear-gradient(90deg,#E8590A,#FF6A00); border-top: none; padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px)); align-items: center; }
+  .nav-item { color: rgba(255,255,255,0.92); padding: 6px 10px; min-width: 66px; border-radius: 12px; font-size: 11px; }
+  .nav-item.active { color: #fff; background: rgba(255,255,255,0.2); }
+  .sticky-bottom { bottom: calc(62px + env(safe-area-inset-bottom, 0px)); }
+  .fab { bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
+
+  .home-section { padding: 0 16px 24px; }
+  .routes-card { margin: 0 16px 24px; padding: 18px 14px; background: #F8F8FA; border: 1px solid var(--border); border-radius: 18px; }
+  .routes-title { color: var(--primary); font-size: 24px; font-weight: 800; margin-bottom: 14px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 10px; }
+  .chip { background: #FFF3EC; border: 1px solid #FBDFCD; color: var(--primary); font-weight: 700; font-size: 14px; padding: 12px 18px; border-radius: 999px; cursor: pointer; text-align: left; }
+  .chip:active { background: var(--primary); color: #fff; }
+  .sec-title { font-size: 26px; font-weight: 800; }
+  .sec-sub { color: var(--text-muted); font-size: 15px; margin: 6px 0 16px; line-height: 1.4; }
+  .amen-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .amen-card { border-radius: 18px; padding: 16px 10px; text-align: center; border: 1px solid rgba(0,0,0,0.05); }
+  .amen-card:last-child { grid-column: 1 / -1; justify-self: center; width: calc(50% - 6px); }
+  .a-blue { background: #EEF3FF; } .a-green { background: #EDF7F1; } .a-yellow { background: #FFF8E8; }
+  .amen-icon { width: 64px; height: 64px; border-radius: 50%; background: #fff; margin: 0 auto 8px; display: flex; align-items: center; justify-content: center; }
+  .amen-icon svg { width: 34px; height: 34px; }
+  .amen-name { font-weight: 800; font-size: 15px; }
+  .why-card { display: flex; gap: 14px; align-items: flex-start; background: #fff; border: 1px solid var(--border); border-radius: 16px; padding: 16px 14px; margin-bottom: 12px; }
+  .why-icon { width: 56px; height: 56px; min-width: 56px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 28px; }
+  .w-mpesa { background: #E8F6FD; } .w-mpesa span { font-size: 11px; font-weight: 900; color: #3BA935; }
+  .w-pink { background: #FFE9E6; } .w-green { background: #E6F5EC; }
+  .why-title { font-weight: 800; font-size: 17px; margin-bottom: 4px; }
+  .why-text { color: var(--text-muted); font-size: 13.5px; line-height: 1.45; }
+
+  .cookie-banner { position: fixed; left: 0; right: 0; bottom: calc(62px + env(safe-area-inset-bottom, 0px)); background: #FF5E00; color: #fff; text-align: center; padding: 16px 84px 16px 20px; z-index: 90; display: none; }
+  .cookie-banner p { font-size: 15px; line-height: 1.45; }
+  .cookie-banner a { color: #fff; text-decoration: underline; }
+  .cookie-banner button { margin-top: 12px; background: #000; color: #fff; border: none; border-radius: 10px; padding: 12px 24px; font-size: 16px; font-weight: 600; cursor: pointer; }
+
+  @media print {
+    body > *:not(#printModal) { display: none !important; }
+    #printModal { position: static !important; display: block !important; background: none !important; padding: 0 !important; }
+    #printModal .modal-content { max-width: 100% !important; max-height: none !important; overflow: visible !important; box-shadow: none; border-radius: 0; }
+    .no-print { display: none !important; }
+    body { padding: 0; background: #fff; }
+  }
+  /* hide scrollbar lines (incl. live chat message list and quick-reply row) */
+  html, body, * { scrollbar-width: none; -ms-overflow-style: none; }
+  *::-webkit-scrollbar { display: none; width: 0; height: 0; }
+
+/* ===== ENA update: pages, footer, drawer, seats ===== */
+.pg-head{padding:24px 18px 16px;background:#FFF4EC;border-bottom:1px solid var(--border)}.pg-head h1{font-size:24px;font-weight:800;margin:0 0 4px}.pg-head p{margin:0;color:var(--text-muted);font-size:14px}
+.pg-body{padding:18px 18px 8px;max-width:760px;margin:0 auto;line-height:1.6;font-size:15px}.pg-body h2{font-size:17px;margin:22px 0 6px;border-left:4px solid var(--primary);padding-left:10px}.pg-body ul{padding-left:20px;margin:4px 0}.pg-body .btn-primary{margin-top:18px}
+.notice{background:#fff3cd;color:#4a3b00;border-radius:12px;padding:12px 16px;margin-top:16px}.tier{display:flex;gap:10px;margin:8px 0}.tier b{background:#222;color:#fff;border-radius:10px;padding:10px;min-width:92px;text-align:center;font-size:13px}.tier div{flex:1;background:#FFF4EC;border-radius:10px;padding:10px 14px;font-size:14px}
+.gal{display:grid;gap:12px}@media(min-width:600px){.gal{grid-template-columns:1fr 1fr}}.gal img{width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:14px;display:block}
+.ena-footer{background:#FF5E00;color:#fff;margin-top:28px;padding-bottom:84px}.ena-footer .fin{padding:26px 18px;text-align:center}.ena-footer .fin img{height:56px;background:#fff;border-radius:10px;padding:5px 9px}
+.ena-footer .pw{margin:16px 0 4px;font-weight:700}.ena-footer .pw small{display:block;font-weight:400}.ena-footer .stores{display:flex;gap:10px;justify-content:center;margin:12px 0}.ena-footer .stores a{background:#000;color:#fff;text-decoration:none;border-radius:9px;padding:7px 14px;font-size:11px;line-height:1.2;text-align:left}.ena-footer .stores b{display:block;font-size:15px}
+.ena-footer .fb{background:#B33F00;padding:18px;text-align:center}.ena-footer .mail{color:#fff;font-weight:700;display:block;margin-bottom:12px;text-decoration:none}.ena-footer .fl{display:flex;flex-wrap:wrap;gap:6px 16px;justify-content:center;max-width:620px;margin:0 auto 14px}.ena-footer .fl a{color:#fff;cursor:pointer;padding:4px 2px;font-size:14px}
+.ena-footer .soc{display:flex;gap:16px;justify-content:center}.ena-footer .soc a{display:grid;place-items:center;width:36px;height:36px;border:2px solid #fff;border-radius:50%;color:#fff;font-weight:800;font-size:12px;text-decoration:none}.ena-footer .copy{font-size:12px;opacity:.85;margin-top:12px}
+.menu-panel{top:0!important;left:0!important;right:auto!important;bottom:0;width:min(86vw,360px)!important;border-radius:0!important;padding:0!important;background:linear-gradient(135deg,#E8590A,#FF6A00)!important;overflow:auto;transform:none}
+.menu-panel .dr-top{display:flex;justify-content:space-between;align-items:center;background:#fff;padding:10px 16px;height:64px}.menu-panel .dr-top img{height:44px}.menu-panel .dr-top button{width:44px;height:44px;border:0;border-radius:10px;background:#9aa0a6;color:#fff;font-size:28px;line-height:1}
+.menu-panel a{display:flex!important;align-items:center;gap:14px;color:#fff!important;font-size:18px!important;padding:18px 20px!important;border-radius:0!important;font-weight:600!important}
+.seat-grid{grid-template-columns:repeat(5,1fr)!important;gap:8px!important;row-gap:10px!important}.seat-grid>div:nth-child(4n-1){margin-right:0!important}
+.bus-layout{max-width:330px!important}.steering-wheel{padding-right:30px!important}
+.seat{position:relative;width:42px!important;height:42px!important;border-radius:8px 8px 4px 4px!important;border:2px solid #2a7be8!important;background:#EEF5FF!important;color:#1f2937!important;font-size:12px;box-shadow:inset 6px 0 0 #2a7be8,inset -6px 0 0 #2a7be8,0 4px 0 #1f6fe0}
+.seat.vip{border-color:#F59E0B!important;box-shadow:inset 6px 0 0 #F59E0B,inset -6px 0 0 #F59E0B,0 4px 0 #D98206;background:#FFF7E6!important}.seat.biz{border-color:#22A559!important;box-shadow:inset 6px 0 0 #22A559,inset -6px 0 0 #22A559,0 4px 0 #1B8A49;background:#EBF9F0!important}
+.seat.sold{border-color:#c9cbd1!important;background:#e3e4e8!important;box-shadow:inset 6px 0 0 #c9cbd1,inset -6px 0 0 #c9cbd1,0 4px 0 #b5b8c0;color:#a0a4ad!important}
+.seat.selected{background:#E11D1D!important;border-color:#E11D1D!important;color:#fff!important;box-shadow:inset 6px 0 0 #B91515,inset -6px 0 0 #B91515,0 4px 0 #9d1010;transform:none!important}
+.seat-box.normal{background:#2a7be8!important;border-color:#2a7be8!important}.seat-box.vip{background:#F59E0B!important}.seat-box.biz{background:#22A559!important}
+.acc-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:400;display:none}.acc-bg.open{display:block}
+.acc-sheet{position:fixed;left:0;right:0;bottom:0;z-index:401;background:#fff;border-radius:22px 22px 0 0;transform:translateY(105%);transition:transform .28s ease;padding-bottom:calc(14px + env(safe-area-inset-bottom,0px))}.acc-sheet.open{transform:none}
+.acc-top{display:flex;justify-content:space-between;align-items:center;padding:20px 24px;background:#F8F9FB;border-radius:22px 22px 0 0;border-bottom:1px solid #e6e8ec}.acc-top b{font-size:20px;color:#2a3547}.acc-top button{border:0;background:none;font-size:30px;line-height:1;color:#2a3547}
+.acc-sheet a{display:flex;align-items:center;gap:18px;padding:20px 28px;font-size:19px;color:#1f2937;cursor:pointer}.acc-sheet a svg{width:30px;height:30px;stroke:#1f2937;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+@media(prefers-reduced-motion:reduce){.acc-sheet{transition:none}}
 </style>
 <link rel="preconnect" href="https://res.cloudinary.com" crossorigin>
 </head>
 <body>
 <div id="screen-home" class="screen active">
-  <header class="app-header">
-    <div class="header-title"><h1>ENA Coach Tickets</h1><p>East Africa's largest bus booking platform</p></div>
-    <img src="https://res.cloudinary.com/yvzp2mhd/image/upload/v1792239650/WA_1792239223964.jpg" class="header-logo" alt="ENA Coach">
+  <header class="app-header site-header">
+    <div class="brand-logo" onclick="showScreen('home')" role="button" aria-label="ENA Coach home"><img class="brand-img" src="https://res.cloudinary.com/yvzp2mhd/image/upload/v1794348774/images_12.jpg" alt="ENA Coach - Exemplary Service"></div>
+    <div class="header-actions">
+      <button type="button" class="flag-btn" onclick="toggleLanguage()" aria-label="Language"></button>
+      <button type="button" class="menu-btn" onclick="toggleMenu()" aria-label="Menu"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg></button>
+    </div>
   </header>
   <div class="search-container">
     <div class="search-card">
@@ -238,12 +341,111 @@
         <label>TRAVEL DATES</label>
         <div class="date-container">
           <div class="date-box"><div class="date-label"><span style="color:var(--primary);">📅</span> Departure</div><div class="date-value" id="displayDepartureDate">Wed, May 13</div><input type="date" id="searchDate" style="position:absolute;top:0;left:0;width:100%;height:100%;opacity:0;cursor:pointer;" onchange="updateDisplayDate(this, 'displayDepartureDate')"></div>
-          <div class="date-box"><div class="date-label"><span style="color:var(--text-muted);">📅</span> Return (Optional)</div><div class="date-value empty" id="displayReturnDate">Tap to add</div><input type="date" id="returnDate" style="position:absolute;top:0;left:0;width:100%;height:100%;opacity:0;cursor:pointer;" onchange="updateDisplayDate(this, 'displayReturnDate')"></div>
         </div>
         <div class="date-pills"><button type="button" class="date-pill active" onclick="setQuickDate(0, this)">Today</button><button type="button" class="date-pill" onclick="setQuickDate(1, this)">Tomorrow</button><button type="button" class="date-pill" onclick="setQuickDate('friday', this)">Friday</button><button type="button" class="date-pill" onclick="setQuickDate('saturday', this)">Saturday</button></div>
       </div>
       <button class="btn-primary" onclick="searchRoutes()"><span></span> Search Bus</button>
     </div>
+  </div>
+
+  <section class="home-section routes-card">
+    <h3 class="routes-title">Our top routes</h3>
+    <div class="chips">
+      <button type="button" class="chip" onclick="pickRoute('Mombasa','Kehancha')">Mombasa – Kisii – Kehancha</button>
+      <button type="button" class="chip" onclick="pickRoute('Nairobi','Kisii')">Nairobi – Kisii</button>
+      <button type="button" class="chip" onclick="pickRoute('Nairobi','Kisumu')">Nairobi – Kisumu</button>
+      <button type="button" class="chip" onclick="pickRoute('Mombasa','Busia')">Mombasa – Kisumu – Busia</button>
+      <button type="button" class="chip" onclick="pickRoute('Nairobi','Mombasa')">Nairobi – Mombasa</button>
+      <button type="button" class="chip" onclick="pickRoute('Nairobi','Mbita')">Nairobi – Homabay – Mbita</button>
+      <button type="button" class="chip" onclick="pickRoute('Nairobi','Busia')">Nairobi – Kapsabet – Kakamega – Busia</button>
+      <button type="button" class="chip" onclick="pickRoute('Port Victoria','Mombasa')">Port Victoria – Mombasa</button>
+    </div>
+  </section>
+
+  <section class="home-section">
+    <h3 class="sec-title">Our Amenities</h3>
+    <p class="sec-sub">Offering world-class transportation services in an innovative and comfortable way.</p>
+    <div class="amen-grid">
+      <div class="amen-card a-blue"><div class="amen-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="2" stroke-linecap="round"><path d="M2 8.8a15 15 0 0 1 20 0"/><path d="M5 12.5a10.5 10.5 0 0 1 14 0"/><path d="M8.5 16a5.5 5.5 0 0 1 7 0"/><circle cx="12" cy="19.5" r="1" fill="#111"/></svg></div><div class="amen-name">Free Wi-Fi</div></div>
+      <div class="amen-card a-green"><div class="amen-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#F2540C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="12" height="15" rx="2"/><path d="M10 8.5l-2.5 4H11l-2.5 4"/><path d="M18 7v4M21 7v4M16.5 11h6v1.5a3 3 0 0 1-6 0z"/><path d="M19.5 15.5V20"/></svg></div><div class="amen-name">Power Outlets</div></div>
+      <div class="amen-card a-yellow"><div class="amen-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#F2540C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3h3a2 2 0 0 1 2 2l.8 8H18a2 2 0 0 1 2 2v3H9a3 3 0 0 1-3-3V5a2 2 0 0 1 2-2z"/><path d="M6 21h15"/></svg></div><div class="amen-name">Extra Legroom</div></div>
+    </div>
+  </section>
+
+  <section class="home-section">
+    <h3 class="sec-title">Why Choose Us</h3>
+    <p class="sec-sub">Experience the best transport service in the region</p>
+    <div class="why-card"><div class="why-icon w-mpesa"><span>M-PESA</span></div><div><div class="why-title">Lipa na M-Pesa</div><div class="why-text">We have introduced several options to book from the comfort of your home or from whichever location you are in, and pay with M-Pesa.</div></div></div>
+    <div class="why-card"><div class="why-icon w-pink">👍</div><div><div class="why-title">Comfort</div><div class="why-text">We have the most comfortable buses on the Kenyan roads with lots of legroom to ensure that you reach your destination relaxed.</div></div></div>
+    <div class="why-card"><div class="why-icon w-green">🎫</div><div><div class="why-title">Full Amenities</div><div class="why-text">Our buses are fitted with high speed internet connection via wifi and power outlets to charge your devices on the go.</div></div></div>
+  </section>
+<div class="ena-fslot"></div>
+</div>
+<div id="screen-about" class="screen"><header class="app-header site-header">
+    <div class="brand-logo" onclick="showScreen('home')" role="button" aria-label="ENA Coach home"><img class="brand-img" src="https://res.cloudinary.com/yvzp2mhd/image/upload/v1794348774/images_12.jpg" alt="ENA Coach - Exemplary Service"></div>
+    <div class="header-actions">
+      <button type="button" class="flag-btn" onclick="toggleLanguage()" aria-label="Language"></button>
+      <button type="button" class="menu-btn" onclick="toggleMenu()" aria-label="Menu"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg></button>
+    </div>
+  </header><div class="pg-head"><h1>About ENA Coach</h1><p>Exemplary service across Kenya since 2010.</p></div><div class="pg-body"><h2>Our vision</h2><p>To offer world-class transportation services in an innovative way, using technology to delight, retain and defend our clients.</p><h2>Who we are</h2><p>ENA Coach is a bus and shuttle company run by ENA Investments Limited. The company has been operational since 2010 and rebranded from 2008 to 2018.</p><h2>Buses and parcels</h2><p>With experience in the PSV industry and courier services, ENA Coach works with Explorer Parcel Handlers (EPH) to study the challenges travellers face and deliver better, exemplary services.</p><h2>Where we go</h2><p>ENA Coach covers more than 30 routes within Kenya and is working round the clock to add more routes in Kenya and the wider East African region.</p><button class="btn-primary" onclick="showScreen('home')">Book a seat</button></div><div class="ena-fslot"></div></div>
+<div id="screen-terms" class="screen"><header class="app-header site-header">
+    <div class="brand-logo" onclick="showScreen('home')" role="button" aria-label="ENA Coach home"><img class="brand-img" src="https://res.cloudinary.com/yvzp2mhd/image/upload/v1794348774/images_12.jpg" alt="ENA Coach - Exemplary Service"></div>
+    <div class="header-actions">
+      <button type="button" class="flag-btn" onclick="toggleLanguage()" aria-label="Language"></button>
+      <button type="button" class="menu-btn" onclick="toggleMenu()" aria-label="Menu"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg></button>
+    </div>
+  </header><div class="pg-head"><h1>Terms &amp; Conditions of Travel</h1><p>Please read before you travel with ENA Coach.</p></div><div class="pg-body"><h2>1. Ticket validity</h2><ul><li>Tickets are valid only for the date and time of travel indicated.</li><li>Tickets cannot be altered, resold, or refunded.</li></ul><h2>2. Reporting time</h2><ul><li>Passengers must report at the boarding point 30 minutes before departure.</li><li>Failure to report on time will result in forfeiture of the ticket without replacement.</li></ul><h2>3. Conduct on board</h2><ul><li>Consuming alcohol, chewing miraa, or smoking inside the coach is strictly prohibited.</li><li>Do not accept food or drinks from strangers, to avoid drugging incidents.</li></ul><h2>4. Luggage policy</h2><ul><li>Each passenger is allowed 20 kg of luggage free.</li><li>Additional luggage will be accepted at an extra fee.</li><li>Passengers are responsible for their luggage at all times.</li><li>No luggage should be passed through the window.</li></ul><h2>5. Journey rules</h2><ul><li>If a passenger breaks their journey en route, no refund will be issued.</li><li>The company reserves the right to change a bus or shuttle without prior notice in case of emergency or safety concerns.</li></ul><h2>6. Children</h2><ul><li>One child under 5 years may travel free with an accompanying adult.</li><li>Children above 5 years must have their own seat and ticket.</li></ul><h2>7. General</h2><ul><li>Management reserves the right to make decisions in the best interest of passenger safety and comfort.</li></ul></div><div class="ena-fslot"></div></div>
+<div id="screen-eph" class="screen"><header class="app-header site-header">
+    <div class="brand-logo" onclick="showScreen('home')" role="button" aria-label="ENA Coach home"><img class="brand-img" src="https://res.cloudinary.com/yvzp2mhd/image/upload/v1794348774/images_12.jpg" alt="ENA Coach - Exemplary Service"></div>
+    <div class="header-actions">
+      <button type="button" class="flag-btn" onclick="toggleLanguage()" aria-label="Language"></button>
+      <button type="button" class="menu-btn" onclick="toggleMenu()" aria-label="Menu"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg></button>
+    </div>
+  </header><div class="pg-head"><h1>Explorer Parcel Handlers (EPH) Terms &amp; Conditions</h1><p>Compensation, complaints and notices for parcels and courier.</p></div><div class="pg-body"><h2>Polite notice</h2><ul><li>Check your receipt or ticket for the date and departure time (AM/PM) before leaving the counter.</li><li>Declare the correct parcel value.</li><li>Goods valued above Kshs 5,000 must be insured by the sender.</li><li>Children above 5 years must be booked a seat.</li><li>Package parcels with suitable materials.</li><li>Proof of identity (ID card or passport) is required when receiving parcels.</li></ul><h2>Compensation policy</h2><p>EPH aims to provide good quality courier service. Where it fails to meet the agreed service, it will offer compensation where appropriate.</p><ul><li><b>Service delivery failure:</b> loss or major inconvenience because the expected parcel was not delivered within at least 72 hours.</li><li><b>Damage to property:</b> where damage is caused by staff or an accident, the company will liaise with its valuator and pay compensation where appropriate.</li><li><b>Extraordinary circumstances:</b> cases not covered by specific policies may be compensated at the discretion of the General Managers or Head of Operations.</li><li><b>Payments:</b> may include an amount for distress and suffering, not exceeding Kshs 5,000. Higher payments only in exceptional cases at the Company Director's discretion.</li><li>Claims are considered only if received within 4 days of the service delivery failure.</li><li>Compensation may take at least two weeks to process.</li></ul><div class="notice"><b>Please note</b><ul><li>We do not deliver gas cylinders, empty or filled, unless accompanied by permits from the relevant authorities.</li><li>We do not deliver door to door. No compensation is made when parcels are collected late at branches.</li><li>Value every parcel before sending. Parcels worth more than Kshs 2,000 should be insured by the owner.</li><li>In case of compensation, the customer is paid the declared value of the parcel.</li></ul></div><h2>Customer complaint procedure</h2><ul><li><b>We acknowledge</b> within three business days of receiving your complaint.</li><li><b>We review</b> your complaint and may ask for more information.</li><li><b>We investigate</b> within 10 business days, objectively and impartially.</li><li><b>We respond</b> with our findings and any actions taken.</li><li><b>We take action</b> and amend our practices or policies where appropriate.</li><li><b>We record</b> your complaint for improvement, and handle your personal information under privacy law.</li></ul><h2>Complaint escalation</h2><div class="tier"><b>Tier 1<br>First contact</b><div>Our staff are empowered to resolve complaints at first contact whenever possible.</div></div><div class="tier"><b>Tier 2<br>Investigation</b><div>If you are not satisfied, ask us to escalate. We investigate and tell you our findings.</div></div><div class="tier"><b>Tier 3<br>Management</b><div>At your request, we refer your complaint to management for independent review.</div></div><div class="tier"><b>Tier 4<br>Board</b><div>If still unsatisfied, the Board of Directors gives the final decision.</div></div></div><div class="ena-fslot"></div></div>
+<div id="screen-privacy" class="screen"><header class="app-header site-header">
+    <div class="brand-logo" onclick="showScreen('home')" role="button" aria-label="ENA Coach home"><img class="brand-img" src="https://res.cloudinary.com/yvzp2mhd/image/upload/v1794348774/images_12.jpg" alt="ENA Coach - Exemplary Service"></div>
+    <div class="header-actions">
+      <button type="button" class="flag-btn" onclick="toggleLanguage()" aria-label="Language"></button>
+      <button type="button" class="menu-btn" onclick="toggleMenu()" aria-label="Menu"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg></button>
+    </div>
+  </header><div class="pg-head"><h1>Privacy Policy</h1><p>How ENA Investment Limited collects, uses and protects your personal information.</p></div><div class="pg-body"><h2>1. Who we are</h2><p>ENA Investment Limited is a passenger transport and logistics company operating within Kenya. We handle your personal data responsibly and in compliance with the Data Protection Act, 2019 (Kenya).</p><h2>2. Information we collect</h2><ul><li><b>Personal:</b> full name, phone number, email address, national ID or passport details where necessary.</li><li><b>Booking and travel:</b> ticket details, routes, seat numbers.</li><li><b>Payment:</b> M-Pesa or mobile money transaction details.</li><li><b>Location:</b> pickup and drop-off locations; GPS tracking data for safety and operations.</li><li><b>Customer support:</b> call recordings; messages by SMS, email or social media.</li><li><b>Technical:</b> website usage data (cookies and analytics).</li></ul><h2>3. How we use your information</h2><ul><li>Process bookings and issue tickets</li><li>Provide transport and parcel services</li><li>Send travel updates and service notifications</li><li>Offer customer support</li><li>Improve our services and operations</li><li>Enhance safety and security</li><li>Comply with legal obligations</li></ul><h2>4. Sharing your information</h2><p>We may share your data with ENA staff and authorized agents, payment service providers, government and regulatory authorities when required by law, and trusted third-party providers (IT, communication, analytics). We do not sell or rent your personal data.</p><h2>5. Data security</h2><p>We protect your data with secure systems, restricted access and staff confidentiality obligations.</p><h2>6. Data retention</h2><p>We keep your data only as long as necessary to provide our services, meet legal and regulatory requirements, and resolve disputes.</p><h2>7. Your rights</h2><ul><li>Access your personal data</li><li>Correct inaccurate information</li><li>Request deletion of your data (where applicable)</li><li>Object to or restrict processing</li></ul><p>To exercise your rights, contact us using the details below.</p><h2>8. Cookies &amp; tracking</h2><p>We use cookies to improve your browsing, analyze traffic and personalize content. You can manage cookie settings in your browser.</p><h2>9. Third-party links</h2><p>Our website may link to third-party platforms. We are not responsible for their privacy practices.</p><h2>10. Updates to this policy</h2><p>We may update this policy from time to time. Updates will be posted on this page.</p><h2>11. Contact us</h2><p>Email <a href="mailto:info@enacoach.co.ke">info@enacoach.co.ke</a> or use live chat.</p></div><div class="ena-fslot"></div></div>
+<div id="screen-gallery" class="screen"><header class="app-header site-header">
+    <div class="brand-logo" onclick="showScreen('home')" role="button" aria-label="ENA Coach home"><img class="brand-img" src="https://res.cloudinary.com/yvzp2mhd/image/upload/v1794348774/images_12.jpg" alt="ENA Coach - Exemplary Service"></div>
+    <div class="header-actions">
+      <button type="button" class="flag-btn" onclick="toggleLanguage()" aria-label="Language"></button>
+      <button type="button" class="menu-btn" onclick="toggleMenu()" aria-label="Menu"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg></button>
+    </div>
+  </header><div class="pg-head"><h1>Gallery</h1><p>ENA Coach on the road.</p></div><div class="pg-body"><div class="gal" id="galGrid"></div></div><div class="ena-fslot"></div></div>
+<div id="screen-print-ticket" class="screen">
+  <header class="app-header site-header">
+    <div class="brand-logo" onclick="showScreen('home')" role="button" aria-label="ENA Coach home"><img class="brand-img" src="https://res.cloudinary.com/yvzp2mhd/image/upload/v1794348774/images_12.jpg" alt="ENA Coach - Exemplary Service"></div>
+    <div class="header-actions">
+      <button type="button" class="flag-btn" onclick="toggleLanguage()" aria-label="Language"></button>
+      <button type="button" class="menu-btn" onclick="toggleMenu()" aria-label="Menu"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg></button>
+    </div>
+  </header>
+  <div class="search-container">
+    <div class="search-card">
+      <h2 class="pt-title">Print Ticket</h2>
+      <div class="input-group"><label>Ticket Number</label><div class="input-box"><input type="text" id="ptRef" placeholder="e.g  ENA123456" autocomplete="off" autocapitalize="characters" spellcheck="false"></div></div>
+      <div class="input-group"><label>Mobile Number</label><div class="input-box"><input type="tel" id="ptPhone" placeholder="e.g  0785700700" inputmode="tel" autocomplete="off"></div></div>
+      <div class="pt-actions"><button type="button" class="btn-primary pt-btn" onclick="findTicket()"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg> Print Ticket</button></div>
+    </div>
+  </div>
+</div>
+<div id="screen-help" class="screen">
+  <header class="app-header site-header">
+    <div class="brand-logo" onclick="showScreen('home')" role="button" aria-label="ENA Coach home"><img class="brand-img" src="https://res.cloudinary.com/yvzp2mhd/image/upload/v1794348774/images_12.jpg" alt="ENA Coach - Exemplary Service"></div>
+    <div class="header-actions">
+      <button type="button" class="flag-btn" onclick="toggleLanguage()" aria-label="Language"></button>
+      <button type="button" class="menu-btn" onclick="toggleMenu()" aria-label="Menu"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg></button>
+    </div>
+  </header>
+  <div class="home-section" style="padding-top:20px;">
+    <h2 class="pt-title" style="margin-bottom:6px;">Help &amp; Support</h2>
+    <p class="sec-sub">Our support team is available 24/7 to assist you.</p>
+    <div class="why-card"><div class="why-icon w-green">💬</div><div><div class="why-title">Live Chat</div><div class="why-text">Tap the chat button at the bottom right of your screen to talk to us instantly.</div></div></div>
+    <a href="tel:+254709221544" class="help-btn call" style="margin-top:4px;"><div class="help-icon">📞</div><div><div style="font-size:15px;">Call Support</div><div style="font-size:12px;font-weight:400;opacity:0.8;">0709 221 544</div></div></a>
   </div>
 </div>
 <div id="screen-results" class="screen">
@@ -265,7 +467,7 @@
   <div id="seat-tab-content">
     <div id="tab-layout" class="seat-screen">
       <div style="font-size:12px;font-weight:700;margin-bottom:10px;">Selected: <span id="selectedCount" style="color:var(--primary);">0</span> / 6 seats</div>
-      <div class="seat-legend"><div class="legend-item"><div class="seat-box normal"></div>Normal</div><div class="legend-item"><div class="seat-box vip"></div>VIP</div><div class="legend-item"><div class="seat-box biz"></div>Business</div><div class="legend-item"><div class="seat-box selected"></div>Selected</div><div class="legend-item"><div class="seat-box sold"></div>Sold</div></div>
+      <div class="seat-legend"><div class="legend-item"><div class="seat-box normal"></div>Normal</div><div class="legend-item"><div class="seat-box vip"></div>VIP</div><div class="legend-item"><div class="seat-box biz"></div>Business</div><div class="legend-item"><div class="seat-box selected"></div>Selected</div><div class="legend-item"><div class="seat-box sold"></div>Booked</div></div>
       <div class="bus-layout"><div class="steering-wheel">🛞</div><div class="seat-grid" id="seatGrid"></div></div>
       <div style="background:white;border-radius:12px;padding:16px;margin-top:20px;box-shadow:0 2px 10px rgba(0,0,0,0.05);display:flex;justify-content:space-between;align-items:center;"><div><div style="font-size:11px;color:var(--text-muted);font-weight:700;">TOTAL FARE</div><div style="font-size:22px;font-weight:800;color:var(--primary);" id="totalFare">KES 0.00</div></div><button class="btn-primary" style="width:auto;padding:12px 24px;" onclick="goToPassengerScreen()">Proceed</button></div>
     </div>
@@ -290,11 +492,10 @@
 </div>
 <div class="bottom-nav">
   <div class="nav-item active" onclick="showScreen('home')" id="nav-home"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg><span>Home</span></div>
-  <div class="nav-item" onclick="showScreen('trip-history')" id="nav-history"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"></path><path d="M13 5v2"></path><path d="M13 17v2"></path><path d="M13 11v2"></path></svg><span>Trip History</span></div>
-  <div class="nav-item" onclick="openHelpModal()"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg><span>Help</span></div>
-  <div class="nav-item" onclick="showScreen('profile')" id="nav-profile"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg><span>Profile</span></div>
+  <div class="nav-item" onclick="showScreen('print-ticket')" id="nav-print"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"></path><rect x="3" y="9" width="18" height="9" rx="2"></rect><rect x="7" y="14" width="10" height="7" rx="1"></rect></svg><span>Print Ticket</span></div>
+  <div class="nav-item" onclick="openHelpModal()" id="nav-help"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg><span>Help</span></div>
+  <div class="nav-item" onclick="openAccountSheet()" id="nav-profile"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="10" r="3"></circle><path d="M6.2 18.5a6.5 6.5 0 0 1 11.6 0"></path></svg><span>Account</span></div>
 </div>
-<div class="modal-bg" id="helpModal"><div class="modal-content"><div class="modal-header"><h3 style="font-size:18px;font-weight:800;">Help & Support</h3><button class="close-btn" onclick="closeHelpModal()">✕</button></div><p style="font-size:13px;color:var(--text-muted);margin-bottom:20px;text-align:center;">Our support team is available 24/7 to assist you.</p><a href="https://wa.me/254780097070" target="_blank" class="help-btn wa"><div class="help-icon">💬</div><div><div style="font-size:15px;">Chat on WhatsApp</div><div style="font-size:12px;font-weight:400;opacity:0.8;">0780 097 070</div></div></a><a href="tel:+254709221544" class="help-btn call"><div class="help-icon">📞</div><div><div style="font-size:15px;">Call Support</div><div style="font-size:12px;font-weight:400;opacity:0.8;">0709 221 544</div></div></a></div></div>
 <div class="modal-bg" id="customModal" style="z-index:9999;"><div class="modal-content" style="max-width:320px;text-align:center;padding:24px;"><div id="customModalIcon" style="font-size:40px;margin-bottom:12px;">ℹ️</div><h3 id="customModalTitle" style="font-size:18px;font-weight:800;margin-bottom:8px;">Notice</h3><p id="customModalText" style="font-size:14px;color:var(--text-muted);margin-bottom:24px;line-height:1.5;"></p><div style="display:flex;gap:10px;"><button id="customModalCancel" class="auth-btn" style="background:var(--border);color:var(--text-main);margin-top:0;display:none;" onclick="closeCustomModal()">Cancel</button><button id="customModalOk" class="auth-btn" style="margin-top:0;" onclick="closeCustomModal()">OK</button></div></div></div>
 <div class="modal-bg" id="checkoutModal"><div class="modal-content" style="padding:0;max-width:400px;background:var(--bg-body);overflow-y:auto;max-height:90vh;">
   <div class="eticket no-select" style="margin-bottom:0;border-radius:20px 20px 0 0;border:none;"><div class="eticket-header"><h2>ENA COACH</h2><p>Official E-Ticket</p><div class="pending-badge">Pending Payment</div></div><div class="eticket-body">
@@ -307,6 +508,24 @@
     <div class="payment-details-box" style="margin-top:0;border-color:var(--primary);"><div class="payment-row"><span id="payMethodLabel">Paybill Number</span><strong id="payMethodValue">756756</strong><button class="copy-btn" onclick="copyText(document.getElementById('payMethodValue').innerText)">Copy</button></div><div class="payment-row" id="payAccountRow"><span>Account Number</span><strong id="payAccountValue">1769003</strong><button class="copy-btn" onclick="copyText(document.getElementById('payAccountValue').innerText)">Copy</button></div><div class="payment-row"><span>Amount to Pay</span><strong id="displayAmount" style="color:var(--primary);font-size:18px;">KES 0</strong></div></div>
     <div class="p-input-group" style="margin-top:16px;text-align:left;"><label style="color:var(--text-main);font-weight:800;font-size:13px;">M-Pesa Transaction Code</label><div class="p-input-box" style="border-color:var(--primary);"><input type="text" id="mpesaTxnCode" placeholder="e.g. QAB123456X" style="text-transform:uppercase;font-weight:700;letter-spacing:1px;"></div><p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Enter the code from your M-Pesa SMS to verify payment.</p></div>
     <button class="auth-btn" style="margin-top:20px;background:#25D366;box-shadow:0 4px 10px rgba(37,211,102,0.3);" onclick="executeWhatsAppPayment()">I have paid - Send Confirmation</button><button type="button" style="width:100%;background:none;border:none;color:var(--text-muted);font-size:13px;margin-top:12px;cursor:pointer;" onclick="closeCheckoutModal()">Cancel Booking</button>
+  </div>
+</div></div>
+<div class="acc-bg" id="accBg" onclick="closeAccountSheet()"></div>
+<div class="acc-sheet" id="accSheet" role="dialog" aria-label="Account"><div class="acc-top"><b>Account</b><button type="button" onclick="closeAccountSheet()" aria-label="Close">&times;</button></div>
+<a onclick="accApps()"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 9h.01M10 9h.01"/></svg>Apps</a>
+<a onclick="goAuth('login')"><svg viewBox="0 0 24 24"><path d="M14 4h5v16h-5M3 12h12M10 7l5 5-5 5"/></svg>Log in</a>
+<a onclick="goAuth('register')"><svg viewBox="0 0 24 24"><circle cx="10" cy="8" r="4"/><path d="M3 21c1-5 13-5 14 0M19 8v6M16 11h6"/></svg>Sign Up</a></div>
+<div class="menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
+<nav class="menu-panel" id="menuPanel"><div class="dr-top"><img src="https://res.cloudinary.com/yvzp2mhd/image/upload/v1794348774/images_12.jpg" alt="ENA Coach"><button type="button" onclick="closeMenu()" aria-label="Close menu">&times;</button></div><a onclick="showScreen('home');setTimeout(()=>document.getElementById('enaFooter')&&document.getElementById('enaFooter').scrollIntoView(),50)"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="26" height="26"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h.01M11 8h.01"/></svg>Apps</a><a onclick="showScreen('home')"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="26" height="26"><path d="M6 9V3h12v6M6 18H4v-9h16v9h-2M7 14h10v7H7z"/></svg>Book Ticket</a><a onclick="showScreen('gallery')"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="26" height="26"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg>Gallery</a><a onclick="goAuth('register')"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="26" height="26"><circle cx="10" cy="8" r="4"/><path d="M3 21c1-5 13-5 14 0M19 8v6M16 11h6"/></svg>Sign Up</a><a onclick="goAuth('login')"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="26" height="26"><path d="M14 4h5v16h-5M3 12h12M10 7l5 5-5 5"/></svg>Sign In</a></nav>
+<div class="cookie-banner" id="cookieBanner">
+  <p>This website uses cookies to ensure you get the best experience on our website. <a href="https://www.cookiesandyou.com/" target="_blank" rel="noopener">Learn more</a></p>
+  <button type="button" onclick="acceptCookies()">Got it!</button>
+</div>
+<div class="modal-bg" id="printModal"><div class="modal-content" style="padding:0;max-width:400px;background:var(--bg-body);overflow-y:auto;max-height:92vh;">
+  <div id="printTicketBody"></div>
+  <div class="no-print" style="padding:16px;display:flex;gap:10px;background:white;">
+    <button type="button" class="auth-btn" style="margin-top:0;" onclick="window.print()">🖨️ Print</button>
+    <button type="button" class="auth-btn" style="margin-top:0;background:#F3F4F6;color:#1A1A1A;" onclick="closePrintModal()">Close</button>
   </div>
 </div></div>
 <script>
@@ -420,16 +639,18 @@ function showScreen(screenId) {
   target.classList.add('active');
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   if (['home','results','stops','seats','passenger'].includes(screenId)) document.getElementById('nav-home').classList.add('active');
-  else if (screenId === 'profile') document.getElementById('nav-profile').classList.add('active');
-  else if (screenId === 'trip-history') document.getElementById('nav-history').classList.add('active');
+  else if (screenId === 'profile' || screenId === 'trip-history') document.getElementById('nav-profile').classList.add('active');
+  else if (screenId === 'print-ticket') document.getElementById('nav-print').classList.add('active');
+  else if (screenId === 'help') document.getElementById('nav-help').classList.add('active');
+  if (typeof closeMenu === 'function') closeMenu();
   window.scrollTo(0,0);
 }
-function openHelpModal() { document.getElementById('helpModal').style.display = 'flex'; }
-function closeHelpModal() { document.getElementById('helpModal').style.display = 'none'; }
+function openHelpModal() { showScreen('help'); }
+function closeHelpModal() { showScreen('home'); }
 function formatDateString(dateString) {
   if (!dateString) return '';
   const date = new Date(dateString + 'T12:00:00');
-  return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  return date.toLocaleDateString(window.enaLang === 'sw' ? 'sw-KE' : 'en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 function updateDisplayDate(inputElement, displayId) {
   const displayDiv = document.getElementById(displayId);
@@ -487,10 +708,7 @@ function openStopsScreen(busId) {
   document.getElementById('stopsFrom').innerText = currentRoute.from.toUpperCase(); document.getElementById('stopsTo').innerText = currentRoute.to.toUpperCase();
   document.getElementById('seatHeaderRoute').innerText = `${currentRoute.from.toUpperCase()} → ${currentRoute.to.toUpperCase()}`;
   document.getElementById('paxHeaderRoute').innerText = `${currentRoute.from.toUpperCase()} → ${currentRoute.to.toUpperCase()}`;
-  window.currentStopsData = {
-    boarding: [{ id:'b1', name:currentRoute.from+' Main Stage', desc:'Central Pickup Point', time:selectedBus.departure, date:currentRoute.date }],
-    dropping: [{ id:'d1', name:currentRoute.to+' Main Stage', desc:'Main Terminal', time:selectedBus.arrival, date:currentRoute.date }]
-  };
+  window.currentStopsData = buildStops(selectedBus);
   currentBoardingStop = null; currentDroppingStop = null; currentStopTab = 'boarding'; switchStopTab('boarding'); showScreen('stops');
 }
 function switchStopTab(tab) {
@@ -515,16 +733,21 @@ function switchSeatTab(tab,el) {
   document.querySelectorAll('.seat-header-tab').forEach(t=>t.classList.remove('active')); el.classList.add('active');
   ['layout','details','terms'].forEach(t=>document.getElementById('tab-'+t).style.display=t===tab?'block':'none');
 }
+const SEAT_TYPES = {
+  vip: ['A1','A2','A3','A4','B1','B2','B3','B4'],
+  biz: ['A5','A6','A7','A8','A9','A10','B5','B6','B7','B8','B9','B10']
+};
+function isBooked(label){ var s=0, k=label+'|'+(selectedBus?selectedBus.id:0); for(var i=0;i<k.length;i++) s=(s*31+k.charCodeAt(i))%97; return s<28; }
 function renderSeats() {
   const base=currentRoute.baseFare; SEAT_PRICES.normal=base; SEAT_PRICES.biz=base+500; SEAT_PRICES.vip=base+1000;
   const grid=document.getElementById('seatGrid'); grid.innerHTML=''; selectedSeats=[]; updateSeatSummary();
-  for(let i=1;i<=40;i++){
-    const isSold=[2,5,9,14,20,25,31].includes(i); let type='normal'; if(i<=8) type='vip'; else if(i<=16) type='biz';
-    const seatDiv=document.createElement('div'); seatDiv.className=`seat ${isSold?'sold':type}`;
-    const col=((i-1)%4)+1, row=String.fromCharCode(65+Math.floor((i-1)/4)); seatDiv.innerText=`${row}${col}`;
-    if(!isSold) seatDiv.onclick=()=>toggleSeat(seatDiv,type,SEAT_PRICES[type],`${row}${col}`);
-    grid.appendChild(seatDiv);
-  }
+  const cell=(label)=>{
+    const d=document.createElement('div'); if(!label){ return d; }
+    const sold=isBooked(label); const type=SEAT_TYPES.vip.includes(label)?'vip':SEAT_TYPES.biz.includes(label)?'biz':'normal';
+    d.className='seat '+(sold?'sold':type); d.innerText=label;
+    if(!sold) d.onclick=()=>toggleSeat(d,type,SEAT_PRICES[type],label); return d;
+  };
+  for(let r=1;r<=12;r++){ grid.append(cell('A'+(2*r-1)),cell('A'+(2*r)),cell(r===12?'25':''),cell('B'+(2*r-1)),cell('B'+(2*r))); }
 }
 function toggleSeat(el,type,price,label) {
   if(el.classList.contains('selected')) { el.classList.remove('selected'); el.classList.add(type); selectedSeats=selectedSeats.filter(s=>s.label!==label); }
@@ -574,9 +797,27 @@ async function validateAndShowPayment() {
   document.getElementById('ticketDate').innerText=`${formatDateString(currentRoute.date)||currentRoute.date} · ${selectedBus.departure}`;
   document.getElementById('ticketSeat').innerText=selectedSeats.map(s=>s.label).join(', '); document.getElementById('ticketPax').innerText=passengerNamesList.join(', ');
   document.getElementById('ticketQR').src=`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(currentBookingRef)}`;
-  document.getElementById('displayAmount').innerText=`KES ${totalPrice.toLocaleString()}`; await loadPaymentSettings();
-  document.getElementById('mpesaTxnCode').value=''; document.getElementById('checkoutModal').style.display='flex';
+  document.getElementById('displayAmount').innerText=`KES ${totalPrice.toLocaleString()}`;
+  // payment details are no longer shown here: the customer is taken to the live chat with the booking attached
+  openBookingChat({ref:currentBookingRef,from:currentRoute.from,to:currentRoute.to,date:formatDateString(currentRoute.date)||currentRoute.date,time:selectedBus.departure,seat:selectedSeats.map(s=>s.label).join(', '),pax:passengerNamesList.join(', '),phone:'0'+String(passengers[0].phone).replace(/\D/g,'').replace(/^(254|0)/,''),amount:totalPrice.toLocaleString()});
 }
+// opens the live chat and sends the booking (ticket details only, no paybill) so the agent can send payment details
+function openBookingChat(info) {
+  info.lang = window.enaLang === 'sw' ? 'sw' : 'en';
+  const go = () => window.ENAChat.openBooking(info, () => { showScreen('trip-history'); renderTripHistory('pending', document.querySelector('.th-tab')); });
+  if (window.ENAChat) return go();
+  const sc = document.createElement('script'); sc.src = 'https://enacoach-frontend.onrender.com/chat-widget.js'; sc.onload = () => setTimeout(() => { if (window.ENAChat) go(); }, 50);
+  sc.onerror = () => showAlert('Chat could not open. Please check your internet and try again from My Trips.', 'Connection Problem', '⚠️');
+  document.head.appendChild(sc);
+}
+// when the agent confirms payment in the chat, mark the booking as confirmed on this phone
+window.addEventListener('enaTicket', (e) => {
+  try {
+    const ref = e.detail && e.detail.no; if (!ref) return;
+    const bookings = JSON.parse(localStorage.getItem('enaBookings') || '[]'), i = bookings.findIndex(b => b.ref === ref);
+    if (i !== -1) { bookings[i].status = 'Confirmed'; localStorage.setItem('enaBookings', JSON.stringify(bookings)); }
+  } catch (err) {}
+});
 function executeWhatsAppPayment() {
   const txnCode=document.getElementById('mpesaTxnCode').value.trim().toUpperCase();
   if(!/^[A-Z0-9]{8,12}$/.test(txnCode)) return showAlert("Enter a valid M-Pesa transaction code (8–12 letters or numbers).","Transaction Code Required","⚠️");
@@ -618,8 +859,8 @@ async function resumePayment(ref) {
   document.getElementById('ticketRef').innerText=booking.ref; document.getElementById('ticketFrom').innerText=booking.from.toUpperCase(); document.getElementById('ticketTo').innerText=booking.to.toUpperCase();
   document.getElementById('ticketDate').innerText=booking.date; document.getElementById('ticketSeat').innerText=booking.seat; document.getElementById('ticketPax').innerText=booking.passengerNames||'Passenger';
   document.getElementById('ticketQR').src=`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(booking.ref)}`;
-  document.getElementById('displayAmount').innerText=`KES ${Number(booking.price||0).toLocaleString()}`; document.getElementById('mpesaTxnCode').value='';
-  await loadPaymentSettings(); document.getElementById('checkoutModal').style.display='flex';
+  const ph=((booking.passengers||[])[0]||{}).phone||'';
+  openBookingChat({ref:booking.ref,from:booking.from,to:booking.to,date:booking.date,time:booking.time,seat:booking.seat,pax:booking.passengerNames||'Passenger',phone:'0'+String(ph).replace(/\D/g,'').replace(/^(254|0)/,''),amount:Number(booking.price||0).toLocaleString()});
 }
 function checkAuth() {
   const user=JSON.parse(localStorage.getItem('enaUser'));
@@ -647,6 +888,373 @@ function handleLogin() {
 function signOut() { showConfirm("Are you sure you want to sign out?","Sign Out",()=>{localStorage.removeItem('enaUser');checkAuth();},"🚪"); }
 checkAuth(); loadRoutes();
 </script>
+<script>
+function toggleMenu() {
+  const p = document.getElementById('menuPanel'), o = document.getElementById('menuOverlay');
+  const open = !p.classList.contains('open'); p.classList.toggle('open', open); o.classList.toggle('open', open);
+}
+function closeMenu() {
+  const p = document.getElementById('menuPanel'), o = document.getElementById('menuOverlay');
+  if (p) p.classList.remove('open'); if (o) o.classList.remove('open');
+}
+
+function pickRoute(from, to) {
+  showScreen('home');
+  document.getElementById('searchFrom').value = from;
+  document.getElementById('searchTo').value = to;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  const card = document.querySelector('#screen-home .search-card');
+  if (card) { card.style.transition = 'box-shadow .3s'; card.style.boxShadow = '0 0 0 3px #FF5E00'; setTimeout(() => card.style.boxShadow = 'none', 1200); }
+}
+
+function acceptCookies() {
+  try { localStorage.setItem('enaCookiesOk', '1'); } catch (e) {}
+  document.getElementById('cookieBanner').style.display = 'none';
+}
+(function () {
+  let ok = false; try { ok = localStorage.getItem('enaCookiesOk') === '1'; } catch (e) {}
+  if (!ok) document.getElementById('cookieBanner').style.display = 'block';
+})();
+
+function normPhone(p) {
+  let d = String(p || '').replace(/\D/g, '');
+  if (d.startsWith('254')) d = d.slice(3); else if (d.startsWith('0')) d = d.slice(1);
+  return d;
+}
+function findTicket() {
+  const ref = document.getElementById('ptRef').value.trim().toUpperCase().replace(/\s+/g, '');
+  const phone = normPhone(document.getElementById('ptPhone').value);
+  if (!ref || phone.length < 9) return showAlert("Please enter your ticket number and the mobile number used when booking.", "Missing Information", "🎫");
+  let bookings = []; try { bookings = JSON.parse(localStorage.getItem('enaBookings') || '[]'); } catch (e) {}
+  const b = bookings.find(x => String(x.ref).toUpperCase() === ref && (x.passengers || []).some(p => normPhone(p.phone) === phone));
+  if (!b) return showAlert("We could not find a ticket with those details on this device. Check the ticket number and mobile number, or contact support.", "Ticket Not Found", "🔍");
+  if (b.status === 'Pending') return showConfirm("This ticket is still pending payment. Complete payment now?", "Payment Pending", () => resumePayment(b.ref), "💳");
+  renderPrintTicket(b);
+}
+function renderPrintTicket(b) {
+  const row = (l, v) => `<div class="eticket-row"><div><div class="label">${l}</div><div class="value">${escapeHtml(v)}</div></div></div>`;
+  document.getElementById('printTicketBody').innerHTML = `
+    <div id="printArea" class="eticket no-select" style="margin-bottom:0;border-radius:0;border:none;">
+      <div class="eticket-header"><h2>ENA COACH</h2><p>Exemplary Service · E-Ticket</p><div class="pending-badge">${escapeHtml(b.status)}</div></div>
+      <div class="eticket-body">
+        <div style="text-align:center;margin-bottom:16px;"><div class="label" style="font-size:11px;color:var(--text-muted);font-weight:700;">TICKET NUMBER</div><div style="font-size:22px;font-weight:800;color:var(--primary);letter-spacing:2px;">${escapeHtml(b.ref)}</div></div>
+        <div class="eticket-row"><div><div class="label">From</div><div class="value">${escapeHtml(String(b.from).toUpperCase())}</div></div><div style="text-align:right;"><div class="label">To</div><div class="value">${escapeHtml(String(b.to).toUpperCase())}</div></div></div>
+        ${row('Date & Time', (b.date || '') + ' · ' + (b.time || ''))}
+        ${row('Seat(s)', b.seat)}
+        ${row('Passenger(s)', b.passengerNames || '')}
+        ${row('Amount', 'KES ' + Number(b.price || 0).toLocaleString())}
+        <div class="eticket-divider"></div>
+        <div class="qr-container"><img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(b.ref)}" alt="QR Code"></div>
+        <p style="font-size:11px;color:var(--text-muted);text-align:center;">Arrive 15 mins before departure and carry a valid ID.</p>
+      </div>
+    </div>`;
+  document.getElementById('printModal').style.display = 'flex';
+}
+function closePrintModal() { document.getElementById('printModal').style.display = 'none'; }
+</script>
+<script>
+/* ===== Language: English / Kiswahili ===== */
+const SW = {
+ "FROM": "KUTOKA",
+ "TO": "KWENDA",
+ "Enter Departure City": "Weka Mji wa Kuondokea",
+ "Enter Destination City": "Weka Mji wa Kwenda",
+ "TRAVEL DATES": "TAREHE YA SAFARI",
+ "Departure": "Kuondoka",
+ "Today": "Leo",
+ "Tomorrow": "Kesho",
+ "Friday": "Ijumaa",
+ "Saturday": "Jumamosi",
+ "Search Bus": "Tafuta Basi",
+ "Our top routes": "Njia zetu kuu",
+ "Our Amenities": "Huduma Zetu",
+ "Offering world-class transportation services in an innovative and comfortable way.": "Tunatoa huduma bora za usafiri kwa njia ya kisasa na ya starehe.",
+ "Free Wi-Fi": "Wi-Fi Bila Malipo",
+ "Power Outlets": "Soketi za Umeme",
+ "Extra Legroom": "Nafasi Zaidi ya Miguu",
+ "Why Choose Us": "Kwa Nini Utuchague",
+ "Experience the best transport service in the region": "Pata huduma bora zaidi ya usafiri katika kanda hii",
+ "We have introduced several options to book from the comfort of your home or from whichever location you are in, and pay with M-Pesa.": "Tumeweka njia kadhaa za kukata tiketi ukiwa nyumbani au popote ulipo, na kulipa kupitia M-Pesa.",
+ "Comfort": "Starehe",
+ "We have the most comfortable buses on the Kenyan roads with lots of legroom to ensure that you reach your destination relaxed.": "Tuna mabasi yenye starehe zaidi barabarani nchini Kenya yenye nafasi kubwa ya miguu ili ufike safarini ukiwa umepumzika.",
+ "Full Amenities": "Huduma Kamili",
+ "Our buses are fitted with high speed internet connection via wifi and power outlets to charge your devices on the go.": "Mabasi yetu yana intaneti ya kasi kupitia wifi na soketi za umeme za kuchaji vifaa vyako safarini.",
+ "Print Ticket": "Chapisha Tiketi",
+ "Ticket Number": "Nambari ya Tiketi",
+ "Mobile Number": "Nambari ya Simu",
+ "e.g  ENA123456": "mf. ENA123456",
+ "e.g  0785700700": "mf. 0785700700",
+ "e.g. QAB123456X": "mf. QAB123456X",
+ "Help & Support": "Msaada na Usaidizi",
+ "Our support team is available 24/7 to assist you.": "Timu yetu ya usaidizi inapatikana saa 24 kila siku kukusaidia.",
+ "Live Chat": "Gumzo la Moja kwa Moja",
+ "Tap the chat button at the bottom right of your screen to talk to us instantly.": "Gusa kitufe cha gumzo kilicho chini kulia mwa skrini yako kuzungumza nasi papo hapo.",
+ "Call Support": "Piga Simu kwa Usaidizi",
+ "Chat with us": "Ongea nasi",
+ "One Way": "Njia Moja",
+ "Choose your stops": "Chagua vituo vyako",
+ "1 Boarding": "1 Kupanda",
+ "2 Dropping": "2 Kushuka",
+ "Next: Select Dropping Stop": "Endelea: Chagua Kituo cha Kushuka",
+ "Next: Select Seats": "Endelea: Chagua Viti",
+ "Select Your Seats": "Chagua Viti Vyako",
+ "Seats Layout": "Mpangilio wa Viti",
+ "Details": "Maelezo",
+ "Terms": "Masharti",
+ "Selected:": "Vilivyochaguliwa:",
+ "/ 6 seats": "/ viti 6",
+ "Normal": "Kawaida",
+ "VIP": "VIP",
+ "Business": "Biashara",
+ "Selected": "Kimechaguliwa",
+ "Sold": "Kimeuzwa",
+ "NORMAL": "KAWAIDA",
+ "BUSINESS": "BIASHARA",
+ "TOTAL FARE": "JUMLA YA NAULI",
+ "Proceed": "Endelea",
+ "Bus Features": "Vipengele vya Basi",
+ "Air Conditioning": "Kiyoyozi",
+ "Free WiFi onboard": "WiFi bila malipo ndani ya basi",
+ "USB Charging Ports": "Milango ya Kuchaji ya USB",
+ "Reclining Seats": "Viti Vinavyolala",
+ "Terms & Conditions": "Masharti na Vigezo",
+ "Tickets are non-transferable.": "Tiketi haziwezi kuhamishwa.",
+ "Arrive 15 mins before departure.": "Fika dakika 15 kabla ya kuondoka.",
+ "50% refund on cancellations 24h prior.": "Marejesho ya 50% ukighairi saa 24 kabla.",
+ "Proceed to Payment": "Endelea na Malipo",
+ "Direct": "Moja kwa moja",
+ "View Seats": "Tazama Viti",
+ "First Name": "Jina la Kwanza",
+ "Last Name": "Jina la Mwisho",
+ "Email Address": "Barua Pepe",
+ "Enter identity number": "Weka nambari ya kitambulisho",
+ "Full Name": "Jina Kamili",
+ "Contact Details": "Maelezo ya Mawasiliano",
+ "Identity & Nationality": "Kitambulisho na Uraia",
+ "Gender": "Jinsia",
+ "Male": "Mwanaume",
+ "Female": "Mwanamke",
+ "Nationality": "Uraia",
+ "Kenyan": "Mkenya",
+ "Trip History": "Historia ya Safari",
+ "Pending": "Inasubiri",
+ "Upcoming": "Zijazo",
+ "Completed": "Zilizokamilika",
+ "Book Trip": "Kata Tiketi",
+ "My Trips": "Safari Zangu",
+ "Sign Out": "Ondoka",
+ "Welcome to ENA Coach": "Karibu ENA Coach",
+ "Sign In": "Ingia",
+ "Register": "Jisajili",
+ "Email": "Barua pepe",
+ "Password": "Nenosiri",
+ "Phone": "Simu",
+ "Create Account": "Fungua Akaunti",
+ "Ticket ID": "Nambari ya Tiketi",
+ "Arrival": "Kuwasili",
+ "👉 Tap here to complete payment": "👉 Gusa hapa kukamilisha malipo",
+ "View Ticket Details": "Tazama Maelezo ya Tiketi",
+ "Awaiting Confirmation": "Inasubiri Uthibitisho",
+ "Confirmed": "Imethibitishwa",
+ "Bookings made on this account will appear here.": "Uhifadhi uliofanywa kwenye akaunti hii utaonekana hapa.",
+ "Home": "Mwanzo",
+ "Help": "Msaada",
+ "Account": "Akaunti",
+ "Notice": "Taarifa",
+ "Confirm": "Thibitisha",
+ "Cancel": "Ghairi",
+ "OK": "Sawa",
+ "Official E-Ticket": "Tiketi Rasmi ya Kielektroniki",
+ "Pending Payment": "Malipo Yanasubiriwa",
+ "BOOKING REFERENCE": "NAMBARI YA UHIFADHI",
+ "From": "Kutoka",
+ "To": "Kwenda",
+ "Date & Time": "Tarehe na Saa",
+ "Seat(s)": "Kiti/Viti",
+ "Passenger(s)": "Abiria",
+ "Valid only after payment is confirmed": "Halali baada tu ya malipo kuthibitishwa",
+ "STRICT NOTICE": "TAHADHARI KALI",
+ "This ticket is": "Tiketi hii",
+ "NOT VALID": "HAIKO HALALI",
+ "until payment is made. Please pay via M-Pesa below, then click the WhatsApp button to confirm your booking.": "hadi malipo yafanyike. Tafadhali lipa kupitia M-Pesa hapa chini, kisha bonyeza kitufe cha WhatsApp kuthibitisha uhifadhi wako.",
+ "Paybill Number": "Nambari ya Paybill",
+ "Till Number": "Nambari ya Till",
+ "Phone Number": "Nambari ya Simu",
+ "Copy": "Nakili",
+ "Account Number": "Nambari ya Akaunti",
+ "Amount to Pay": "Kiasi cha Kulipa",
+ "M-Pesa Transaction Code": "Msimbo wa Muamala wa M-Pesa",
+ "Enter the code from your M-Pesa SMS to verify payment.": "Weka msimbo kutoka kwa SMS ya M-Pesa kuthibitisha malipo.",
+ "I have paid - Send Confirmation": "Nimelipa - Tuma Uthibitisho",
+ "Cancel Booking": "Ghairi Uhifadhi",
+ "🏠 Home": "🏠 Mwanzo",
+ "🖨️ Print Ticket": "🖨️ Chapisha Tiketi",
+ "🎫 My Trips": "🎫 Safari Zangu",
+ "❓ Help & Support": "❓ Msaada na Usaidizi",
+ "👤 Account": "👤 Akaunti",
+ "This website uses cookies to ensure you get the best experience on our website.": "Tovuti hii hutumia vidakuzi (cookies) ili kukupa huduma bora zaidi.",
+ "Learn more": "Jifunze zaidi",
+ "Got it!": "Nimeelewa!",
+ "🖨️ Print": "🖨️ Chapisha",
+ "Close": "Funga",
+ "Exemplary Service · E-Ticket": "Huduma Bora Zaidi · Tiketi ya Kielektroniki",
+ "TICKET NUMBER": "NAMBARI YA TIKETI",
+ "Amount": "Kiasi",
+ "Arrive 15 mins before departure and carry a valid ID.": "Fika dakika 15 kabla ya kuondoka na ubebe kitambulisho halali.",
+ "Missing Information": "Taarifa Hazijakamilika",
+ "Please enter both your Departure City and Destination City to search for buses.": "Tafadhali weka mji wa kuondokea na mji wa kwenda ili kutafuta mabasi.",
+ "Invalid Route": "Njia Si Sahihi",
+ "Departure and Destination cities cannot be the same.": "Mji wa kuondokea na wa kwenda haviwezi kuwa sawa.",
+ "Invalid City Name": "Jina la Mji Si Sahihi",
+ "City not recognized. Please select a valid city from the dropdown list.": "Mji haujatambuliwa. Tafadhali chagua mji sahihi kutoka kwenye orodha.",
+ "Selection Required": "Chaguo Linahitajika",
+ "Please tap on a boarding stop to select it first.": "Tafadhali gusa kituo cha kupanda ukichague kwanza.",
+ "Please tap on a dropping stop to select it first.": "Tafadhali gusa kituo cha kushuka ukichague kwanza.",
+ "Limit Reached": "Kikomo Kimefikiwa",
+ "You can only select a maximum of 6 seats.": "Unaweza kuchagua viti 6 pekee kwa upeo.",
+ "No Seats Selected": "Hujachagua Kiti",
+ "Please select at least one seat to proceed.": "Tafadhali chagua angalau kiti kimoja ili kuendelea.",
+ "Missing Details": "Maelezo Hayajakamilika",
+ "Transaction Code Required": "Msimbo wa Muamala Unahitajika",
+ "Enter a valid M-Pesa transaction code (8–12 letters or numbers).": "Weka msimbo sahihi wa muamala wa M-Pesa (herufi au nambari 8–12).",
+ "Booking Status": "Hali ya Uhifadhi",
+ "This ticket is already awaiting confirmation or has been confirmed.": "Tiketi hii tayari inasubiri uthibitisho au imethibitishwa.",
+ "Please fill in all fields to register.": "Tafadhali jaza sehemu zote ili ujisajili.",
+ "Invalid Email": "Barua Pepe Si Sahihi",
+ "Please enter a valid email address.": "Tafadhali weka barua pepe sahihi.",
+ "Weak Password": "Nenosiri Dhaifu",
+ "Use a password with at least 6 characters.": "Tumia nenosiri lenye angalau herufi 6.",
+ "Success": "Imefanikiwa",
+ "Account created successfully! Welcome to ENA Coach.": "Akaunti imefunguliwa! Karibu ENA Coach.",
+ "Account Not Found": "Akaunti Haikupatikana",
+ "No account found on this device. Please register first.": "Hakuna akaunti kwenye kifaa hiki. Tafadhali jisajili kwanza.",
+ "Login Failed": "Imeshindwa Kuingia",
+ "Incorrect email or password. Please try again.": "Barua pepe au nenosiri si sahihi. Tafadhali jaribu tena.",
+ "Login Successful": "Umeingia",
+ "Are you sure you want to sign out?": "Una uhakika unataka kuondoka?",
+ "Copied": "Imenakiliwa",
+ "Copy failed": "Kunakili Kumeshindwa",
+ "Language": "Lugha",
+ "Ticket Not Found": "Tiketi Haijapatikana",
+ "Please enter your ticket number and the mobile number used when booking.": "Tafadhali weka nambari ya tiketi na nambari ya simu uliyotumia kukata tiketi.",
+ "We could not find a ticket with those details on this device. Check the ticket number and mobile number, or contact support.": "Hatukupata tiketi yenye maelezo hayo kwenye kifaa hiki. Angalia nambari ya tiketi na nambari ya simu, au wasiliana na usaidizi.",
+ "Payment Pending": "Malipo Yanasubiriwa",
+ "This ticket is still pending payment. Complete payment now?": "Tiketi hii bado inasubiri malipo. Kamilisha malipo sasa?"
+};
+const STATUS_SW = { pending: 'zinazosubiri', upcoming: 'zijazo', completed: 'zilizokamilika', all: 'zote' };
+const SW_PATTERNS = [
+  [/^● (\d+) seats left$/, m => `● viti ${m[1]} vimebaki`],
+  [/^(\d+) seat(?:\(s\))?$/, m => `viti ${m[1]}`],
+  [/^Passenger (\d+)$/, m => `Abiria ${m[1]}`],
+  [/^of (\d+) passenger\(s\)$/, m => `kati ya abiria ${m[1]}`],
+  [/^Seat (\S+)$/, m => `Kiti ${m[1]}`],
+  [/^(.+) · One Way$/, m => `${m[1]} · Njia Moja`],
+  [/^No (\w+) trips found$/, m => `Hakuna safari ${STATUS_SW[m[1]] || m[1]}`],
+  [/^Welcome back, (.+)!$/, m => `Karibu tena, ${m[1]}!`],
+  [/^(.+) copied to clipboard!$/, m => `${m[1]} imenakiliwa!`],
+  [/^Unable to copy automatically\. Please copy: (.+)$/, m => `Imeshindwa kunakili kiotomatiki. Tafadhali nakili: ${m[1]}`],
+  [/^Please fill in First Name, Last Name, and Phone for Passenger (\d+)\.$/, m => `Tafadhali jaza Jina la Kwanza, Jina la Mwisho na Simu kwa Abiria ${m[1]}.`]
+];
+window.enaLang = 'en'; try { window.enaLang = localStorage.getItem('enaLang') === 'sw' ? 'sw' : 'en'; } catch (e) {}
+const enOrig = new WeakMap();
+function swLookup(t) {
+  if (Object.prototype.hasOwnProperty.call(SW, t)) return SW[t];
+  for (const [re, fn] of SW_PATTERNS) { const m = t.match(re); if (m) return fn(m); }
+  return null;
+}
+function trTextNode(n) {
+  const v = n.nodeValue, t = v.trim(); if (!t) return;
+  const par = n.parentElement; if (par && /^(SCRIPT|STYLE|TEXTAREA)$/.test(par.tagName)) return;
+  const key = enOrig.has(n) ? enOrig.get(n) : t;
+  const out = swLookup(key); if (out === null) return;
+  enOrig.set(n, key);
+  n.nodeValue = v.slice(0, v.indexOf(t)) + out + v.slice(v.indexOf(t) + t.length);
+}
+function untrTextNode(n) {
+  if (!enOrig.has(n)) return;
+  const v = n.nodeValue, t = v.trim(), o = enOrig.get(n);
+  n.nodeValue = v.slice(0, v.indexOf(t)) + o + v.slice(v.indexOf(t) + t.length);
+  enOrig.delete(n);
+}
+function walkTexts(root, fn) {
+  if (root.nodeType === 3) return fn(root);
+  if (root.nodeType !== 1) return;
+  const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT); const nodes = [];
+  while (w.nextNode()) nodes.push(w.currentNode); nodes.forEach(fn);
+}
+function trPlaceholders(root, toSw) {
+  if (root.nodeType !== 1) return;
+  const els = [...root.querySelectorAll('[placeholder]')]; if (root.hasAttribute('placeholder')) els.push(root);
+  els.forEach(el => {
+    if (toSw) {
+      const en = el.dataset.enPh || el.getAttribute('placeholder'); const out = swLookup(en);
+      if (out !== null) { el.dataset.enPh = en; el.setAttribute('placeholder', out); }
+    } else if (el.dataset.enPh) { el.setAttribute('placeholder', el.dataset.enPh); delete el.dataset.enPh; }
+  });
+}
+const LANG_FLAGS = {
+  en: '<svg viewBox="0 0 60 60"><rect width="60" height="60" fill="#012169"/><path d="M0 0L60 60M60 0L0 60" stroke="#fff" stroke-width="10"/><path d="M0 0L60 60M60 0L0 60" stroke="#C8102E" stroke-width="4"/><path d="M30 0V60M0 30H60" stroke="#fff" stroke-width="16"/><path d="M30 0V60M0 30H60" stroke="#C8102E" stroke-width="9"/></svg>',
+  sw: '<svg viewBox="0 0 60 60"><rect width="60" height="60" fill="#fff"/><rect width="60" height="17" fill="#000"/><rect y="21.5" width="60" height="17" fill="#BB0000"/><rect y="43" width="60" height="17" fill="#006600"/><ellipse cx="30" cy="30" rx="7" ry="14" fill="#BB0000" stroke="#fff" stroke-width="1.6"/><ellipse cx="30" cy="30" rx="2.6" ry="8" fill="#000"/></svg>'
+};
+function setLang(lang, announce) {
+  window.enaLang = lang; try { localStorage.setItem('enaLang', lang); } catch (e) {}
+  document.documentElement.lang = lang === 'sw' ? 'sw' : 'en';
+  document.title = lang === 'sw' ? 'ENA Coach - Huduma Bora Zaidi' : 'ENA Coach - Exemplary Service';
+  document.querySelectorAll('.flag-btn').forEach(b => b.innerHTML = LANG_FLAGS[lang]);
+  if (lang === 'sw') { walkTexts(document.body, trTextNode); trPlaceholders(document.body, true); }
+  else { walkTexts(document.body, untrTextNode); trPlaceholders(document.body, false); }
+  const sd = document.getElementById('searchDate'), dd = document.getElementById('displayDepartureDate');
+  if (sd && sd.value && dd) dd.innerText = formatDateString(sd.value);
+  if (announce) {
+    let t = document.getElementById('langToast');
+    if (!t) { t = document.createElement('div'); t.id = 'langToast'; t.className = 'lang-toast'; document.body.appendChild(t); }
+    t.innerText = lang === 'sw' ? 'Kiswahili' : 'English'; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 1400);
+  }
+}
+function toggleLanguage() { setLang(window.enaLang === 'sw' ? 'en' : 'sw', true); }
+new MutationObserver(muts => {
+  if (window.enaLang !== 'sw') return;
+  muts.forEach(m => m.addedNodes.forEach(n => { walkTexts(n, trTextNode); trPlaceholders(n, true); }));
+}).observe(document.body, { childList: true, subtree: true });
+setLang(window.enaLang, false);
+</script>
 <script src="https://enacoach-frontend.onrender.com/enhance.js"></script>
+<script>
+/* ENA update: footer, boarding/dropping points, gallery */
+const BUS_BASE=((document.querySelector('script[src*="enhance.js"]')||{src:''}).src.replace(/\/enhance\.js.*$/,''))+'/buses/';
+const NAIROBI_STOPS=['KPCU Office','Uthiru','Afya Center','Mutharakwa','Eastleigh','Gill House','Fedha','Allsops','Bee Center','Rongai','River Road','Kayole Junction','Kangemi','Kasarani','Kawangware','Ngong','Kitengela','Kibera','Utawala','Jogoo Road','Kenyatta Market','Kiserian','Civil Servant (Dandora)','Ruai','Mlolongo','Haile Selassie','Hillocks','Lucky Summer','Kariobangi North','Sunton'];
+/* Add real boarding/dropping points per town here, in lowercase town name.
+   Example:  mombasa: ['Mombasa Office','Mtwapa','Nyali'],  */
+const TOWN_STOPS={
+  nairobi: NAIROBI_STOPS,
+  kisumu: ['Kisumu Office','Kisumu Stage']
+};
+function stopNames(city,extra){
+  const c=(city||'').toLowerCase(); const base=(TOWN_STOPS[c]||[city+' Office',city+' Stage']).slice();
+  (extra||[]).forEach(s=>{ if(s && !base.some(b=>b.toLowerCase()===String(s).toLowerCase())) base.push(s); }); return base;
+}
+function buildStops(bus){
+  const f=currentRoute.from.toLowerCase(), t=currentRoute.to.toLowerCase();
+  const r=(ALL_ROUTES||[]).find(x=>x.origin.toLowerCase()===f && x.destination.toLowerCase()===t);
+  const mid=(r&&r.stops)||[];
+  const mk=(prefix,names,time,desc)=>names.map((n,i)=>({id:prefix+(i+1),name:n,desc:desc,time:time,date:currentRoute.date}));
+  return { boarding:mk('b',stopNames(currentRoute.from,mid),bus.departure,'Boarding point'), dropping:mk('d',stopNames(currentRoute.to,mid),bus.arrival,'Dropping point') };
+}
+const FOOTER_HTML='<footer class="ena-footer" id="enaFooter"><div class="fin"><img src="https://res.cloudinary.com/yvzp2mhd/image/upload/v1794348774/images_12.jpg" alt="ENA Coach"><div class="pw">Download the app</div><div class="stores"><a href="javascript:void(0)"><small>GET IT ON</small><b>Google Play</b></a><a href="javascript:void(0)"><small>Download on the</small><b>App Store</b></a></div></div><div class="fb"><a class="mail" href="mailto:info@enacoach.co.ke">&#9993; info@enacoach.co.ke</a><div class="fl"><a onclick="showScreen(\'about\')">About</a><a onclick="showScreen(\'print-ticket\')">Print Ticket</a><a onclick="window.ENAChat&&window.ENAChat.open()">Get In Touch</a><a onclick="showScreen(\'terms\')">Terms</a><a onclick="showScreen(\'eph\')">EPH T&amp;C</a><a onclick="showScreen(\'privacy\')">Privacy Policy</a></div><div class="soc"><a href="javascript:void(0)" aria-label="Facebook">f</a><a href="javascript:void(0)" aria-label="X">X</a><a href="javascript:void(0)" aria-label="Instagram">ig</a><a href="javascript:void(0)" aria-label="TikTok">tt</a></div><div class="copy">&copy; ENA Investment Limited</div></div></footer>';
+document.addEventListener('DOMContentLoaded',function(){
+  document.querySelectorAll('.ena-fslot').forEach(function(s,i){ s.innerHTML=FOOTER_HTML.replace('id="enaFooter"',i===0?'id="enaFooter"':''); });
+  var g=document.getElementById('galGrid'); if(g){ for(var k=1;k<=10;k++){ var im=document.createElement('img'); im.loading='lazy'; im.alt='ENA Coach bus'; im.src=BUS_BASE+'bus'+k+'.webp'; g.appendChild(im); } }
+});
+</script>
+<script>
+function openAccountSheet(){
+  var u=null; try{u=JSON.parse(localStorage.getItem('enaUser'));}catch(e){}
+  if(u){ showScreen('profile'); checkAuth(); return; }
+  document.getElementById('accBg').classList.add('open'); document.getElementById('accSheet').classList.add('open');
+}
+function closeAccountSheet(){ document.getElementById('accBg').classList.remove('open'); document.getElementById('accSheet').classList.remove('open'); }
+function goAuth(tab){ closeAccountSheet(); closeMenu(); showScreen('profile'); checkAuth(); switchAuthTab(tab); }
+function accApps(){ closeAccountSheet(); showScreen('home'); setTimeout(function(){var f=document.getElementById('enaFooter'); if(f) f.scrollIntoView();},60); }
+</script>
 </body>
 </html>

@@ -18,6 +18,17 @@
   .btn { width: 100%; padding: 14px; background: #FF5E00; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 10px; }
   .success-msg { display: none; background: #DCFCE7; color: #166534; padding: 12px; border-radius: 8px; font-size: 13px; font-weight: 600; text-align: center; margin-bottom: 16px; }
   h3 { font-size: 16px; margin: 20px 0 10px; color: #1A1A1A; }
+  textarea { width: 100%; padding: 12px; border: 1px solid #E5E7EB; border-radius: 8px; font-size: 14px; min-height: 110px; outline: none; background: #F9FAFB; resize: vertical; }
+  .sw { display: flex; align-items: center; justify-content: space-between; background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 10px; padding: 12px; }
+  .sw b { font-size: 14px; } .sw small { display: block; color: #6B7280; font-size: 12px; margin-top: 2px; }
+  .tg { position: relative; width: 52px; height: 30px; flex: none; }
+  .tg input { opacity: 0; width: 0; height: 0; }
+  .tg span { position: absolute; inset: 0; background: #D1D5DB; border-radius: 30px; transition: .2s; cursor: pointer; }
+  .tg span:before { content: ""; position: absolute; width: 24px; height: 24px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: .2s; }
+  .tg input:checked + span { background: #16A34A; } .tg input:checked + span:before { transform: translateX(22px); }
+  .btn2 { padding: 10px 14px; background: #fff; color: #FF5E00; border: 1px solid #FF5E00; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; margin-top: 8px; }
+  .st { font-size: 12px; margin-top: 8px; } .st.bad { color: #B91C1C; } .st.ok { color: #166534; }
+  #testOut { margin-top: 8px; background: #F3F4F6; border-radius: 8px; padding: 10px; font-size: 13px; white-space: pre-wrap; display: none; }
 </style>
 </head>
 <body>
@@ -46,14 +57,35 @@
     <input type="text" id="payAccount" placeholder="e.g. 1769003">
   </div>
 
-  <h3>2. Telegram Notifications (Set in Vercel)</h3>
-  <p style="text-align: left; font-size: 12px; margin-bottom: 10px;">Telegram Token and Chat ID are now securely stored in Vercel Environment Variables.</p>
+  <h3>2. Telegram Notifications (Set in Render)</h3>
+  <p style="text-align: left; font-size: 12px; margin-bottom: 10px;">Telegram Token and Chat ID are stored in Render Environment Variables.</p>
 
   <h3>3. Fare Override</h3>
   <div class="form-group">
     <label>Global Base Fare (Set to 0 to use routes.json)</label>
     <input type="number" id="fareOverride" placeholder="e.g. 0">
   </div>
+
+  <h3>4. AI Assistant (live chat)</h3>
+  <div class="sw"><div><b>AI assistant</b><small>Replies to customers while you are away and sends the payment details above. Pauses by itself when you reply.</small></div>
+    <label class="tg"><input type="checkbox" id="aiOn"><span></span></label></div>
+  <div class="form-group" style="margin-top:14px">
+    <label>Pause AI after I reply (minutes)</label>
+    <input type="number" id="aiPause" min="1" max="120" value="10">
+  </div>
+  <div class="form-group">
+    <label>AI model (Google Gemini)</label>
+    <input type="text" id="aiModel" list="aiModels" placeholder="gemini-flash-latest">
+    <datalist id="aiModels"></datalist>
+    <button type="button" class="btn2" onclick="loadModels()">Load available models</button>
+  </div>
+  <div class="form-group">
+    <label>Instructions for the AI (routes, prices, rules)</label>
+    <textarea id="aiNotes" placeholder="e.g. Nairobi to Mombasa fare is KES 2,500. Buses leave 7:00 PM and 8:30 PM. Refunds are handled by the agent."></textarea>
+  </div>
+  <div id="aiStatus" class="st"></div>
+  <button type="button" class="btn2" onclick="testAI()">Test the AI</button>
+  <div id="testOut"></div>
 
   <button class="btn" onclick="saveSettings()">Save All Settings</button>
 </div>
@@ -75,7 +107,54 @@
     }
   }
 
-  window.onload = loadSettings;
+  const API = 'https://enacoach-frontend.onrender.com';
+  function pw(reset) {
+    if (reset) sessionStorage.removeItem('enaAdminPw');
+    let p = sessionStorage.getItem('enaAdminPw');
+    if (!p) { p = prompt('Admin password (same as the agent page password)') || ''; if (p) sessionStorage.setItem('enaAdminPw', p); }
+    return p;
+  }
+  async function adminFetch(path, opts) {
+    opts = opts || {}; opts.headers = Object.assign({ 'Content-Type': 'application/json', 'x-admin-password': pw() }, opts.headers || {});
+    const r = await fetch(API + path, opts);
+    if (r.status === 401) { sessionStorage.removeItem('enaAdminPw'); throw new Error('Wrong password'); }
+    return r;
+  }
+  async function loadAI() {
+    const st = document.getElementById('aiStatus');
+    try {
+      const r = await adminFetch('/api/ai-settings'); const d = await r.json();
+      document.getElementById('aiOn').checked = !!d.enabled;
+      document.getElementById('aiPause').value = d.pauseMinutes || 10;
+      document.getElementById('aiModel').value = d.model || '';
+      document.getElementById('aiNotes').value = d.notes || '';
+      if (!d.hasKey) { st.className = 'st bad'; st.textContent = '⚠️ GEMINI_API_KEY is not set on Render yet.'; }
+      else if (d.lastError) { st.className = 'st bad'; st.textContent = '⚠️ Last AI error: ' + d.lastError; }
+      else { st.className = 'st ok'; st.textContent = '✅ API key found.'; }
+    } catch (e) { st.className = 'st bad'; st.textContent = '⚠️ ' + e.message + ' (reload the page to try again)'; }
+  }
+  async function loadModels() {
+    const st = document.getElementById('aiStatus');
+    try {
+      const r = await adminFetch('/api/ai-models'); const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Could not load models');
+      document.getElementById('aiModels').innerHTML = d.models.map(m => '<option value="' + m + '">').join('');
+      st.className = 'st ok'; st.textContent = '✅ ' + d.models.length + ' models loaded. Tap the model box to pick one.';
+    } catch (e) { st.className = 'st bad'; st.textContent = '⚠️ ' + e.message; }
+  }
+  async function testAI() {
+    const out = document.getElementById('testOut'); out.style.display = 'block'; out.textContent = 'Testing...';
+    try {
+      await adminFetch('/api/ai-settings', { method: 'POST', body: JSON.stringify(aiPayload()) });
+      const r = await adminFetch('/api/ai-test', { method: 'POST', body: JSON.stringify({ text: 'Hello, I want to pay for my ticket. How do I pay?' }) });
+      const d = await r.json();
+      out.textContent = r.ok ? '🤖 ' + d.reply : '⚠️ ' + (d.error || 'Test failed');
+    } catch (e) { out.textContent = '⚠️ ' + e.message; }
+  }
+  function aiPayload() {
+    return { enabled: document.getElementById('aiOn').checked, model: document.getElementById('aiModel').value.trim(), notes: document.getElementById('aiNotes').value, pauseMinutes: parseInt(document.getElementById('aiPause').value, 10) || 10 };
+  }
+  window.onload = function () { loadSettings(); loadAI(); };
 
   function toggleAccountField() {
     const type = document.getElementById('payType').value;
@@ -106,20 +185,20 @@
     btn.innerText = "Saving...";
 
     try {
-      const response = await fetch('https://enacoach-frontend.onrender.com/api/settings', {
+      const response = await adminFetch('/api/settings', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type, number, account, override })
       });
+      const ai = await adminFetch('/api/ai-settings', { method: 'POST', body: JSON.stringify(aiPayload()) });
 
-      if (response.ok) {
+      if (response.ok && ai.ok) {
         document.getElementById('successMsg').style.display = 'block';
         setTimeout(() => { document.getElementById('successMsg').style.display = 'none'; }, 3000);
       } else {
         alert("Failed to save settings. Check database connection.");
       }
     } catch (error) {
-      alert("Network error.");
+      alert(error.message === 'Wrong password' ? 'Wrong password. Try Save again.' : 'Network error.');
     }
     btn.innerText = "Save All Settings";
   }
