@@ -99,11 +99,7 @@ body.enc-open{overflow:hidden}
   var bd = document.createElement('span'); bd.id = 'enc-bd'; btn.appendChild(bd);
   var lbl = document.createElement('div'); lbl.id = 'enc-lbl'; lbl.textContent = 'Chat with us 💬';
   document.body.appendChild(box); document.body.appendChild(lbl); document.body.appendChild(btn);
-  (function () {
-    var av = document.getElementById('enc-av'), im = new Image();
-    im.onload = function () { av.textContent = ''; av.style.background = '#fff'; im.style.cssText = 'width:100%;height:100%;border-radius:50%;object-fit:contain'; av.appendChild(im); };
-    im.src = base + '/logo.png';
-  })();
+  
 
   var $ = function (id) { return document.getElementById(id); };
   var msgs = $('enc-msgs'), socket, pushed = false, unread = 0, AC;
