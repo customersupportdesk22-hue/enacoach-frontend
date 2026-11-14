@@ -10,7 +10,7 @@
 #enc-bd{position:absolute;top:-4px;left:-4px;min-width:22px;height:22px;padding:0 6px;border-radius:11px;background:#ef4444;color:#fff;font:700 13px/22px system-ui,sans-serif;text-align:center;border:2px solid #fff;display:none}
 #enc-lbl{position:fixed;right:88px;bottom:104px;background:#fff;color:#075E54;padding:8px 12px;border-radius:18px;font:600 13px system-ui,sans-serif;box-shadow:0 4px 12px rgba(0,0,0,.18);z-index:99998}
 #enc-box{position:fixed;inset:0;width:100%;height:100vh;height:100dvh;background:#f0f2f5;display:none;flex-direction:column;overflow:hidden;z-index:99999;font-family:system-ui,sans-serif}
-#enc-box header{background:#075E54;color:#fff;padding:calc(env(safe-area-inset-top,0px) + 10px) 12px 10px;display:flex;align-items:center;gap:10px}
+#enc-box header{background:#FF5C00;color:#fff;padding:calc(env(safe-area-inset-top,0px) + 10px) 12px 10px;display:flex;align-items:center;gap:10px}
 #enc-back{background:none;border:0;color:#fff;font-size:26px;line-height:1;padding:4px 8px;cursor:pointer}
 #enc-av{width:40px;height:40px;border-radius:50%;background:#ff5c00;display:flex;align-items:center;justify-content:center;font-weight:700}
 #enc-ti{display:flex;flex-direction:column;line-height:1.25}
