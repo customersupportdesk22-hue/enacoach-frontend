@@ -237,7 +237,7 @@ agents.on('connection', (s) => {
       method: clip(p.method, 30) || 'M-Pesa',
       accountLabel: clip(p.accountLabel, 20) || 'Paybill',
       number: clip(p.number, 30), account: clip(p.account, 40),
-      name: clip(p.name, 60), amount: clip(p.amount, 12),
+      name: clip(p.name, 60) || 'ENA COACH', amount: clip(p.amount, 12),
       note: clip(p.note, 200)
     };
     if (!payment.number || !payment.amount) return;
@@ -411,12 +411,12 @@ function aiSystem(c, pay) {
   const state = b ? `Unpaid booking in this chat: ref ${b.ref}, ${b.from} to ${b.to}, ${b.date} ${b.time}, seat ${b.seat}, KES ${b.amount}, passenger ${b.pax}.` : 'There is no unpaid booking in this chat.';
   return `You are the ENA Coach booking agent, answering customers in the company's website live chat in Kenya. You ARE the agent: you handle each customer yourself from the first question to payment, and you never hand them over to anyone else.
 If a customer sincerely asks whether you are a person or a bot, never claim to be human: say you are ENA Coach's virtual booking assistant and carry on helping.
-Style: professional, warm and confident. 1 to 3 short sentences, plain text only, no markdown. Reply in the customer's language (English, Kiswahili or simple Sheng). Answer what was asked straight away using the facts below, then ask for the next missing detail.
+Style: VERY professional and courteous, like a senior customer service executive of a reputable coach company. Greet the customer by name the first time when you know it. Use complete, polite, grammatically correct sentences, never slang and never short forms such as pls or kk, and at most one emoji per message (only 🙏 or ✅, and only when natural). Keep replies to 1 to 3 short sentences, plain text only, no markdown. Reply in the customer's language (English or Kiswahili), always in polite standard language even when the customer writes slang or Sheng. When a booking is complete you may close with: Thank you for choosing ENA Coach. Answer what was asked straight away using the facts below, then ask for the next missing detail.
 
 What you do:
 1. Fares and routes: use ONLY the FARES list below. Fares are per seat for a normal seat; a business seat is +500 and a VIP seat is +1000. A route works in both directions. If a pair is not listed, say we do not have a fare for that route yet and ask for the nearest town we serve.
 2. Booking: collect only what is still missing, one or two questions at a time: travelling from, to, travel date, number of passengers, passenger name, phone number. When you have them, confirm route, date, passengers and the total fare, then give the payment details.
-3. Payment details: when the customer asks how to pay, asks for payment details, or is ready to pay, give them immediately. If there is an unpaid booking in this chat, write one short line and end your message with the exact marker [[PAY]]; the system then attaches the official payment card with the amount. Otherwise write the details out yourself, exactly as: ${payText(pay)}. Tell them the amount to send (the total fare) and to reply with the M-Pesa confirmation message. Never say the details are "below" or "attached" unless you used [[PAY]]. Never change these numbers.
+3. Payment details: when the customer asks how to pay, asks for the payment details, or is ready to pay, and you already know the route and the number of passengers, end your message with the exact marker [[PAY:TOTAL]], where TOTAL is the total fare in KES as digits only, for example [[PAY:3400]]. If there is an unpaid booking in this chat, use the marker [[PAY]] instead. The system then attaches the official payment card showing the paybill number, the account number, the account name ENA COACH and the amount. NEVER type payment numbers yourself. Before the marker write one short professional line, for example: Kindly complete your payment using the details below, then reply with your M-Pesa confirmation message. If you do not yet know the route or the number of passengers, ask for them first and do not use the marker.
 4. December: bookings for the December holidays are OPEN. Say so confidently, take the booking normally and advise booking early because December seats fill fast. Seats are secured once payment is confirmed. Never say you need to check December availability.
 5. After payment: you cannot see M-Pesa yourself. When the customer sends an M-Pesa confirmation message or says they have paid, reply with one line such as "Thank you, I'm verifying your payment now. Your ticket will be sent here shortly 🙏" and end with the exact marker [[HOLD]]. Never say the ticket is issued or the payment is received yourself.
 6. Cancellations, refunds, changes, complaints, upset customers, or anything not covered here: reply with one calm line such as "Please give me a moment, I'm checking that for you 🙏" (in the customer's language) and end with the exact marker [[HOLD]]. Do not guess.
@@ -470,23 +470,25 @@ async function aiReply(c) {
   // a human replied, or the customer wrote again, while the AI was thinking: stay quiet
   const nl = c.msgs[c.msgs.length - 1];
   if (!nl || nl.id !== last.id || !aiCfg.enabled || Date.now() - (humanAt[c.id] || 0) < (aiCfg.pauseMinutes || 10) * 60000) return;
-  const wantPay = /\[\[PAY\]\]/i.test(text), handoff = /\[\[(HOLD|HANDOFF)\]\]/i.test(text);
-  text = text.replace(/\[\[(PAY|HOLD|HANDOFF)\]\]/gi, '').trim().slice(0, 900);
+  const payM = /\[\[PAY(?::\s*(\d+))?\]\]/i.exec(text), wantPay = !!payM, handoff = /\[\[(HOLD|HANDOFF)\]\]/i.test(text);
+  text = text.replace(/\[\[(PAY(?::\s*\d+)?|HOLD|HANDOFF)\]\]/gi, '').trim().slice(0, 900);
   text = stripAgentTalk(text);
   hist.push(Date.now());
   aiState.lastError = '';
   if (text) pushMsg(c, { from: 'agent', ai: true, text });
   if (wantPay) {
     const b = pendingBooking(c);
-    if (b && Date.now() - (aiPaySent[b.ref] || 0) > 5 * 60000) {
+    const amt = b ? b.amount : (payM[1] || '');
+    const key = (b ? b.ref : c.id) + ':' + amt;
+    if (Date.now() - (aiPaySent[key] || 0) > 60000) {
       const s = await getPay();
-      aiPaySent[b.ref] = Date.now();
+      aiPaySent[key] = Date.now();
       const payment = {
         method: 'M-Pesa', accountLabel: s.type === 'till' ? 'Till' : s.type === 'phone' ? 'Phone' : 'Paybill',
-        number: clip(s.number, 30), account: s.type === 'paybill' ? clip(s.account, 40) : '', name: '', amount: clip(b.amount, 12),
-        note: `Booking ${b.ref}. Pay, then reply here with the M-Pesa confirmation message.`
+        number: clip(s.number, 30), account: s.type === 'paybill' ? clip(s.account, 40) : '', name: 'ENA COACH', amount: clip(amt, 12),
+        note: (b ? 'Booking ' + b.ref + '. ' : '') + 'Kindly complete your payment, then reply here with the M-Pesa confirmation message.'
       };
-      pushMsg(c, { from: 'agent', ai: true, type: 'payment', payment, text: 'Payment details: KES ' + payment.amount });
+      pushMsg(c, { from: 'agent', ai: true, type: 'payment', payment, text: 'Payment details' + (payment.amount ? ': KES ' + payment.amount : '') });
     }
   }
   if (handoff) aiHold[c.id] = true;

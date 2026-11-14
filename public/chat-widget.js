@@ -68,6 +68,26 @@ body.enc-open{overflow:hidden}
 .enc-mc .dg{color:#dc2626}
 .enc-pv{padding:8px 14px 10px;font-size:13px;color:#6b7280;border-bottom:1px solid #eee;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #enc-toast{position:absolute;left:50%;bottom:90px;transform:translateX(-50%);background:#111;color:#fff;padding:8px 16px;border-radius:999px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:6}
+.enc-p{width:300px;max-width:92%;border:2px solid #075E54;border-radius:14px;overflow:hidden}
+.pc-h{background:#075E54;color:#fff;padding:10px 12px;display:flex;align-items:center;gap:10px}
+.pc-lh{display:flex;flex:none}
+.pc-lg{width:40px;height:40px;border-radius:50%;background:#fff;object-fit:contain}
+.pc-lf{width:40px;height:40px;border-radius:50%;background:#ff5c00;color:#fff;font:700 18px/40px system-ui,sans-serif;text-align:center}
+.pc-bn{font:800 16px system-ui,sans-serif;letter-spacing:.5px}
+.pc-bs{font:12px system-ui,sans-serif;color:#b9f5d0}
+.pc-b{padding:12px;background:#f7fbf8;text-align:center}
+.pc-l{font:700 12px system-ui,sans-serif;color:#dc2626;letter-spacing:.8px;margin:8px 0 6px}
+.pc-d{display:flex;justify-content:center;gap:4px;flex-wrap:wrap}
+.pc-d span{min-width:26px;padding:4px 0;border:2px solid #16a34a;border-radius:4px;background:#fff;font:800 20px system-ui,sans-serif;color:#111}
+.pc-cp{margin-top:6px;background:#e7fbe9;color:#075E54;border:1px solid #25D366;border-radius:12px;padding:3px 12px;font-size:12px}
+.pc-nm{display:inline-block;min-width:60%;padding:6px 10px;border:2px solid #16a34a;border-radius:4px;background:#fff;font:800 17px system-ui,sans-serif;color:#111}
+.pc-am{margin-top:12px;background:#075E54;color:#fff;border-radius:10px;padding:8px;font:800 22px system-ui,sans-serif}
+.pc-am small{display:block;font:600 11px system-ui,sans-serif;color:#b9f5d0;letter-spacing:.6px}
+.pc-nt{margin-top:8px;font:12px/1.35 system-ui,sans-serif;color:#6b7280}
+.enc-p{width:300px;max-width:92%;padding:4px;border:2px solid #2f9e44;border-radius:14px;overflow:hidden;background:#fff}
+.pc-img{display:block;width:100%;height:auto;border-radius:10px}
+.pc-bar{display:flex;gap:6px;flex-wrap:wrap;padding:8px 2px 4px}
+.pc-cp{display:inline-block;text-decoration:none;background:#e7fbe9;color:#075E54;border:1px solid #25D366;border-radius:12px;padding:5px 12px;font:13px system-ui,sans-serif}
 `;
   document.head.appendChild(css);
 
@@ -83,6 +103,11 @@ body.enc-open{overflow:hidden}
   var bd = document.createElement('span'); bd.id = 'enc-bd'; btn.appendChild(bd);
   var lbl = document.createElement('div'); lbl.id = 'enc-lbl'; lbl.textContent = 'Chat with us 💬';
   document.body.appendChild(box); document.body.appendChild(lbl); document.body.appendChild(btn);
+  (function () {
+    var av = document.getElementById('enc-av'), im = new Image();
+    im.onload = function () { av.textContent = ''; av.style.background = '#fff'; im.style.cssText = 'width:100%;height:100%;border-radius:50%;object-fit:contain'; av.appendChild(im); };
+    im.src = base + '/logo.png';
+  })();
 
   var $ = function (id) { return document.getElementById(id); };
   var msgs = $('enc-msgs'), socket, pushed = false, unread = 0, AC;
@@ -113,22 +138,72 @@ body.enc-open{overflow:hidden}
     };
     return d;
   }
+  // pc-poster
+  function fmt(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+  // draws the payment poster as a real image, so customers can save or share it
+  function poster(p, cb) {
+    var W = 900, M = 40, IW = W - 2 * M, G = '#2f9e44', R = '#e5252a', F = 'Arial, Helvetica, sans-serif';
+    var num = String(p.number || ''), acc = String(p.account || ''), nm = String(p.name || 'ENA COACH');
+    var amt = p.amount ? 'KES ' + fmt(p.amount) : '';
+    var lab = String(p.accountLabel || 'Paybill').toUpperCase() + ' NUMBER';
+    var H = 170 + 250 + (acc ? 230 : 0) + 230 + (amt ? 240 : 0) + 150;
+    function draw(logo) {
+      var cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+      var x = cv.getContext('2d');
+      function rr(a, b, w, h, r) { x.beginPath(); x.moveTo(a + r, b); x.arcTo(a + w, b, a + w, b + h, r); x.arcTo(a + w, b + h, a, b + h, r); x.arcTo(a, b + h, a, b, r); x.arcTo(a, b, a + w, b, r); x.closePath(); }
+      function label(t, y) { x.fillStyle = R; x.font = 'bold 46px ' + F; x.textAlign = 'center'; x.textBaseline = 'alphabetic'; x.fillText(t, W / 2, y); }
+      function box(t, y, h, fill, ink, size) {
+        rr(M, y, IW, h, 10); x.fillStyle = fill; x.fill(); x.lineWidth = 7; x.strokeStyle = G; x.stroke();
+        var fs = size; x.font = 'bold ' + fs + 'px ' + F;
+        while (x.measureText(t).width > IW - 60 && fs > 24) { fs -= 2; x.font = 'bold ' + fs + 'px ' + F; }
+        x.fillStyle = ink; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(t, W / 2, y + h / 2 + 4);
+      }
+      x.fillStyle = '#f1f5fb'; x.fillRect(0, 0, W, H);
+      x.fillStyle = G; x.fillRect(0, 0, W, 170);
+      x.beginPath(); x.arc(100, 85, 58, 0, Math.PI * 2); x.fillStyle = '#fff'; x.fill();
+      if (logo) { x.save(); x.beginPath(); x.arc(100, 85, 54, 0, Math.PI * 2); x.clip(); x.drawImage(logo, 46, 31, 108, 108); x.restore(); }
+      else { x.beginPath(); x.arc(100, 85, 54, 0, Math.PI * 2); x.fillStyle = '#ff5c00'; x.fill(); x.fillStyle = '#fff'; x.font = 'bold 64px ' + F; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('E', 100, 90); }
+      x.fillStyle = '#fff'; x.textAlign = 'left'; x.textBaseline = 'alphabetic'; x.font = 'bold 72px ' + F; x.fillText('ENA COACH', 190, 100);
+      x.font = 'bold 28px ' + F; x.fillStyle = '#d7f5dd'; x.fillText('OFFICIAL PAYMENT DETAILS', 192, 142);
+      var y = 170;
+      label(lab, y + 80);
+      var n = Math.max(1, num.length), gap = 14, bw = Math.min(100, Math.floor((IW - (n - 1) * gap) / n)), bh = 120;
+      var sx = (W - (n * bw + (n - 1) * gap)) / 2;
+      for (var i = 0; i < num.length; i++) {
+        rr(sx + i * (bw + gap), y + 105, bw, bh, 8); x.fillStyle = '#fff'; x.fill(); x.lineWidth = 7; x.strokeStyle = G; x.stroke();
+        x.fillStyle = '#111'; x.font = 'bold ' + Math.min(88, Math.round(bw * 0.9)) + 'px ' + F; x.textAlign = 'center'; x.textBaseline = 'middle';
+        x.fillText(num.charAt(i), sx + i * (bw + gap) + bw / 2, y + 105 + bh / 2 + 4);
+      }
+      y += 250;
+      if (acc) { label('ACCOUNT NUMBER', y + 70); box(acc, y + 95, 110, '#fff', '#111', 72); y += 230; }
+      label('ACCOUNT NAME', y + 70); box(nm, y + 95, 110, '#fff', '#111', 72); y += 230;
+      if (amt) { label('AMOUNT TO PAY', y + 70); box(amt, y + 95, 120, G, '#fff', 84); y += 240; }
+      x.strokeStyle = G; x.lineWidth = 4; x.beginPath(); x.moveTo(M, y + 20); x.lineTo(W - M, y + 20); x.stroke();
+      x.fillStyle = '#475569'; x.font = '26px ' + F; x.textAlign = 'center'; x.textBaseline = 'alphabetic';
+      x.fillText('Pay via M-Pesa, then reply in this chat', W / 2, y + 70);
+      x.fillText('with your confirmation message.', W / 2, y + 105);
+      try { cb(cv.toDataURL('image/png')); } catch (e) { if (logo) draw(null); }
+    }
+    var lg = new Image(); lg.crossOrigin = 'anonymous';
+    lg.onload = function () { draw(lg); };
+    lg.onerror = function () { draw(null); };
+    lg.src = base + '/logo.png';
+  }
   function payment(p) {
     var d = document.createElement('div'); d.className = 'enc-m enc-a enc-p';
-    var r = [['Pay via', p.method || 'M-Pesa'], [p.accountLabel || 'Paybill', p.number, 1], ['Account', p.account, 1],
-      ['Name', p.name]].filter(function (x) { return x[1]; });
-    d.innerHTML = '<div class="pay"><h4>💳 PAYMENT DETAILS</h4><table>' +
-      r.map(function (x) { return '<tr><td>' + esc(x[0]) + '</td><td><b>' + esc(x[1]) + '</b>' +
-        (x[2] ? '<button class="cp" data-v="' + esc(x[1]) + '">Copy</button>' : '') + '</td></tr>'; }).join('') +
-      '<tr><td>Amount</td><td><b class="amt">KES ' + esc(p.amount) + '</b></td></tr></table>' +
-      '<p>' + esc(p.note || 'Send the payment, then reply here with the confirmation message.') + '</p></div>';
-    Array.prototype.forEach.call(d.querySelectorAll('.cp'), function (b) {
-      b.onclick = function () {
-        var v = b.getAttribute('data-v');
-        if (navigator.clipboard) navigator.clipboard.writeText(v);
-        b.textContent = 'Copied'; setTimeout(function () { b.textContent = 'Copy'; }, 1500);
-      };
-    });
+    var im = document.createElement('img'); im.className = 'pc-img'; im.alt = 'ENA Coach payment details';
+    im.onload = function () { if (msgs.lastChild === d) msgs.scrollTop = msgs.scrollHeight; };
+    var bar = document.createElement('div'); bar.className = 'pc-bar';
+    function cp(label, v) {
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'pc-cp'; b.textContent = label;
+      b.onclick = function () { if (navigator.clipboard) navigator.clipboard.writeText(v); b.textContent = 'Copied'; setTimeout(function () { b.textContent = label; }, 1500); };
+      bar.appendChild(b);
+    }
+    cp('Copy ' + String(p.accountLabel || 'Paybill').toLowerCase(), String(p.number));
+    if (p.account) cp('Copy account', String(p.account));
+    var sv = document.createElement('a'); sv.className = 'pc-cp'; sv.textContent = 'Save image'; sv.download = 'ENA-Coach-payment.png'; bar.appendChild(sv);
+    d.appendChild(im); d.appendChild(bar);
+    poster(p, function (u) { im.src = u; sv.href = u; });
     return d;
   }
   function bookingCard(b) {
@@ -287,7 +362,7 @@ body.enc-open{overflow:hidden}
       socket.on('history', function (h) {
         msgs.innerHTML = ''; store = {}; closeMenu(); h.forEach(add);
         h.forEach(function (m) { if (m.t > lastT) lastT = m.t; });
-        if (!h.length) add({ from: 'agent', text: 'Hello! 👋 Tell us where you are travelling from, to, and the date, and we will book your ticket.' });
+        if (!h.length) add({ from: 'agent', text: 'Welcome to ENA Coach. How may we assist you today? Kindly share your departure town, destination and travel date, and we will gladly arrange your booking.' });
         if (box.style.display === 'flex') setSeen(lastT);
         else {
           // customer came back to the site: count agent messages sent while they were away
