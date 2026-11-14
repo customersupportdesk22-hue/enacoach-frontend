@@ -149,7 +149,7 @@ body.enc-open{overflow:hidden}
   function fmt(n) { var v = Number(String(n).replace(/[^0-9.]/g, '')); return v ? v.toLocaleString('en-US') : String(n); }
   function payment(p) {
     var d = document.createElement('div'); d.className = 'enc-m enc-a';
-    d.style.cssText = 'width:300px;max-width:92%;padding:0;border:2px solid #2f9e44;border-radius:14px;overflow:hidden;background:#fff';
+    d.style.cssText = 'flex:none;width:300px;max-width:92%;padding:0;border:2px solid #2f9e44;border-radius:14px;overflow:hidden;background:#fff';
     function row(label, val, size, fill) {
       var r = document.createElement('div'); r.style.cssText = 'padding:8px 12px 0;text-align:center';
       var l = document.createElement('div'); l.textContent = label; l.style.cssText = 'color:#e5252a;font:bold 12px Arial,sans-serif;letter-spacing:.5px';
