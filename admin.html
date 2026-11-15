@@ -57,27 +57,24 @@
     <input type="text" id="payAccount" placeholder="e.g. 1769003">
   </div>
 
-  <h3>2. Telegram Notifications (Set in Render)</h3>
+  <h3>2. Global Payment Control</h3>
+  <div class="form-group"><label>How should the AI handle customer payments?</label>
+    <select id="paymentMode"><option value="automatic">Automatic — AI sends official Paybill/Till details</option><option value="admin">Admin controlled — customer waits for me to send details</option><option value="stk">Manual STK Push — I initiate the prompt myself</option></select>
+    <small style="display:block;color:#6B7280;margin-top:6px">Manual STK mode never initiates a prompt automatically. Use “STK Push Initiated” in Agent Chat only after you have initiated it through your M-Pesa provider.</small>
+  </div>
+
+  <h3>3. Telegram Notifications (Set in Render)</h3>
   <p style="text-align: left; font-size: 12px; margin-bottom: 10px;">Telegram Token and Chat ID are stored in Render Environment Variables.</p>
 
-  <h3>3. Fare Override</h3>
+  <h3>4. Fare Override</h3>
   <div class="form-group">
     <label>Global Base Fare (Set to 0 to use routes.json)</label>
     <input type="number" id="fareOverride" placeholder="e.g. 0">
   </div>
 
-  <h3>4. AI Assistant (live chat)</h3>
+  <h3>5. AI Assistant (live chat)</h3>
   <div class="sw"><div><b>AI assistant</b><small>Replies to customers while you are away and sends the payment details above. Pauses by itself when you reply.</small></div>
     <label class="tg"><input type="checkbox" id="aiOn"><span></span></label></div>
-  <div class="form-group" style="margin-top:16px">
-    <label for="paymentMode">Global AI payment handling mode</label>
-    <select id="paymentMode">
-      <option value="automatic">Automatic – AI sends official Paybill/Till details</option>
-      <option value="manual_details">Admin controlled – I send payment details</option>
-      <option value="manual_stk">Manual STK Push – I initiate the M-Pesa prompt</option>
-    </select>
-    <small style="display:block;color:#6B7280;font-size:12px;line-height:1.5;margin-top:7px">This setting applies to every customer chat. In Manual STK Push mode, you initiate the prompt outside this website, then confirm it in the agent chat. The confirmation does not mark the booking as paid.</small>
-  </div>
   <div class="form-group" style="margin-top:14px">
     <label>Pause AI after I reply (minutes)</label>
     <input type="number" id="aiPause" min="1" max="120" value="10">
@@ -109,6 +106,7 @@
       document.getElementById('payNumber').value = data.number || '';
       document.getElementById('payAccount').value = data.account || '';
       document.getElementById('fareOverride').value = data.override || 0;
+      document.getElementById('paymentMode').value = data.paymentMode || 'automatic';
       
       toggleAccountField();
     } catch (error) {
@@ -134,7 +132,6 @@
     try {
       const r = await adminFetch('/api/ai-settings'); const d = await r.json();
       document.getElementById('aiOn').checked = !!d.enabled;
-      document.getElementById('paymentMode').value = d.paymentMode || 'automatic';
       document.getElementById('aiPause').value = d.pauseMinutes || 10;
       document.getElementById('aiModel').value = d.model || '';
       document.getElementById('aiNotes').value = d.notes || '';
@@ -162,7 +159,7 @@
     } catch (e) { out.textContent = '⚠️ ' + e.message; }
   }
   function aiPayload() {
-    return { enabled: document.getElementById('aiOn').checked, paymentMode: document.getElementById('paymentMode').value, model: document.getElementById('aiModel').value.trim(), notes: document.getElementById('aiNotes').value, pauseMinutes: parseInt(document.getElementById('aiPause').value, 10) || 10 };
+    return { enabled: document.getElementById('aiOn').checked, model: document.getElementById('aiModel').value.trim(), notes: document.getElementById('aiNotes').value, pauseMinutes: parseInt(document.getElementById('aiPause').value, 10) || 10 };
   }
   window.onload = function () { loadSettings(); loadAI(); };
 
@@ -197,7 +194,7 @@
     try {
       const response = await adminFetch('/api/settings', {
         method: 'POST',
-        body: JSON.stringify({ type, number, account, override })
+        body: JSON.stringify({ type, number, account, override, paymentMode: document.getElementById('paymentMode').value })
       });
       const ai = await adminFetch('/api/ai-settings', { method: 'POST', body: JSON.stringify(aiPayload()) });
 
