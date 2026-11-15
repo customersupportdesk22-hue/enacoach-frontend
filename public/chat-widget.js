@@ -186,6 +186,7 @@ body.enc-open{overflow:hidden}
     if (m.type === 'booking' && m.booking) d = bookingCard(m.booking);
     else if (m.type === 'payment') d = payment(m.payment);
     else if (m.type === 'ticket') d = ticket(m.ticket);
+    else if (m.type === 'status') { d = document.createElement('div'); d.className = 'enc-m enc-a'; d.textContent = m.text || 'Payment update'; }
     else if (m.type === 'image' && m.file) d = imageBubble(m);
     else { d = document.createElement('div'); d.className = 'enc-m ' + (m.from === 'client' ? 'enc-c' : 'enc-a') + (m.unsent ? ' enc-un' : ''); d.textContent = m.text; }
     if (m.id) { d.setAttribute('data-id', m.id); store[m.id] = m; }
