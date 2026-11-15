@@ -1,3 +1,4 @@
+
 User-agent: facebookexternalhit
 Allow: /
 
@@ -9,3 +10,5 @@ Allow: /
 
 User-agent: *
 Allow: /
+
+Sitemap: https://enacoachonlinebooking.co.ke/sitemap.xml
