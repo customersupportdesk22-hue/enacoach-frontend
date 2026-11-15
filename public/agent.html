@@ -51,7 +51,7 @@ button.go{background:#ff5c00;color:#fff;border:0;border-radius:10px;padding:11px
 </main>
 <script src="/socket.io/socket.io.js"></script>
 <script>
-var $=function(i){return document.getElementById(i)},S={},cur=null,sock;
+var $=function(i){return document.getElementById(i)},S={},cur=null,sock,paymentMode='automatic';
 $('in').onclick=function(){
   unlock();
   try{if('Notification' in window&&Notification.permission==='default')Notification.requestPermission()}catch(e){}
@@ -105,8 +105,17 @@ function show(force){
         var b1=document.createElement('button');b1.className='go';b1.textContent='💳 Send payment';
         b1.onclick=function(){$('tf').style.display='none';$('pf').style.display='grid';fillPay();$('p_amount').value=String(bk.amount).replace(/[^0-9]/g,'');$('p_note').value='Booking '+bk.ref+'. Pay, then reply with the M-Pesa message.'};
         var b2=document.createElement('button');b2.className='go';b2.style.background='#16a34a';b2.textContent='✅ Paid - send ticket';
-        b2.onclick=function(){if(confirm('Payment received for '+bk.ref+'? This sends the official ticket to the customer.')){sock.emit('confirmPaid',{id:cur,ref:bk.ref});tone('out')}};
-        rw.appendChild(b1);rw.appendChild(b2);d.appendChild(rw)}}
+        b2.onclick=function(){if(confirm('Have you verified payment for '+bk.ref+'? This sends the official ticket to the customer.')){sock.emit('confirmPaid',{id:cur,ref:bk.ref});tone('out')}};
+        rw.appendChild(b1);
+        if(paymentMode==='manual_stk'){
+          var b3=document.createElement('button');b3.className='go';b3.style.background=bk.stkStatus==='initiated'?'#64748b':'#2563eb';
+          b3.textContent=bk.stkStatus==='initiated'?'📲 STK Push initiated':'📲 STK Push Initiated';
+          b3.disabled=bk.stkStatus==='initiated';
+          if(b3.disabled)b3.style.opacity='.75';
+          b3.onclick=function(){if(confirm('Confirm that you have manually initiated the M-Pesa STK Push for '+bk.ref+' ('+bk.phone+')? This will notify the customer but will NOT mark the booking as paid.')){sock.emit('stkInitiated',{id:cur,ref:bk.ref});tone('out')}};
+          rw.appendChild(b3);
+        }
+        rw.appendChild(b2);d.appendChild(rw)}}
     if(x.likes&&x.likes.client){var h=document.createElement('span');h.className='lk';h.textContent='❤️';d.appendChild(h)}
     if(x.ai){var ai=document.createElement('small');ai.className='tag';ai.textContent='🤖 sent by AI assistant';d.appendChild(ai)}
     if(x.hiddenForClient){var g=document.createElement('small');g.className='tag';g.textContent='🗑️ deleted by customer';d.appendChild(g)}
