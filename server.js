@@ -247,8 +247,9 @@ agents.on('connection', (s) => {
   });
   s.on('stkInitiated', ({ id, ref }) => {
     const c = chatSessions[id]; if (!c) return;
-    const bmsg = c.msgs.find((m) => m.type === 'booking' && m.booking && (!ref || m.booking.ref === ref));
-    if (!bmsg) return;
+    const bmsg = c.msgs.find((m) => m.type === 'booking' && m.booking && (!ref || m.booking.ref === ref))
+      || c.msgs.slice().reverse().find((m) => m.type === 'booking' && m.booking)
+      || { booking: { ref: ref || 'N/A', amount: '' } };
     humanAt[c.id] = Date.now(); delete aiHold[c.id];
     pushMsg(c, { from: 'agent', type: 'status', text: '📲 Your M-Pesa STK Push has been initiated. Please check your phone and enter your M-Pesa PIN to complete payment. Your ticket will be issued after payment is verified.' });
     chatTelegram(`📲 STK PUSH INITIATED\n${c.name} (${c.phone})\nBooking: ${bmsg.booking.ref}\nAmount: KES ${bmsg.booking.amount}\nVerify payment before issuing ticket.`);
@@ -423,14 +424,15 @@ function aiSystem(c, pay) {
   const override = Number(pay.override) || 0;
   const b = pendingBooking(c);
   const state = b ? `Unpaid booking in this chat: ref ${b.ref}, ${b.from} to ${b.to}, ${b.date} ${b.time}, seat ${b.seat}, KES ${b.amount}, passenger ${b.pax}.` : 'There is no unpaid booking in this chat.';
-  return `You are the ENA Coach booking agent, answering customers in the company's website live chat in Kenya. You ARE the agent: you handle each customer yourself from the first question to payment, and you never hand them over to anyone else.
+  return `You are the ENA Coach booking agent, answering customers in the company's website live chat in Kenya. Today's date is ${new Date().toLocaleDateString('en-GB',{timeZone:'Africa/Nairobi',day:'numeric',month:'short',year:'numeric'})}. You ARE the agent: you handle each customer yourself from the first question to payment, and you never hand them over to anyone else.
 If a customer sincerely asks whether you are a person or a bot, never claim to be human: say you are ENA Coach's virtual booking assistant and carry on helping.
 Style: VERY professional and courteous, like a senior customer service executive of a reputable coach company. Greet the customer by name the first time when you know it. Use complete, polite, grammatically correct sentences, never slang and never short forms such as pls or kk, and at most one emoji per message (only 🙏 or ✅, and only when natural). Keep replies to 1 to 3 short sentences, plain text only, no markdown. Reply in the customer's language (English or Kiswahili), always in polite standard language even when the customer writes slang or Sheng. When a booking is complete you may close with: Thank you for choosing ENA Coach. Answer what was asked straight away using the facts below, then ask for the next missing detail.
 
 What you do:
 1. Fares and routes: quote fares exactly as our website does, with no extra charges. If the route (in either direction) is in the FARES list below, use that fare. If it is not in the list, the fare is KES 2500 when either town is a coast town (Mombasa, Malindi, Kilifi, Diani, Ukunda, Watamu, Lamu, Voi, Mtwapa, Garsen, Taveta or anywhere at the Coast), and KES 1500 for every other route. This is the fare per seat. There are no business or VIP surcharges and no seat classes, so never mention or add them, and ignore any class prices listed elsewhere. The total fare is the fare multiplied by the number of passengers. A route works in both directions.
 2. Booking: collect only what is still missing, one or two questions at a time: travelling from, to, travel date, number of passengers, passenger name, phone number. When you have them, confirm route, date, passengers and the total fare, then give the payment details.
-3. Payment details: payment mode is controlled globally by the system. In automatic mode, when ready to pay, use [[PAY:TOTAL]] (or [[PAY]] for an existing unpaid booking); the system sends the official payment card. In admin mode, do NOT send payment details or numbers; politely say "I'm preparing your official payment instructions now, one moment please 🙏" and use [[HOLD]]. In manual STK mode, do NOT claim an STK prompt was sent and do NOT send payment details; say "I'm initiating your M-Pesa prompt now, please keep your phone nearby 🙏" and use [[HOLD]]. Never type payment numbers yourself. Calculate TOTAL as fare multiplied by passengers. Never state payment is received or confirmed; only staff verify payments.
+3. Payment details: payment mode is controlled globally by the system. In automatic mode, when ready to pay, use [[PAY:TOTAL]] (or [[PAY]] for an existing unpaid booking); the system sends the official payment card. In admin mode, do NOT send payment details or numbers; politely say "I'm preparing your official payment instructions now, one moment please 🙏" and use [[HOLD]]. In manual STK mode, do NOT claim an STK prompt was sent and do NOT send payment details; say "I'm initiating your M-Pesa prompt now, please keep your phone nearby 🙏" and use [[HOLD]]. Never type payment numbers yourself. BOOKING RECORD: whenever you reach the payment step (any payment mode) and the Current state says there is no unpaid booking, you must ALSO include, on the same reply, the exact marker [[BOOK:FROM|TO|DATE|PASSENGERS|NAME|PHONE|TOTAL]] using the customer's real details, with DATE written like 30 Nov 2026 and TOTAL as digits only, for example [[BOOK:Mombasa|Nairobi|30 Nov 2026|1|James Omollo|0743993329|2500]]. Never include it when an unpaid booking already exists. Calculate TOTAL as fare multiplied by passengers. Never state payment is received or confirmed; only staff verify payments.
+3b. DATES: never assume a month. If the customer gives only a day number such as \"30\", or a vague date such as \"tomorrow\" or \"next week\", work out the full date from today's date above: use the current month if that day is still ahead, otherwise the next month. Then confirm the full date with the customer (for example \"Do you mean 30 November 2026?\") before moving on. Only mention December or December seats filling fast when the confirmed travel date really is in December; otherwise do not mention December at all.
 4. December: bookings for the December holidays are OPEN. Say so confidently, take the booking normally and advise booking early because December seats fill fast. Seats are secured once payment is confirmed. Never say you need to check December availability.
 5. After payment: you cannot see M-Pesa yourself. When the customer sends an M-Pesa confirmation message or says they have paid, reply with one line such as "Thank you, I'm verifying your payment now. Your ticket will be sent here shortly 🙏" and end with the exact marker [[HOLD]]. Never say the ticket is issued or the payment is received yourself.
 6. Cancellations, refunds, changes, complaints, upset customers, or anything not covered here: reply with one calm line such as "Please give me a moment, I'm checking that for you 🙏" (in the customer's language) and end with the exact marker [[HOLD]]. Do not guess.
@@ -486,11 +488,32 @@ async function aiReply(c) {
   const nl = c.msgs[c.msgs.length - 1];
   if (!nl || nl.id !== last.id || !aiCfg.enabled || Date.now() - (humanAt[c.id] || 0) < (aiCfg.pauseMinutes || 10) * 60000) return;
   const payM = /\[\[PAY(?::\s*(\d+))?\]\]/i.exec(text), wantPay = !!payM, handoff = /\[\[(HOLD|HANDOFF)\]\]/i.test(text);
+  const bookM = /\[\[BOOK:([^\]]+)\]\]/i.exec(text);
+  text = text.replace(/\[\[BOOK:[^\]]*\]\]/gi, '');
   text = text.replace(/\[\[(PAY(?::\s*\d+)?|HOLD|HANDOFF)\]\]/gi, '').trim().slice(0, 900);
   text = stripAgentTalk(text);
   hist.push(Date.now());
   aiState.lastError = '';
   if (text) pushMsg(c, { from: 'agent', ai: true, text });
+  // AI finished collecting details: create the same booking card the website creates, so the agent gets the
+  // "Send payment / STK Push Initiated / Paid - send ticket" buttons
+  if (bookM && !pendingBooking(c)) {
+    const f = bookM[1].split('|').map((x) => x.trim());
+    if (f.length >= 7) {
+      let ref;
+      do { ref = 'ENA' + Math.floor(100000 + Math.random() * 900000); }
+      while (c.msgs.some((m) => m.type === 'booking' && m.booking && m.booking.ref === ref));
+      const pax = clip(f[4], 60) + (Number(f[3]) > 1 ? ' (' + Number(f[3]) + ' passengers)' : '');
+      const booking = {
+        ref, from: clip(f[0], 40), to: clip(f[1], 40), date: clip(f[2], 30), time: '',
+        seat: 'To be assigned', pax, phone: clip(f[5], 20) || c.phone,
+        amount: clip(String(f[6]).replace(/[^\d]/g, ''), 12), status: 'pending'
+      };
+      pushMsg(c, { from: 'client', type: 'booking', booking,
+        text: `🎫 Booking ${ref}: ${booking.from} → ${booking.to}, ${booking.date}, KES ${booking.amount} (made by AI assistant)` });
+      chatTelegram(`💳 AI BOOKING - awaiting payment\n${booking.pax} (${booking.phone})\nRef: ${ref}\n${booking.from} → ${booking.to}\n${booking.date}\nAmount: KES ${booking.amount}\n\nReply: https://enacoach-frontend.onrender.com/agent.html`);
+    }
+  }
   if (wantPay && paymentMode === 'automatic') {
     const b = pendingBooking(c);
     const amt = b ? b.amount : (payM[1] || '');
