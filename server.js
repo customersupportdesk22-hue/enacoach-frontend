@@ -211,6 +211,7 @@ function pushMsg(c, m) {
 
 agents.on('connection', (s) => {
   s.emit('sessions', Object.values(chatSessions));
+  s.emit('paymentMode', aiCfg.paymentMode || 'automatic');
   s.on('reply', ({ id, text }) => {
     const c = chatSessions[id];
     if (!c || !text) return;
@@ -244,6 +245,21 @@ agents.on('connection', (s) => {
     humanAt[c.id] = Date.now(); delete aiHold[c.id];
     pushMsg(c, { from: 'agent', type: 'payment', payment, text: 'Payment details: KES ' + payment.amount });
   });
+  // Admin confirms that an STK Push was manually initiated outside this website.
+  // This is NOT payment confirmation; the booking remains unpaid until staff verifies it.
+  s.on('stkInitiated', ({ id, ref }) => {
+    const c = chatSessions[id];
+    if (!c || aiCfg.paymentMode !== 'manual_stk') return;
+    const m = c.msgs.find((x) => x.type === 'booking' && x.booking && x.booking.ref === ref);
+    if (!m || m.booking.status === 'paid' || m.booking.stkStatus === 'initiated') return;
+    m.booking.stkStatus = 'initiated';
+    m.booking.stkInitiatedAt = Date.now();
+    delete aiHold[c.id];
+    io.to(c.id).emit('msgUpdate', m);
+    agents.emit('update', c);
+    saveChat(c);
+    pushMsg(c, { from: 'agent', text: 'Thank you. Your M-Pesa payment request has been initiated. Kindly check your phone and enter your M-Pesa PIN to complete the payment. If the prompt does not appear, please let us know. Thank you for choosing ENA Coach.' });
+  });
   s.on('confirmPaid', ({ id, ref }) => {
     const c = chatSessions[id];
     if (!c) return;
@@ -268,7 +284,7 @@ const adminAuth = (req, res, next) => {
   if (req.get('x-admin-password') === AGENT_PASSWORD) return next();
   res.status(401).json({ error: 'Wrong password' });
 };
-let aiCfg = { enabled: false, model: 'gemini-flash-latest', notes: '', pauseMinutes: 10 };
+let aiCfg = { enabled: false, model: 'gemini-flash-latest', notes: '', pauseMinutes: 10, paymentMode: 'automatic' };
 const aiState = { lastError: '', lastErrorAt: 0, lastAlertAt: 0 };
 const humanAt = {};   // chat id -> last time a human agent replied (AI stays quiet for a while)
 const aiTimers = {};  // chat id -> debounce timer
@@ -280,7 +296,8 @@ async function loadAiCfg() {
   try {
     const c = await clientPromise;
     const d = await c.db('enacoach').collection('settings').findOne({ _id: 'ai' });
-    if (d) aiCfg = Object.assign(aiCfg, { enabled: !!d.enabled, model: d.model || aiCfg.model, notes: d.notes || '', pauseMinutes: d.pauseMinutes || 10 });
+    if (d) aiCfg = Object.assign(aiCfg, { enabled: !!d.enabled, model: d.model || aiCfg.model, notes: d.notes || '', pauseMinutes: d.pauseMinutes || 10, paymentMode: ['automatic', 'manual_details', 'manual_stk'].includes(d.paymentMode) ? d.paymentMode : 'automatic' });
+    agents.emit('paymentMode', aiCfg.paymentMode);
   } catch (e) { console.error('AI settings load failed:', e.message); }
 }
 loadAiCfg();
@@ -416,7 +433,8 @@ Style: VERY professional and courteous, like a senior customer service executive
 What you do:
 1. Fares and routes: quote fares exactly as our website does, with no extra charges. If the route (in either direction) is in the FARES list below, use that fare. If it is not in the list, the fare is KES 2500 when either town is a coast town (Mombasa, Malindi, Kilifi, Diani, Ukunda, Watamu, Lamu, Voi, Mtwapa, Garsen, Taveta or anywhere at the Coast), and KES 1500 for every other route. This is the fare per seat. There are no business or VIP surcharges and no seat classes, so never mention or add them, and ignore any class prices listed elsewhere. The total fare is the fare multiplied by the number of passengers. A route works in both directions.
 2. Booking: collect only what is still missing, one or two questions at a time: travelling from, to, travel date, number of passengers, passenger name, phone number. When you have them, confirm route, date, passengers and the total fare, then give the payment details.
-3. Payment details: when the customer asks how to pay, asks for the payment details, or is ready to pay, and you already know the route and the number of passengers, end your message with the exact marker [[PAY:TOTAL]], where TOTAL is the total fare in KES as digits only, for example [[PAY:3400]]. If there is an unpaid booking in this chat, use the marker [[PAY]] instead. The system then attaches the official payment card showing the paybill number, the account number, the account name ENA COACH and the amount. NEVER type payment numbers yourself. Before the marker write one short professional line, for example: Kindly complete your payment using the details below, then reply with your M-Pesa confirmation message. If you do not yet know the route and the number of passengers, ask for the missing details first and do not use the marker. Calculate TOTAL as the fare multiplied by the number of passengers, with no added charges. Never state that a payment has been received or confirmed; only a staff member confirms payments.
+3. Payment handling (the administrator selects the global mode):
+${aiCfg.paymentMode === 'manual_details' ? 'ADMIN-SENT PAYMENT DETAILS MODE: When the customer is ready to pay, use [[PAY]] (or [[PAY:TOTAL]] if there is no booking) after telling them politely: “Kindly allow me a moment while I prepare the official payment instructions.” Do not provide a payment card, Paybill, Till, account or phone number. The system will notify the administrator, who must send the official payment details manually. Never say the details have already been sent.' : aiCfg.paymentMode === 'manual_stk' ? 'MANUAL STK PUSH MODE: The administrator, not you, initiates every M-Pesa STK Push manually outside this chat. If the customer has not supplied the M-Pesa phone number they will use, ask for it first. When the phone number is known and the customer is ready, use [[PAY]] (or [[PAY:TOTAL]] if there is no booking) after saying politely: “Thank you. Kindly allow me a moment while your M-Pesa payment request is prepared.” Do not claim that an STK Push has been sent or initiated. The system will notify the administrator; only after the administrator confirms initiation will the customer receive the payment-prompt instructions. Never send Paybill/Till payment details in this mode.' : 'AUTOMATIC PAYMENT DETAILS MODE: When the customer asks how to pay, asks for payment details, or is ready to pay, and you know the route and number of passengers, end your message with [[PAY:TOTAL]], where TOTAL is the total fare in KES as digits only. If there is an unpaid booking in this chat, use [[PAY]]. The system attaches the official payment card using the saved global payment details. Never type payment numbers yourself. Before the marker, write a short professional instruction to complete payment and reply with the M-Pesa confirmation message. If route or passenger count is missing, ask for it first. Calculate TOTAL as fare multiplied by passengers, with no added charges.'} Never state that payment has been received or confirmed; only staff can confirm payments.
 4. December: bookings for the December holidays are OPEN. Say so confidently, take the booking normally and advise booking early because December seats fill fast. Seats are secured once payment is confirmed. Never say you need to check December availability.
 5. After payment: you cannot see M-Pesa yourself. When the customer sends an M-Pesa confirmation message or says they have paid, reply with one line such as "Thank you, I'm verifying your payment now. Your ticket will be sent here shortly 🙏" and end with the exact marker [[HOLD]]. Never say the ticket is issued or the payment is received yourself.
 6. Cancellations, refunds, changes, complaints, upset customers, or anything not covered here: reply with one calm line such as "Please give me a moment, I'm checking that for you 🙏" (in the customer's language) and end with the exact marker [[HOLD]]. Do not guess.
@@ -479,16 +497,25 @@ async function aiReply(c) {
   if (wantPay) {
     const b = pendingBooking(c);
     const amt = b ? b.amount : (payM[1] || '');
-    const key = (b ? b.ref : c.id) + ':' + amt;
+    const key = (b ? b.ref : c.id) + ':' + amt + ':' + (aiCfg.paymentMode || 'automatic');
     if (Date.now() - (aiPaySent[key] || 0) > 60000) {
-      const s = await getPay();
       aiPaySent[key] = Date.now();
-      const payment = {
-        method: 'M-Pesa', accountLabel: s.type === 'till' ? 'Till' : s.type === 'phone' ? 'Phone' : 'Paybill',
-        number: clip(s.number, 30), account: s.type === 'paybill' ? clip(s.account, 40) : '', name: 'ENA COACH', amount: clip(amt, 12),
-        note: (b ? 'Booking ' + b.ref + '. ' : '') + 'Kindly complete your payment, then reply here with the M-Pesa confirmation message.'
-      };
-      pushMsg(c, { from: 'agent', ai: true, type: 'payment', payment, text: 'Payment details' + (payment.amount ? ': KES ' + payment.amount : '') });
+      const mode = aiCfg.paymentMode || 'automatic';
+      if (mode === 'automatic') {
+        const s = await getPay();
+        const payment = {
+          method: 'M-Pesa', accountLabel: s.type === 'till' ? 'Till' : s.type === 'phone' ? 'Phone' : 'Paybill',
+          number: clip(s.number, 30), account: s.type === 'paybill' ? clip(s.account, 40) : '', name: 'ENA COACH', amount: clip(amt, 12),
+          note: (b ? 'Booking ' + b.ref + '. ' : '') + 'Kindly complete your payment, then reply here with the M-Pesa confirmation message.'
+        };
+        if (payment.number && payment.amount) pushMsg(c, { from: 'agent', ai: true, type: 'payment', payment, text: 'Payment details' + (payment.amount ? ': KES ' + payment.amount : '') });
+        else aiFail('Global payment details are incomplete; payment card was not sent.', c.name || c.phone);
+      } else {
+        aiHold[c.id] = true;
+        const label = mode === 'manual_stk' ? 'MANUAL STK PUSH REQUIRED' : 'ADMIN PAYMENT DETAILS REQUIRED';
+        const nextStep = mode === 'manual_stk' ? 'Manually initiate the M-Pesa STK Push, then tap “STK Push Initiated” on this booking in the agent chat. Do not mark the booking paid unless payment is verified.' : 'Send the official payment details manually using the booking card’s “Send payment” action.';
+        chatTelegram(`💳 ${label}\nCustomer: ${c.name} (${c.phone})\nBooking: ${b ? b.ref : 'No booking reference'}\nAmount: KES ${amt || 'Not available'}\nM-Pesa phone: ${b ? b.phone : c.phone || 'Not provided'}\n\n${nextStep}\n\nOpen: https://enacoach-frontend.onrender.com/agent.html`);
+      }
     }
   }
   if (handoff) aiHold[c.id] = true;
@@ -502,15 +529,17 @@ function aiSchedule(c) {
 }
 
 app.get('/api/ai-settings', adminAuth, (req, res) => {
-  res.json({ enabled: aiCfg.enabled, model: aiCfg.model, notes: aiCfg.notes, pauseMinutes: aiCfg.pauseMinutes, hasKey: !!process.env.GEMINI_API_KEY, lastError: aiState.lastError, lastErrorAt: aiState.lastErrorAt });
+  res.json({ enabled: aiCfg.enabled, model: aiCfg.model, notes: aiCfg.notes, pauseMinutes: aiCfg.pauseMinutes, paymentMode: aiCfg.paymentMode || 'automatic', hasKey: !!process.env.GEMINI_API_KEY, lastError: aiState.lastError, lastErrorAt: aiState.lastErrorAt });
 });
 app.post('/api/ai-settings', adminAuth, async (req, res) => {
   try {
     const b = req.body || {};
-    const next = { enabled: !!b.enabled, model: clip(b.model, 80).trim() || 'gemini-flash-latest', notes: clip(b.notes, 4000), pauseMinutes: Math.min(120, Math.max(1, parseInt(b.pauseMinutes, 10) || 10)) };
+    const paymentModes = ['automatic', 'manual_details', 'manual_stk'];
+    const next = { enabled: !!b.enabled, model: clip(b.model, 80).trim() || 'gemini-flash-latest', notes: clip(b.notes, 4000), pauseMinutes: Math.min(120, Math.max(1, parseInt(b.pauseMinutes, 10) || 10)), paymentMode: paymentModes.includes(b.paymentMode) ? b.paymentMode : (aiCfg.paymentMode || 'automatic') };
     const c = await clientPromise;
     await c.db('enacoach').collection('settings').updateOne({ _id: 'ai' }, { $set: next }, { upsert: true });
     aiCfg = next;
+    agents.emit('paymentMode', aiCfg.paymentMode);
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
