@@ -430,8 +430,9 @@ Style: VERY professional and courteous, like a senior customer service executive
 
 What you do:
 1. Fares and routes: quote fares exactly as our website does, with no extra charges. If the route (in either direction) is in the FARES list below, use that fare. If it is not in the list, the fare is KES 2500 when either town is a coast town (Mombasa, Malindi, Kilifi, Diani, Ukunda, Watamu, Lamu, Voi, Mtwapa, Garsen, Taveta or anywhere at the Coast), and KES 1500 for every other route. This is the fare per seat. There are no business or VIP surcharges and no seat classes, so never mention or add them, and ignore any class prices listed elsewhere. The total fare is the fare multiplied by the number of passengers. A route works in both directions.
-2. Booking: collect only what is still missing, one or two questions at a time: travelling from, to, travel date, number of passengers, passenger name, phone number. When you have them, confirm route, date, passengers and the total fare, then give the payment details.
-3. Payment details: payment mode is controlled globally by the system. In automatic mode, when ready to pay, use [[PAY:TOTAL]] (or [[PAY]] for an existing unpaid booking); the system sends the official payment card. In admin mode, do NOT send payment details or numbers; politely say "I'm preparing your official payment instructions now, one moment please 🙏" and use [[HOLD]]. In manual STK mode, do NOT claim an STK prompt was sent and do NOT send payment details; say "I'm initiating your M-Pesa prompt now, please keep your phone nearby 🙏" and use [[HOLD]]. Never type payment numbers yourself. BOOKING RECORD: whenever you reach the payment step (any payment mode) and the Current state says there is no unpaid booking, you must ALSO include, on the same reply, the exact marker [[BOOK:FROM|TO|DATE|PASSENGERS|NAME|PHONE|TOTAL]] using the customer's real details, with DATE written like 30 Nov 2026 and TOTAL as digits only, for example [[BOOK:Mombasa|Nairobi|30 Nov 2026|1|James Omollo|0743993329|2500]]. Never include it when an unpaid booking already exists. Calculate TOTAL as fare multiplied by passengers. Never state payment is received or confirmed; only staff verify payments.
+2. Booking: collect only what is still missing, one or two questions at a time, in this order: travelling from, to, travel date, DEPARTURE TIME, number of passengers, SEATS, passenger name, phone number. For the departure time, list these times and ask which one suits the customer: 7:00 AM, 8:30 AM, 10:00 AM, 8:00 PM and 10:30 PM. SEATS: as soon as you know route, date, time and number of passengers, reply with ONLY the exact marker [[SEATS:FROM|TO|DATE|TIME|PAX]] and no other words, for example [[SEATS:Mombasa|Nairobi|30 Nov 2026|8:00 PM|2]]. The system will then give you the real free seats and you offer them to the customer. If the customer asks for particular seats, add them as a sixth field, for example [[SEATS:Mombasa|Nairobi|30 Nov 2026|8:00 PM|2|A15,A16]]. Never mention a seat number that did not come from a SEAT CHECK RESULT. When the customer has chosen seats (or asked you to choose, in which case take Option 1), continue with the passenger name and phone number. When you have everything, confirm route, date, time, seats, passengers and the total fare, then give the payment details.
+3. Payment details: payment mode is controlled globally by the system. In automatic mode, when ready to pay, use [[PAY:TOTAL]] (or [[PAY]] for an existing unpaid booking); the system sends the official payment card. In admin mode, do NOT send payment details or numbers; politely say "I'm preparing your official payment instructions now, one moment please 🙏" and use [[HOLD]]. In manual STK mode, do NOT claim an STK prompt was sent and do NOT send payment details; say "I'm initiating your M-Pesa prompt now, please keep your phone nearby 🙏" and use [[HOLD]]. Never type payment numbers yourself. BOOKING RECORD: whenever you reach the payment step (any payment mode) and the Current state says there is no unpaid booking, you must ALSO include, on the same reply, the exact marker [[BOOK:FROM|TO|DATE|PASSENGERS|NAME|PHONE|TOTAL|TIME|SEATS]] using the customer's real details, with DATE written like 30 Nov 2026, TOTAL as digits only, TIME like 8:00 PM and SEATS as the chosen seat numbers separated by commas, for example [[BOOK:Mombasa|Nairobi|30 Nov 2026|2|James Omollo|0743993329|5000|8:00 PM|A13,A14]]. Never include it when an unpaid booking already exists. Calculate TOTAL as fare multiplied by passengers. Never state payment is received or confirmed; only staff verify payments.
+3a. PHONE NUMBERS: a valid Kenyan number has 10 digits starting with 07 or 01 (or +254 / 254 followed by 9 digits). If the number the customer gives has fewer or more digits, do NOT continue to payment and do NOT use any marker: politely say the number looks incomplete and ask them to type it again. Repeat the number back once it is valid.
 3b. DATES: never assume a month. If the customer gives only a day number such as \"30\", or a vague date such as \"tomorrow\" or \"next week\", work out the full date from today's date above: use the current month if that day is still ahead, otherwise the next month. Then confirm the full date with the customer (for example \"Do you mean 30 November 2026?\") before moving on. Only mention December or December seats filling fast when the confirmed travel date really is in December; otherwise do not mention December at all.
 4. December: bookings for the December holidays are OPEN. Say so confidently, take the booking normally and advise booking early because December seats fill fast. Seats are secured once payment is confirmed. Never say you need to check December availability.
 5. After payment: you cannot see M-Pesa yourself. When the customer sends an M-Pesa confirmation message or says they have paid, reply with one line such as "Thank you, I'm verifying your payment now. Your ticket will be sent here shortly 🙏" and end with the exact marker [[HOLD]]. Never say the ticket is issued or the payment is received yourself.
@@ -470,6 +471,88 @@ function aiContents(c) {
   return out;
 }
 
+// ---------- seat availability ----------
+// Normal seats of the bus (rows of 4, last row also has seat 25). VIP/Business rows (1-10) are not offered by the AI.
+const SEAT_ROWS = (() => { const rows = []; for (let n = 11; n <= 23; n += 2) rows.push(['A' + n, 'A' + (n + 1), 'B' + n, 'B' + (n + 1)]); rows[rows.length - 1].push('25'); return rows; })();
+const seatNorm = (x) => String(x || '').trim().toLowerCase();
+function dateKey(d) {
+  const s = String(d || '').toLowerCase();
+  const m = /(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/.exec(s), n = /\b(\d{1,2})(?:st|nd|rd|th)?\b/.exec(s);
+  return (n ? String(Number(n[1])) : '?') + '-' + (m ? m[1] : '?');
+}
+function timeKey(t) {
+  const m = /(\d{1,2})(?::(\d{2}))?\s*([ap])\.?m?/i.exec(String(t || ''));
+  return m ? Number(m[1]) + ':' + (m[2] || '00') + m[3].toLowerCase() : seatNorm(t);
+}
+function takenLocal(from, to, date, time) {
+  const taken = new Set();
+  Object.values(chatSessions).forEach((sc) => (sc.msgs || []).forEach((m) => {
+    const b = m.type === 'booking' && !m.unsent && m.booking;
+    if (b && seatNorm(b.from) === seatNorm(from) && seatNorm(b.to) === seatNorm(to) && dateKey(b.date) === dateKey(date) && timeKey(b.time) === timeKey(time))
+      String(b.seat || '').split(/[,\s]+/).forEach((x) => { if (x) taken.add(x.toUpperCase()); });
+  }));
+  return taken;
+}
+// Optional: set SEAT_API_URL to an endpoint that returns the booked seats of a departure
+// (JSON array of seat names, or {booked:[...]}). Called with ?from=&to=&date=&time=
+async function liveBooked(from, to, date, time) {
+  const url = process.env.SEAT_API_URL;
+  if (!url) return null;
+  try {
+    const u = new URL(url);
+    Object.entries({ from, to, date, time }).forEach(([k, v]) => u.searchParams.set(k, v));
+    const r = await fetch(u, { signal: AbortSignal.timeout(6000) });
+    if (!r.ok) return null;
+    const j = await r.json();
+    const arr = Array.isArray(j) ? j : (j.booked || j.bookedSeats || j.seats || []);
+    return arr.map((x) => String((x && (x.seat || x.name)) || x).toUpperCase());
+  } catch (e) { console.error('Seat API failed:', e.message); return null; }
+}
+function seatOptions(free, n) {
+  const set = new Set(free), opts = [];
+  for (const row of (n > 4 ? [] : SEAT_ROWS)) { // groups of 5+ cannot fit in one row of 4: use neighbouring free seats from the front
+    const groups = n <= 2 ? [row.slice(0, 2), row.slice(2)] : [row];
+    for (const g of groups) { const f = g.filter((x) => set.has(x)); if (f.length >= n) { opts.push(f.slice(0, n)); break; } }
+    if (opts.length === 3) break;
+  }
+  if (opts.length < 3) {
+    const used = new Set(opts.flat()), rest = free.filter((x) => !used.has(x));
+    for (let i = 0; i + n <= rest.length && opts.length < 3; i += n) opts.push(rest.slice(i, i + n));
+  }
+  return opts;
+}
+async function seatCheck(argStr) {
+  const f = String(argStr).split('|').map((x) => x.trim());
+  const [from, to, date, time] = f;
+  const n = Math.max(1, parseInt(f[4], 10) || 1);
+  const want = (f[5] || '').split(/[,\s]+/).map((x) => x.toUpperCase()).filter(Boolean);
+  const live = await liveBooked(from, to, date, time);
+  const taken = takenLocal(from, to, date, time);
+  if (live) live.forEach((x) => taken.add(x));
+  const free = SEAT_ROWS.flat().filter((x) => !taken.has(x));
+  let note = `SEAT CHECK RESULT for ${from} to ${to}, ${date}, ${time}, ${n} passenger(s). Data source: ${live ? 'live website seat data' : 'UNVERIFIED (website seat data is not connected; only bookings made through this chat are excluded)'}.\n`;
+  if (n > 10) {
+    note += 'This is a large group (more than 10 passengers). Do not offer seats. Reply with one calm line such as "Please give me a moment, I am checking the best arrangement for your group 🙏" and end with the exact marker [[HOLD]].';
+  } else if (free.length < n) {
+    note += 'Not enough normal seats are free on this departure. Tell the customer politely and offer another departure time. Do not use [[BOOK]] yet.';
+  } else {
+    const opts = seatOptions(free, n);
+    note += `Free normal seats: ${free.join(', ')}.\nSuggested options: ${opts.map((o, i) => 'Option ' + (i + 1) + ': ' + o.join(', ')).join('; ')}.\n`;
+    if (want.length) {
+      const bad = want.filter((x) => !free.includes(x));
+      note += bad.length ? `The customer asked for ${want.join(', ')} but ${bad.join(', ')} is NOT available. Say so politely and offer the options.\n` : `The customer asked for ${want.join(', ')} and all are free: confirm them and continue to the passenger name and phone number.\n`;
+    }
+    note += 'Offer the customer these options in one short message and say they may also ask for other seats. If the customer already said any seat is fine or asked you to choose, take Option 1 and continue to the passenger name and phone number. ' + (live ? '' : 'Because the data is unverified, say the seats are confirmed once payment is verified. ') + 'Never offer a seat that is not in the free list. Do not use [[SEATS]] again in this reply.';
+  }
+  return note;
+}
+
+function normPhone(v) {
+  let d = String(v || '').replace(/[^\d+]/g, '');
+  if (d.startsWith('+254')) d = '0' + d.slice(4); else if (d.startsWith('254')) d = '0' + d.slice(3);
+  return d.slice(0, 20);
+}
+
 async function aiReply(c) {
   if (!aiCfg.enabled || aiHold[c.id]) return;
   if (Date.now() - (humanAt[c.id] || 0) < (aiCfg.pauseMinutes || 10) * 60000) return;
@@ -482,12 +565,19 @@ async function aiReply(c) {
   if (!contents.length) return;
   let text;
   const paymentMode = await getPaymentMode();
-  try { const pay = await getPay(); text = await geminiCall(aiSystem(c, pay) + `\nGLOBAL PAYMENT MODE: ${paymentMode}. Follow the payment-mode rule exactly.`, contents); }
+  try {
+    const pay = await getPay();
+    const sys = aiSystem(c, pay) + `\nGLOBAL PAYMENT MODE: ${paymentMode}. Follow the payment-mode rule exactly.`;
+    text = await geminiCall(sys, contents);
+    const sm = /\[\[SEATS:([^\]]+)\]\]/i.exec(text);
+    if (sm) text = await geminiCall(sys + '\n' + await seatCheck(sm[1]), contents); // second pass with the real free seats
+  }
   catch (e) { return aiFail(e.message, c.name || c.phone); }
   // a human replied, or the customer wrote again, while the AI was thinking: stay quiet
   const nl = c.msgs[c.msgs.length - 1];
   if (!nl || nl.id !== last.id || !aiCfg.enabled || Date.now() - (humanAt[c.id] || 0) < (aiCfg.pauseMinutes || 10) * 60000) return;
   const payM = /\[\[PAY(?::\s*(\d+))?\]\]/i.exec(text), wantPay = !!payM, handoff = /\[\[(HOLD|HANDOFF)\]\]/i.test(text);
+  text = text.replace(/\[\[SEATS:[^\]]*\]\]/gi, '');
   const bookM = /\[\[BOOK:([^\]]+)\]\]/i.exec(text);
   text = text.replace(/\[\[BOOK:[^\]]*\]\]/gi, '');
   text = text.replace(/\[\[(PAY(?::\s*\d+)?|HOLD|HANDOFF)\]\]/gi, '').trim().slice(0, 900);
@@ -505,13 +595,13 @@ async function aiReply(c) {
       while (c.msgs.some((m) => m.type === 'booking' && m.booking && m.booking.ref === ref));
       const pax = clip(f[4], 60) + (Number(f[3]) > 1 ? ' (' + Number(f[3]) + ' passengers)' : '');
       const booking = {
-        ref, from: clip(f[0], 40), to: clip(f[1], 40), date: clip(f[2], 30), time: '',
-        seat: 'To be assigned', pax, phone: clip(f[5], 20) || c.phone,
+        ref, from: clip(f[0], 40), to: clip(f[1], 40), date: clip(f[2], 30), time: clip(f[7], 12) || 'To be confirmed',
+        seat: clip(f[8], 40) || 'To be assigned', pax, phone: normPhone(f[5]) || c.phone,
         amount: clip(String(f[6]).replace(/[^\d]/g, ''), 12), status: 'pending'
       };
       pushMsg(c, { from: 'client', type: 'booking', booking,
         text: `🎫 Booking ${ref}: ${booking.from} → ${booking.to}, ${booking.date}, KES ${booking.amount} (made by AI assistant)` });
-      chatTelegram(`💳 AI BOOKING - awaiting payment\n${booking.pax} (${booking.phone})\nRef: ${ref}\n${booking.from} → ${booking.to}\n${booking.date}\nAmount: KES ${booking.amount}\n\nReply: https://enacoach-frontend.onrender.com/agent.html`);
+      chatTelegram(`💳 AI BOOKING - awaiting payment${/^0[17]\d{8}$/.test(booking.phone) ? '' : '\n⚠️ PHONE NUMBER LOOKS INVALID - confirm with customer'}\n${booking.pax} (${booking.phone})\nRef: ${ref}\n${booking.from} → ${booking.to}\n${booking.date}\nAmount: KES ${booking.amount}\n\nReply: https://enacoach-frontend.onrender.com/agent.html`);
     }
   }
   if (wantPay && paymentMode === 'automatic') {
