@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ENA Coach - Admin Settings</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+  body { background: #F9FAFB; color: #1A1A1A; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+  .card { background: white; width: 100%; max-width: 450px; border-radius: 16px; padding: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+  h1 { font-size: 22px; font-weight: 800; color: #FF5E00; margin-bottom: 8px; text-align: center; }
+  p { font-size: 13px; color: #6B7280; text-align: center; margin-bottom: 24px; }
+  .form-group { margin-bottom: 16px; }
+  label { display: block; font-size: 12px; font-weight: 700; color: #6B7280; margin-bottom: 6px; }
+  input, select { width: 100%; padding: 12px; border: 1px solid #E5E7EB; border-radius: 8px; font-size: 14px; font-weight: 500; outline: none; background: #F9FAFB; }
+  input:focus, select:focus { border-color: #FF5E00; background: white; }
+  .btn { width: 100%; padding: 14px; background: #FF5E00; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 10px; }
+  .success-msg { display: none; background: #DCFCE7; color: #166534; padding: 12px; border-radius: 8px; font-size: 13px; font-weight: 600; text-align: center; margin-bottom: 16px; }
+  h3 { font-size: 16px; margin: 20px 0 10px; color: #1A1A1A; }
+  textarea { width: 100%; padding: 12px; border: 1px solid #E5E7EB; border-radius: 8px; font-size: 14px; min-height: 110px; outline: none; background: #F9FAFB; resize: vertical; }
+  .sw { display: flex; align-items: center; justify-content: space-between; background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 10px; padding: 12px; }
+  .sw b { font-size: 14px; } .sw small { display: block; color: #6B7280; font-size: 12px; margin-top: 2px; }
+  .tg { position: relative; width: 52px; height: 30px; flex: none; }
+  .tg input { opacity: 0; width: 0; height: 0; }
+  .tg span { position: absolute; inset: 0; background: #D1D5DB; border-radius: 30px; transition: .2s; cursor: pointer; }
+  .tg span:before { content: ""; position: absolute; width: 24px; height: 24px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: .2s; }
+  .tg input:checked + span { background: #16A34A; } .tg input:checked + span:before { transform: translateX(22px); }
+  .btn2 { padding: 10px 14px; background: #fff; color: #FF5E00; border: 1px solid #FF5E00; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; margin-top: 8px; }
+  .st { font-size: 12px; margin-top: 8px; } .st.bad { color: #B91C1C; } .st.ok { color: #166534; }
+  #testOut { margin-top: 8px; background: #F3F4F6; border-radius: 8px; padding: 10px; font-size: 13px; white-space: pre-wrap; display: none; }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <h1>Admin Settings</h1>
+  <p>Manage Payments, Fares & Notifications</p>
+  
+  <div id="successMsg" class="success-msg">✅ Settings saved successfully to database!</div>
+
+  <h3>1. Payment Details</h3>
+  <div class="form-group">
+    <label>Payment Method</label>
+    <select id="payType" onchange="toggleAccountField()">
+      <option value="paybill">M-Pesa Paybill</option>
+      <option value="till">M-Pesa Buy Goods (Till)</option>
+      <option value="phone">M-Pesa Send Money (Phone)</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label id="numberLabel">Paybill Number</label>
+    <input type="text" id="payNumber" placeholder="e.g. 756756">
+  </div>
+  <div class="form-group" id="accountGroup">
+    <label>Account Number</label>
+    <input type="text" id="payAccount" placeholder="e.g. 1769003">
+  </div>
+
+  <h3>2. Global Payment Control</h3>
+  <div class="form-group"><label>How should the AI handle customer payments?</label>
+    <select id="paymentMode"><option value="automatic">Automatic — AI sends official Paybill/Till details</option><option value="admin">Admin controlled — customer waits for me to send details</option><option value="stk">Manual STK Push — I initiate the prompt myself</option></select>
+    <small style="display:block;color:#6B7280;margin-top:6px">Manual STK mode never initiates a prompt automatically. Use “STK Push Initiated” in Agent Chat only after you have initiated it through your M-Pesa provider.</small>
+  </div>
+
+  <h3>3. Telegram Notifications (Set in Render)</h3>
+  <p style="text-align: left; font-size: 12px; margin-bottom: 10px;">Telegram Token and Chat ID are stored in Render Environment Variables.</p>
+
+  <h3>4. Fare Override</h3>
+  <div class="form-group">
+    <label>Global Base Fare (Set to 0 to use routes.json)</label>
+    <input type="number" id="fareOverride" placeholder="e.g. 0">
+  </div>
+
+  <h3>5. AI Assistant (live chat)</h3>
+  <div class="sw"><div><b>AI assistant</b><small>Replies to customers while you are away and sends the payment details above. Pauses by itself when you reply.</small></div>
+    <label class="tg"><input type="checkbox" id="aiOn"><span></span></label></div>
+  <div class="form-group" style="margin-top:14px">
+    <label>Pause AI after I reply (minutes)</label>
+    <input type="number" id="aiPause" min="1" max="120" value="10">
+  </div>
+  <div class="form-group">
+    <label>AI model (Google Gemini)</label>
+    <input type="text" id="aiModel" list="aiModels" placeholder="gemini-flash-latest">
+    <datalist id="aiModels"></datalist>
+    <button type="button" class="btn2" onclick="loadModels()">Load available models</button>
+  </div>
+  <div class="form-group">
+    <label>Instructions for the AI (routes, prices, rules)</label>
+    <textarea id="aiNotes" placeholder="e.g. Nairobi to Mombasa fare is KES 2,500. Buses leave 7:00 PM and 8:30 PM. Refunds are handled by the agent."></textarea>
+  </div>
+  <div id="aiStatus" class="st"></div>
+  <button type="button" class="btn2" onclick="testAI()">Test the AI</button>
+  <div id="testOut"></div>
+
+  <button class="btn" onclick="saveSettings()">Save All Settings</button>
+</div>
+
+<script>
+  async function loadSettings() {
+    try {
+      const response = await fetch('https://enacoach-frontend.onrender.com/api/settings');
+      const data = await response.json();
+      
+      document.getElementById('payType').value = data.type || 'paybill';
+      document.getElementById('payNumber').value = data.number || '';
+      document.getElementById('payAccount').value = data.account || '';
+      document.getElementById('fareOverride').value = data.override || 0;
+      document.getElementById('paymentMode').value = data.paymentMode || 'automatic';
+      
+      toggleAccountField();
+    } catch (error) {
+      console.error("Failed to load settings from database");
+    }
+  }
+
+  const API = 'https://enacoach-frontend.onrender.com';
+  function pw(reset) {
+    if (reset) sessionStorage.removeItem('enaAdminPw');
+    let p = sessionStorage.getItem('enaAdminPw');
+    if (!p) { p = prompt('Admin password (same as the agent page password)') || ''; if (p) sessionStorage.setItem('enaAdminPw', p); }
+    return p;
+  }
+  async function adminFetch(path, opts) {
+    opts = opts || {}; opts.headers = Object.assign({ 'Content-Type': 'application/json', 'x-admin-password': pw() }, opts.headers || {});
+    const r = await fetch(API + path, opts);
+    if (r.status === 401) { sessionStorage.removeItem('enaAdminPw'); throw new Error('Wrong password'); }
+    return r;
+  }
+  async function loadAI() {
+    const st = document.getElementById('aiStatus');
+    try {
+      const r = await adminFetch('/api/ai-settings'); const d = await r.json();
+      document.getElementById('aiOn').checked = !!d.enabled;
+      document.getElementById('aiPause').value = d.pauseMinutes || 10;
+      document.getElementById('aiModel').value = d.model || '';
+      document.getElementById('aiNotes').value = d.notes || '';
+      if (!d.hasKey) { st.className = 'st bad'; st.textContent = '⚠️ GEMINI_API_KEY is not set on Render yet.'; }
+      else if (d.lastError) { st.className = 'st bad'; st.textContent = '⚠️ Last AI error: ' + d.lastError; }
+      else { st.className = 'st ok'; st.textContent = '✅ API key found.'; }
+    } catch (e) { st.className = 'st bad'; st.textContent = '⚠️ ' + e.message + ' (reload the page to try again)'; }
+  }
+  async function loadModels() {
+    const st = document.getElementById('aiStatus');
+    try {
+      const r = await adminFetch('/api/ai-models'); const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Could not load models');
+      document.getElementById('aiModels').innerHTML = d.models.map(m => '<option value="' + m + '">').join('');
+      st.className = 'st ok'; st.textContent = '✅ ' + d.models.length + ' models loaded. Tap the model box to pick one.';
+    } catch (e) { st.className = 'st bad'; st.textContent = '⚠️ ' + e.message; }
+  }
+  async function testAI() {
+    const out = document.getElementById('testOut'); out.style.display = 'block'; out.textContent = 'Testing...';
+    try {
+      await adminFetch('/api/ai-settings', { method: 'POST', body: JSON.stringify(aiPayload()) });
+      const r = await adminFetch('/api/ai-test', { method: 'POST', body: JSON.stringify({ text: 'Hello, I want to pay for my ticket. How do I pay?' }) });
+      const d = await r.json();
+      out.textContent = r.ok ? '🤖 ' + d.reply : '⚠️ ' + (d.error || 'Test failed');
+    } catch (e) { out.textContent = '⚠️ ' + e.message; }
+  }
+  function aiPayload() {
+    return { enabled: document.getElementById('aiOn').checked, model: document.getElementById('aiModel').value.trim(), notes: document.getElementById('aiNotes').value, pauseMinutes: parseInt(document.getElementById('aiPause').value, 10) || 10 };
+  }
+  window.onload = function () { loadSettings(); loadAI(); };
+
+  function toggleAccountField() {
+    const type = document.getElementById('payType').value;
+    const accountGroup = document.getElementById('accountGroup');
+    const numberLabel = document.getElementById('numberLabel');
+
+    if (type === 'paybill') {
+      accountGroup.style.display = 'block';
+      numberLabel.innerText = 'Paybill Number';
+    } else if (type === 'till') {
+      accountGroup.style.display = 'none';
+      numberLabel.innerText = 'Till Number';
+    } else {
+      accountGroup.style.display = 'none';
+      numberLabel.innerText = 'Phone Number';
+    }
+  }
+
+  async function saveSettings() {
+    const type = document.getElementById('payType').value;
+    const number = document.getElementById('payNumber').value.trim();
+    const account = document.getElementById('payAccount').value.trim();
+    const override = parseFloat(document.getElementById('fareOverride').value) || 0;
+
+    if (!number) return alert("Please enter the payment number.");
+
+    const btn = document.querySelector('.btn');
+    btn.innerText = "Saving...";
+
+    try {
+      const response = await adminFetch('/api/settings', {
+        method: 'POST',
+        body: JSON.stringify({ type, number, account, override, paymentMode: document.getElementById('paymentMode').value })
+      });
+      const ai = await adminFetch('/api/ai-settings', { method: 'POST', body: JSON.stringify(aiPayload()) });
+
+      if (response.ok && ai.ok) {
+        document.getElementById('successMsg').style.display = 'block';
+        setTimeout(() => { document.getElementById('successMsg').style.display = 'none'; }, 3000);
+      } else {
+        alert("Failed to save settings. Check database connection.");
+      }
+    } catch (error) {
+      alert(error.message === 'Wrong password' ? 'Wrong password. Try Save again.' : 'Network error.');
+    }
+    btn.innerText = "Save All Settings";
+  }
+</script>
+</body>
+</html>
