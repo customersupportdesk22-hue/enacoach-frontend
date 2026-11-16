@@ -242,7 +242,10 @@ agents.on('connection', (s) => {
       note: clip(p.note, 200)
     };
     if (!payment.number || !payment.amount) return;
+    const pb = pendingBooking(c);
+    payment.ref = pb ? pb.ref : '';
     humanAt[c.id] = Date.now(); delete aiHold[c.id];
+    if (hasPayCard(c, payment.ref, payment.amount)) return s.emit('payDup', { id, ref: payment.ref }); // already sent for this booking
     pushMsg(c, { from: 'agent', type: 'payment', payment, text: 'Payment details: KES ' + payment.amount });
   });
   s.on('stkInitiated', ({ id, ref }) => {
@@ -391,6 +394,15 @@ function routeFacts(c, override) {
     return f ? `- ${r.from} to ${r.to}: normal seat KES ${f}, business seat KES ${f + 500}, VIP seat KES ${f + 1000}` : null;
   }).filter(Boolean);
   return lines.length ? lines.join('\n') : '(no route mentioned yet. If the customer asks for a fare, ask where they travel from and to.)';
+}
+
+// one payment card per booking (same ref + same amount), whether the AI or the agent sends it
+function hasPayCard(c, ref, amount) {
+  const amt = String(amount || '').replace(/[^\d]/g, ''), now = Date.now();
+  return c.msgs.some((m) => m.type === 'payment' && m.payment && !m.hiddenForClient
+    && String(m.payment.ref || '') === String(ref || '')
+    && String(m.payment.amount || '').replace(/[^\d]/g, '') === amt
+    && (ref || now - m.t < 600000));
 }
 
 function pendingBooking(c) {
@@ -618,7 +630,12 @@ async function aiReply(c) {
     const sw = /\b(tafadhali|asante|malipo|karibu|nambari|safari|tarehe|ninaanzisha|kwenda)\b/i.test(text);
     text = sw
       ? (who ? 'Asante, ' + who + '. ' : '') + 'Tafadhali kamilisha malipo ya tiketi yako kwa kutumia maelezo yaliyo hapa chini, kisha tuma ujumbe wako wa uthibitisho wa M-Pesa hapa.'
-      : (who ? 'Thank you, ' + who + '. ' : '') + 'Kindly complete your ticket booking payment using the details below, then reply with your M-Pesa confirmation message.';
+      : (who ? 'Thank you, ' + who + '. ' : '') + 'Kindly complete your ticket booking payment using the details below, then tap "I have paid" or reply with your M-Pesa confirmation message.';
+    if (pb && paymentMode === 'automatic' && hasPayCard(c, pb.ref, pb.amount)) {
+      text = sw
+        ? 'Malipo ya uhifadhi wako ' + pb.ref + (amtTxt ? ' (' + amtTxt + ')' : '') + ' bado yanasubiriwa. Tafadhali tumia maelezo ya malipo yaliyo hapo juu, kisha bonyeza "I have paid".'
+        : 'Your booking ' + pb.ref + ' is still waiting for payment' + (amtTxt ? ' of ' + amtTxt : '') + '. Kindly use the payment details above, then tap "I have paid".';
+    }
   }
   hist.push(Date.now());
   aiState.lastError = '';
@@ -645,15 +662,18 @@ async function aiReply(c) {
     const b = pendingBooking(c);
     const amt = b ? b.amount : (payM[1] || '');
     const key = (b ? b.ref : c.id) + ':' + amt;
-    if (Date.now() - (aiPaySent[key] || 0) > 60000) {
+    if (Date.now() - (aiPaySent[key] || 0) > 60000 && !hasPayCard(c, b ? b.ref : '', amt)) {
       const s = await getPay();
+      if (!hasPayCard(c, b ? b.ref : '', amt)) { // skip when an agent sent it while we were waiting
       aiPaySent[key] = Date.now();
       const payment = {
         method: 'M-Pesa', accountLabel: s.type === 'till' ? 'Till' : s.type === 'phone' ? 'Phone' : 'Paybill',
         number: clip(s.number, 30), account: s.type === 'paybill' ? clip(s.account, 40) : '', name: 'ENA COACH', amount: clip(amt, 12),
-        note: (b ? 'Booking ' + b.ref + '. ' : '') + 'Kindly complete your payment, then reply here with the M-Pesa confirmation message.'
+        ref: b ? b.ref : '',
+        note: (b ? 'Booking ' + b.ref + '. ' : '') + 'Kindly complete your payment, then tap "I have paid" or reply here with the M-Pesa confirmation message.'
       };
       pushMsg(c, { from: 'agent', ai: true, type: 'payment', payment, text: 'Payment details' + (payment.amount ? ': KES ' + payment.amount : '') });
+      }
     }
   }
   if (payNow && paymentMode !== 'automatic') {
@@ -751,9 +771,32 @@ io.on('connection', (s) => {
     if (!c || !text) return;
     const isFirst = !c.msgs.some((m) => m.from === 'client');
     pushMsg(c, { from: 'client', text: clip(text, 2000) });
-    aiSchedule(c);
+    // "Book a ticket" while a payment is pending: remind about the unpaid booking instead of the generic reply
+    const pbk = /^book a ticket$/i.test(String(text).replace(/^[^a-z]+/i, '').trim()) ? pendingBooking(c) : null;
+    if (pbk && c.msgs.some((m) => m.type === 'payment' && m.payment && !m.hiddenForClient && (!m.payment.ref || m.payment.ref === pbk.ref))) {
+      const amtK = Number(String(pbk.amount || '').replace(/[^\d]/g, '')) || 0;
+      setTimeout(() => pushMsg(c, { from: 'agent', auto: true,
+        text: `Your booking ${pbk.ref} is waiting for payment${amtK ? ' of KES ' + amtK.toLocaleString('en-US') : ''}. Please pay, then tap "I have paid".` }), 400);
+    } else aiSchedule(c);
     if (isFirst) chatTelegram(`💬 NEW CHAT\n${c.name} (${c.phone})\n"${clip(text, 200)}"\n\nReply: https://enacoach-frontend.onrender.com/agent.html`);
     else chatTelegram(`💬 ${c.name} (${c.phone}):\n"${clip(text, 200)}"\n\nReply: https://enacoach-frontend.onrender.com/agent.html`);
+  });
+
+  // ---- customer tapped "I have paid" under the payment card ----
+  s.on('iPaid', (p) => {
+    const c = chatSessions[s.data.id];
+    if (!c) return;
+    const ref = clip(p && p.ref, 12);
+    const bm = ref ? c.msgs.find((m) => m.type === 'booking' && m.booking && m.booking.ref === ref && !m.unsent)
+      : c.msgs.slice().reverse().find((m) => m.type === 'booking' && m.booking && !m.unsent);
+    if (!bm || bm.booking.status === 'paid' || bm.booking.paidClaimed) return;
+    const b = bm.booking;
+    b.paidClaimed = true;
+    io.to(c.id).emit('msgUpdate', bm);
+    pushMsg(c, { from: 'client', paidClaim: true, text: `✅ I have paid (booking ${b.ref}, KES ${b.amount})` });
+    agents.emit('paidClaim', { id: c.id, ref: b.ref, name: c.name, phone: c.phone, amount: b.amount });
+    chatTelegram(`💰 CUSTOMER SAYS "I HAVE PAID"\n${c.name} (${c.phone})\nBooking: ${b.ref}\n${b.from} → ${b.to}, ${b.date} ${b.time}\nAmount: KES ${b.amount}\nVerify in M-Pesa, then send the ticket.\n\nReply: https://enacoach-frontend.onrender.com/agent.html`);
+    aiSchedule(c);
   });
 
   // ---- customer sends a photo / screenshot (e.g. payment proof) ----
