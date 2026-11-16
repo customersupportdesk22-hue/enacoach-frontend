@@ -200,11 +200,18 @@ const agents = io.of('/agent');
 agents.use((s, next) =>
   s.handshake.auth.password === AGENT_PASSWORD ? next() : next(new Error('Wrong password')));
 
+// customer messages become "seen" (blue ticks) once we reply or an agent opens the chat
+function markSeen(c) {
+  const ids = [];
+  c.msgs.forEach((m) => { if (m.from === 'client' && !m.seen) { m.seen = true; ids.push(m.id); } });
+  if (ids.length) io.to(c.id).emit('seen', ids);
+}
 function pushMsg(c, m) {
   m.t = Date.now();
   m.id = newId();
   c.msgs.push(m); c.last = m.t;
   if (m.from === 'client') c.unread++;
+  if (m.from === 'agent') markSeen(c);
   io.to(c.id).emit('msg', m);
   agents.emit('update', c);
   saveChat(c);
@@ -289,7 +296,7 @@ agents.on('connection', (s) => {
   });
   s.on('read', (id) => {
     // only act when there is something to mark as read (prevents an endless update <-> read loop)
-    if (chatSessions[id] && chatSessions[id].unread) { chatSessions[id].unread = 0; saveChat(chatSessions[id]); agents.emit('update', chatSessions[id]); }
+    if (chatSessions[id] && chatSessions[id].unread) { chatSessions[id].unread = 0; markSeen(chatSessions[id]); saveChat(chatSessions[id]); agents.emit('update', chatSessions[id]); }
   });
 });
 
