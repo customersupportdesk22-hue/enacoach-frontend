@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ENA Chat – Agent</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,sans-serif;background:#f6f7f9;height:100dvh;display:flex;flex-direction:column}
+header{background:#ff5c00;color:#fff;padding:14px;font-weight:700;display:flex;gap:10px;align-items:center}
+#back{display:none;background:none;border:0;color:#fff;font-size:20px}
+main{flex:1;display:flex;min-height:0}
+#list{width:300px;background:#fff;border-right:1px solid #e5e7eb;overflow-y:auto}
+.s{padding:12px;border-bottom:1px solid #eee;cursor:pointer}.s b{display:block}.s small{color:#6b7280}
+.s .u{float:right;background:#ff5c00;color:#fff;border-radius:10px;padding:1px 8px;font-size:12px}
+#chat{flex:1;display:flex;flex-direction:column;min-width:0;position:relative}
+#msgs{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px}
+.m{max-width:75%;padding:9px 12px;border-radius:14px}.client{background:#fff;border:1px solid #e5e7eb;align-self:flex-start}
+.agent{background:#ff5c00;color:#fff;align-self:flex-end}
+#bar{display:flex;gap:8px;padding:10px;background:#fff;border-top:1px solid #eee}
+textarea{flex:1;padding:11px;border:1px solid #d1d5db;border-radius:10px;font:15px/1.35 system-ui,sans-serif;resize:none;max-height:120px;min-width:0;outline:0}
+#bar{align-items:flex-end}
+.m{white-space:pre-wrap;position:relative}
+.m.unsent{font-style:italic;opacity:.7}
+.m.liked{margin-bottom:10px}
+.lk{position:absolute;bottom:-11px;right:10px;background:#fff;border-radius:12px;padding:0 6px;font-size:13px;line-height:20px;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.tag{display:block;font-size:11px;opacity:.7;margin-top:3px}
+#newbtn{display:none;position:absolute;right:14px;bottom:78px;background:#111;color:#fff;border:0;border-radius:999px;padding:9px 16px;font-size:13px;font-weight:700;box-shadow:0 4px 12px rgba(0,0,0,.3);z-index:3}
+input{flex:1;padding:11px;border:1px solid #d1d5db;border-radius:10px;font-size:15px}
+button.go{background:#ff5c00;color:#fff;border:0;border-radius:10px;padding:11px 16px;font-weight:700}
+#tf,#pf{display:none;grid-template-columns:1fr 1fr;gap:6px;padding:10px;background:#fff;border-top:1px solid #eee}
+#tf input,#pf input,#pf select{min-width:0}#tf button,#pf button.go,#pf #p_note{grid-column:1/3}
+#pf select{padding:11px;border:1px solid #d1d5db;border-radius:10px;font-size:15px;background:#fff}
+#pf{grid-template-columns:1fr 1fr;gap:6px;padding:10px;background:#fff;border-top:1px solid #eee}
+#login{margin:auto;display:flex;gap:8px;padding:20px}
+@media(max-width:700px){#list{width:100%}#chat{display:none}main.open #list{display:none}main.open #chat{display:flex}#back{display:block}}
+</style><meta name="robots" content="noindex,nofollow">
+</head><body>
+<header><button id="back">←</button><span id="title">ENA Chat – Agent</span></header>
+<div id="login"><input id="pw" type="password" placeholder="Agent password"><button class="go" id="in">Login</button></div>
+<main id="main" style="display:none">
+  <div id="list"></div>
+  <div id="chat"><div id="msgs"></div><button id="newbtn">⬇ New messages</button>
+    <div id="tf"><input id="f_name" placeholder="Passenger"><input id="f_phone" placeholder="Phone">
+      <input id="f_from" placeholder="From"><input id="f_to" placeholder="To">
+      <input id="f_date" type="date"><input id="f_time" type="time">
+      <input id="f_bus" placeholder="Bus no."><input id="f_seat" placeholder="Seat">
+      <input id="f_price" type="number" placeholder="Fare KES"><button class="go" id="mk">Generate &amp; send ticket</button></div>
+    <div id="pf"><input id="p_method" placeholder="Method (e.g. M-Pesa)" value="M-Pesa">
+      <select id="p_label"><option>Paybill</option><option>Till</option><option>Phone</option><option>Bank</option></select>
+      <input id="p_number" placeholder="Paybill / Till / number"><input id="p_account" placeholder="Account no.">
+      <input id="p_name" placeholder="Account name"><input id="p_amount" type="number" placeholder="Amount KES">
+      <input id="p_note" placeholder="Note (optional)"><button class="go" id="pk">Send payment details</button></div>
+    <div id="bar"><button class="go" id="tk">🎫</button><button class="go" id="pay">💳</button><button class="go" id="clr" style="background:#6b7280">🧹</button><textarea id="t" rows="1" placeholder="Reply..."></textarea><button class="go" id="send">Send</button></div></div>
+</main>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+var $=function(i){return document.getElementById(i)},S={},cur=null,sock;
+$('in').onclick=function(){
+  unlock();
+  try{if('Notification' in window&&Notification.permission==='default')Notification.requestPermission()}catch(e){}
+  try{if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js')}catch(e){}
+  sock=io('/agent',{auth:{password:$('pw').value},transports:['websocket','polling'],reconnectionDelay:500,reconnectionDelayMax:3000});
+  sock.on('connect_error',function(e){alert(e.message)});
+  sock.on('connect',function(){$('login').style.display='none';$('main').style.display='flex'});
+  sock.on('sessions',function(a){a.forEach(function(c){S[c.id]=c});render();if(cur&&S[cur])show(false)});
+  sock.on('paidClaim',function(p){flash('💰 '+(p.name||'Customer')+' says they have paid · '+p.ref+' · KES '+p.amount+'. Check M-Pesa, then send the ticket. Tap to open.',p.id)});
+  sock.on('payDup',function(p){flash('ℹ️ Payment details were already sent for '+(p.ref||'this booking')+'. A second card was not sent.',p.id,'#2563eb')});
+  sock.on('update',function(c){var o=S[c.id],ol=o?o.msgs.length:0,lm=c.msgs[c.msgs.length-1];if(c.msgs.length>ol&&lm&&lm.from==='client'){beep();notify(c)}S[c.id]=c;render();if(cur===c.id){show(false);if(c.unread)sock.emit('read',cur)}});
+};
+function flash(t,id,bg){
+  var d=document.createElement('div');d.textContent=t;
+  d.style.cssText='position:fixed;left:12px;right:12px;top:12px;z-index:9999;background:'+(bg||'#16a34a')+';color:#fff;padding:12px 14px;border-radius:12px;font:600 14px system-ui,sans-serif;box-shadow:0 6px 18px rgba(0,0,0,.3)';
+  d.onclick=function(){var c=id&&S[id];if(c){cur=id;$('main').classList.add('open');$('title').textContent=(c.name||'Guest')+' · '+c.phone;show(true);sock.emit('read',cur)}d.remove()};
+  document.body.appendChild(d);setTimeout(function(){d.remove()},9000)}
+var AC;
+function unlock(){try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume()}catch(e){}}
+function note(f,t,d,v){var o=AC.createOscillator(),g=AC.createGain();o.type='sine';o.frequency.value=f;o.connect(g);g.connect(AC.destination);
+  g.gain.setValueAtTime(0.0001,AC.currentTime+t);g.gain.exponentialRampToValueAtTime(v,AC.currentTime+t+.02);g.gain.exponentialRampToValueAtTime(0.0001,AC.currentTime+t+d);o.start(AC.currentTime+t);o.stop(AC.currentTime+t+d+.02)}
+function tone(k){try{unlock();if(k==='in'){note(880,0,.18,.35);note(1175,.16,.28,.35)}else{note(660,0,.12,.18)}}catch(e){}}
+function beep(){tone('in');try{navigator.vibrate&&navigator.vibrate([200,100,200])}catch(e){}}
+function notify(c){
+  try{
+    if(!('Notification' in window)||Notification.permission!=='granted')return;
+    if(!document.hidden&&cur===c.id)return;
+    var m=c.msgs[c.msgs.length-1],title=(c.name||'Guest')+(c.phone?' · '+c.phone:''),opt={body:m.text||'New message',tag:'enc-'+c.id,renotify:true};
+    var fb=function(){try{new Notification(title,opt)}catch(e){}};
+    if(navigator.serviceWorker&&navigator.serviceWorker.getRegistration)navigator.serviceWorker.getRegistration().then(function(r){r?r.showNotification(title,opt):fb()}).catch(fb);else fb();
+  }catch(e){}}
+$('tk').onclick=function(){$('pf').style.display='none';var f=$('tf');f.style.display=f.style.display==='grid'?'none':'grid';
+  if(cur){$('f_name').value=S[cur].name;$('f_phone').value=S[cur].phone}};
+$('mk').onclick=function(){
+  if(!cur)return;var t={};['name','phone','from','to','date','time','bus','seat','price'].forEach(function(k){t[k]=$('f_'+k).value.trim()});
+  if(!t.from||!t.to||!t.date||!t.seat||!t.price)return alert('Fill from, to, date, seat and fare');
+  sock.emit('ticket',{id:cur,t:t});tone('out');$('tf').style.display='none';['from','to','seat','price'].forEach(function(k){$('f_'+k).value=''})};
+function render(){
+  var n=Object.values(S).reduce(function(a,c){return a+(c.unread||0)},0);document.title=(n?'('+n+') ':'')+'ENA Chat – Agent';
+  var l=$('list');l.innerHTML='';
+  Object.values(S).sort(function(a,b){return b.last-a.last}).forEach(function(c){
+    var d=document.createElement('div');d.className='s';
+    d.innerHTML=(c.unread?'<span class="u">'+c.unread+'</span>':'')+'<b></b><small></small>';
+    d.querySelector('b').textContent=c.name||'Guest';
+    d.querySelector('small').textContent=c.phone;
+    d.onclick=function(){cur=c.id;$('main').classList.add('open');$('title').textContent=(c.name||'Guest')+' · '+c.phone;show(true);sock.emit('read',cur)};
+    l.appendChild(d)})}
+var shown={id:null,n:0};
+function atBottom(m){return m.scrollHeight-m.scrollTop-m.clientHeight<80}
+function show(force){
+  var m=$('msgs'),stick=force||shown.id!==cur||atBottom(m),prev=m.scrollTop,list=S[cur].msgs;
+  m.innerHTML='';
+  list.forEach(function(x){var d=document.createElement('div');d.className='m '+x.from+(x.unsent?' unsent':'')+(x.likes&&x.likes.client?' liked':'');d.textContent=x.type==='payment'?'💳 Payment sent · '+x.payment.accountLabel+' '+x.payment.number+' · KES '+x.payment.amount:x.type==='ticket'?'🎫 '+x.ticket.no+' · '+x.ticket.from+' → '+x.ticket.to+' · seat '+x.ticket.seat+' · KES '+x.ticket.price:x.text;
+    if(x.type==='image'&&x.file){d.textContent='';var im=document.createElement('img');im.src='/chatfile/'+encodeURIComponent(x.file);im.style.cssText='display:block;width:240px;max-width:100%;min-height:60px;border-radius:10px;cursor:pointer;background:#eee';im.onclick=function(){window.open(im.src,'_blank')};im.onload=function(){if(stick)m.scrollTop=m.scrollHeight};d.appendChild(im);if(x.caption){var cp=document.createElement('div');cp.textContent=x.caption;cp.style.marginTop='6px';d.appendChild(cp)}}
+    if(x.type==='booking'&&x.booking){var bk=x.booking;d.textContent='';
+      var bt=document.createElement('div');bt.textContent='🎫 BOOKING '+bk.ref+' · '+(bk.status==='paid'?'✅ PAID':(bk.paidClaimed?'🔎 CUSTOMER SAYS PAID - VERIFY':'⏳ UNPAID'))+'\n'+bk.pax+' · '+bk.phone+'\n'+bk.from+' → '+bk.to+'\n'+bk.date+' '+bk.time+' · seat '+bk.seat+'\nKES '+bk.amount;d.appendChild(bt);
+      if(bk.status!=='paid'){var rw=document.createElement('div');rw.style.cssText='display:flex;gap:6px;margin-top:8px;flex-wrap:wrap';
+        var b1=document.createElement('button');b1.className='go';b1.textContent='💳 Send payment';
+        b1.onclick=function(){$('tf').style.display='none';$('pf').style.display='grid';fillPay();$('p_amount').value=String(bk.amount).replace(/[^0-9]/g,'');$('p_note').value='Booking '+bk.ref+'. Pay, then reply with the M-Pesa message.'};
+        var bs=document.createElement('button');bs.className='go';bs.style.background='#2563eb';bs.textContent='📲 STK Push Initiated';bs.onclick=function(){if(confirm('Have you already initiated the M-Pesa STK Push for '+bk.ref+'? This only informs the customer; it does not confirm payment.')){sock.emit('stkInitiated',{id:cur,ref:bk.ref});tone('out')}};
+        var b2=document.createElement('button');b2.className='go';b2.style.background='#16a34a';b2.textContent='✅ Paid - send ticket';
+        b2.onclick=function(){if(confirm('Payment received for '+bk.ref+'? This sends the official ticket to the customer.')){sock.emit('confirmPaid',{id:cur,ref:bk.ref});tone('out')}};
+        rw.appendChild(b1);rw.appendChild(bs);rw.appendChild(b2);d.appendChild(rw)}}
+    if(x.likes&&x.likes.client){var h=document.createElement('span');h.className='lk';h.textContent='❤️';d.appendChild(h)}
+    if(x.ai){var ai=document.createElement('small');ai.className='tag';ai.textContent='🤖 sent by AI assistant';d.appendChild(ai)}
+    if(x.hiddenForClient){var g=document.createElement('small');g.className='tag';g.textContent=x.clearedByAgent?'🧹 cleared from the customer\'s chat':'🗑️ deleted by customer';d.appendChild(g)}
+    m.appendChild(d)});
+  if(stick){m.scrollTop=m.scrollHeight;$('newbtn').style.display='none'}
+  else{m.scrollTop=prev;if(list.length>shown.n)$('newbtn').style.display='block'}
+  shown={id:cur,n:list.length}}
+$('msgs').onscroll=function(){if(atBottom(this))$('newbtn').style.display='none'};
+$('newbtn').onclick=function(){var m=$('msgs');m.scrollTop=m.scrollHeight;this.style.display='none'};
+// keep the reply box visible above the phone keyboard
+function fitKb(){var v=window.visualViewport;if(!v)return;document.body.style.height=v.height+'px';window.scrollTo(0,0);var m=$('msgs');if(m&&atBottom(m))m.scrollTop=m.scrollHeight}
+if(window.visualViewport){visualViewport.addEventListener('resize',fitKb);visualViewport.addEventListener('scroll',fitKb)}
+// reconnect straight away when the phone wakes up / comes back online
+var hiddenAt=0;
+function reconnect(){if(sock){sock.disconnect();sock.connect()}}
+document.addEventListener('visibilitychange',function(){if(document.hidden){hiddenAt=Date.now();return}if(Date.now()-hiddenAt>4000)reconnect()});
+window.addEventListener('online',reconnect);
+setInterval(function(){if(sock&&!sock.connected)sock.connect()},5000);
+function send(){var v=$('t').value.trim();if(v&&cur){sock.emit('reply',{id:cur,text:v});tone('out');$('t').value='';$('t').style.height='auto'}}
+var PK=['method','label','number','account','name'],DEF={};
+fetch('/api/settings').then(function(r){return r.json()}).then(function(o){
+  DEF={label:o.type==='till'?'Till':'Paybill',number:o.number||'',account:o.account||''};fillPay()}).catch(function(){});
+function fillPay(){PK.forEach(function(k){var v=localStorage.getItem('pay_'+k)||DEF[k];if(v)$('p_'+k).value=v})}
+$('pay').onclick=function(){$('tf').style.display='none';var f=$('pf');f.style.display=f.style.display==='grid'?'none':'grid';fillPay()};
+$('pk').onclick=function(){
+  if(!cur)return;var p={};['method','label','number','account','name','amount','note'].forEach(function(k){p[k]=$('p_'+k).value.trim()});
+  if(!p.number||!p.amount)return alert('Enter the number and the amount');
+  PK.forEach(function(k){localStorage.setItem('pay_'+k,p[k])});
+  p.accountLabel=p.label;delete p.label;
+  sock.emit('payment',{id:cur,p:p});tone('out');$('pf').style.display='none';$('p_amount').value='';$('p_note').value=''};
+$('clr').onclick=function(){if(!cur)return;if(confirm('Clear this chat from the customer\'s side? Their screen will go empty, but you keep the full record here.')){sock.emit('clearChat',{id:cur});tone('out')}};
+$('send').onclick=send;$('t').oninput=function(){this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px'};
+$('t').onkeydown=function(e){if(e.key==='Enter'&&!e.shiftKey&&window.matchMedia('(pointer:fine)').matches){e.preventDefault();send()}};
+$('back').onclick=function(){$('main').classList.remove('open');$('title').textContent='ENA Chat – Agent'};
+</script>
+</body>
+</html>
