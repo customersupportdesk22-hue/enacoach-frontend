@@ -279,6 +279,14 @@ agents.on('connection', (s) => {
     tickets.forEach((ticket) => pushMsg(c, { from: 'agent', type: 'ticket', ticket, text: 'Ticket ' + ticket.no }));
     pushMsg(c, { from: 'agent', text: '✅ Payment received. Thank you! Your official ticket is above. Safe travels with ENA Coach 🚌' });
   });
+  // agent clears a chat from the CUSTOMER's side only: the full record stays here for the agent
+  s.on('clearChat', (p) => {
+    const c = chatSessions[p && p.id];
+    if (!c) return;
+    c.msgs.forEach((m) => { if (!m.hiddenForClient) { m.hiddenForClient = true; m.clearedByAgent = true; } });
+    io.to(c.id).emit('history', clientView(c));
+    agents.emit('update', c); saveChat(c);
+  });
   s.on('read', (id) => {
     // only act when there is something to mark as read (prevents an endless update <-> read loop)
     if (chatSessions[id] && chatSessions[id].unread) { chatSessions[id].unread = 0; saveChat(chatSessions[id]); agents.emit('update', chatSessions[id]); }
