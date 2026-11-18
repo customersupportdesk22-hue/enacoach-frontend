@@ -425,9 +425,13 @@ function sameTrip(b, f) {
   if (!b) return false;
   const n = (x) => String(x || '').trim().toLowerCase();
   const seats = (x) => String(x || '').toUpperCase().split(/[,\s]+/).filter(Boolean).sort().join(',');
-  return n(b.from) === n(f[0]) && n(b.to) === n(f[1]) && dateKey(b.date) === dateKey(f[2]) && timeKey(b.time) === timeKey(f[7])
-    && String(b.amount || '').replace(/\D/g, '') === String(f[6] || '').replace(/\D/g, '')
-    && (!seats(f[8]) || seats(b.seat) === seats(f[8]));
+  // same route + same date (+ same time when the AI gave one) = the same trip. A slightly different seat/amount wording
+  // must NOT create a duplicate booking; it is a different booking only when the seats do not overlap at all.
+  if (!(n(b.from) === n(f[0]) && n(b.to) === n(f[1]) && dateKey(b.date) === dateKey(f[2]))) return false;
+  if (f[7] && b.time && timeKey(b.time) !== timeKey(f[7])) return false;
+  const bs = seats(b.seat).split(',').filter(Boolean), fs = seats(f[8]).split(',').filter(Boolean);
+  if (!bs.length || !fs.length) return true;
+  return fs.some((x) => bs.includes(x));
 }
 
 function pendingBooking(c) {
@@ -675,7 +679,7 @@ async function aiReply(c) {
       const pax = clip(f[4], 400) + (Number(f[3]) > nNames ? ' (' + Number(f[3]) + ' passengers)' : '');
       const booking = {
         ref, from: clip(f[0], 40), to: clip(f[1], 40), date: clip(f[2], 30), time: clip(f[7], 12) || 'To be confirmed',
-        seat: clip(f[8], 120) || 'To be assigned', pax, phone: normPhone(f[5]) || c.phone,
+        seat: clip(f[8], 120) || 'To be assigned', pax, phone: c.phone || normPhone(f[5]),
         amount: clip(String(f[6]).replace(/[^\d]/g, ''), 12), status: 'pending'
       };
       pushMsg(c, { from: 'client', type: 'booking', booking,
