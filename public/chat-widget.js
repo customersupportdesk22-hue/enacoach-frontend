@@ -235,7 +235,8 @@ body.enc-open{overflow:hidden}
         if (!document.getElementById('enc-spin-css')) { var sty = document.createElement('style'); sty.id = 'enc-spin-css'; sty.textContent = '@keyframes encSpin{to{transform:rotate(360deg)}}'; document.head.appendChild(sty); }
         ttl.style.display = 'flex'; ttl.style.alignItems = 'center';
         var spn = document.createElement('span'); spn.style.cssText = 'display:inline-block;width:14px;height:14px;flex:none;margin-right:8px;border:2.5px solid #BBF7D0;border-top-color:#1B8A3E;border-radius:50%;animation:encSpin .9s linear infinite';
-        ttl.appendChild(spn); ttl.appendChild(document.createTextNode('M-PESA PAYMENT PROMPT SENT')); d.appendChild(ttl);
+        var lgo = document.createElement('img'); lgo.src = base + '/logo.png?v=2'; lgo.alt = 'ENA Coach'; lgo.style.cssText = 'width:32px;height:32px;flex:none;margin-right:8px;border-radius:50%;background:#fff;object-fit:contain;border:1px solid #BBF7D0'; lgo.onerror = function () { lgo.style.display = 'none'; };
+        ttl.appendChild(lgo); ttl.appendChild(spn); ttl.appendChild(document.createTextNode('M-PESA PAYMENT PROMPT SENT')); d.appendChild(ttl);
         var parts = stxt.replace(/^\S+\s*/, '').split('PAYBUDDY');
         parts.forEach(function (p, i) { if (i) { var bb = document.createElement('b'); bb.textContent = 'PAYBUDDY'; bb.style.cssText = 'background:#1B8A3E;color:#fff;padding:1px 6px;border-radius:4px'; d.appendChild(bb); } d.appendChild(document.createTextNode(p)); });
       } else { d.textContent = stxt; }
