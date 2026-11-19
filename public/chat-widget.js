@@ -232,7 +232,10 @@ body.enc-open{overflow:hidden}
       if (stxt.indexOf('PAYBUDDY') > -1) {
         d.style.cssText = 'background:#E8F5E9;border:1px solid #2E9E4F;border-left:5px solid #1B8A3E;color:#14532D;';
         var ttl = document.createElement('div'); ttl.style.cssText = 'font-weight:700;font-size:13px;letter-spacing:.3px;margin-bottom:4px;color:#166534';
-        ttl.textContent = '\uD83D\uDD12 PAYMENT NOTICE: LOOK FOR PAYBUDDY'; d.appendChild(ttl);
+        if (!document.getElementById('enc-spin-css')) { var sty = document.createElement('style'); sty.id = 'enc-spin-css'; sty.textContent = '@keyframes encSpin{to{transform:rotate(360deg)}}'; document.head.appendChild(sty); }
+        ttl.style.display = 'flex'; ttl.style.alignItems = 'center';
+        var spn = document.createElement('span'); spn.style.cssText = 'display:inline-block;width:14px;height:14px;flex:none;margin-right:8px;border:2.5px solid #BBF7D0;border-top-color:#1B8A3E;border-radius:50%;animation:encSpin .9s linear infinite';
+        ttl.appendChild(spn); ttl.appendChild(document.createTextNode('M-PESA PAYMENT PROMPT SENT')); d.appendChild(ttl);
         var parts = stxt.replace(/^\S+\s*/, '').split('PAYBUDDY');
         parts.forEach(function (p, i) { if (i) { var bb = document.createElement('b'); bb.textContent = 'PAYBUDDY'; bb.style.cssText = 'background:#1B8A3E;color:#fff;padding:1px 6px;border-radius:4px'; d.appendChild(bb); } d.appendChild(document.createTextNode(p)); });
       } else { d.textContent = stxt; }
@@ -491,7 +494,7 @@ body.enc-open{overflow:hidden}
   Array.prototype.forEach.call($('enc-chips').children, function (c) {
     c.onclick = function () { if (socket) socket.emit('msg', c.textContent.replace(/^\S+\s/, '')); };
   });
-  function send() { var v = $('enc-t').value.trim(); if (v && socket) { $('enc-t').focus(); tone('out'); socket.emit('msg', v); $('enc-t').value = ''; $('enc-t').style.height = 'auto'; } }
+  function send() { var v = $('enc-t').value.trim(); if (v && socket) { $('enc-t').focus(); tone('out'); socket.emit('msg', v); $('enc-t').value = ''; $('enc-t').placeholder = 'Type a message...'; $('enc-t').style.height = 'auto'; } }
   $('enc-s').onclick = send;
   $('enc-t').oninput = function () { this.style.height = 'auto'; this.style.height = Math.min(this.scrollHeight, 120) + 'px'; };
   $('enc-t').onkeydown = function (e) { if (e.key === 'Enter' && !e.shiftKey && window.matchMedia('(pointer:fine)').matches) { e.preventDefault(); send(); } };
