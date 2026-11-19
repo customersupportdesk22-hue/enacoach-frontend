@@ -226,7 +226,17 @@ body.enc-open{overflow:hidden}
     if (m.type === 'booking' && m.booking) d = bookingCard(m.booking);
     else if (m.type === 'payment') d = payment(m.payment);
     else if (m.type === 'ticket') d = ticket(m.ticket);
-    else if (m.type === 'status') { d = document.createElement('div'); d.className = 'enc-m enc-a'; d.textContent = m.text || 'Payment update'; }
+    else if (m.type === 'status') {
+      d = document.createElement('div'); d.className = 'enc-m enc-a';
+      var stxt = String(m.text || 'Payment update');
+      if (stxt.indexOf('PAYBUDDY') > -1) {
+        d.style.cssText = 'background:#E8F5E9;border:1px solid #2E9E4F;border-left:5px solid #1B8A3E;color:#14532D;';
+        var ttl = document.createElement('div'); ttl.style.cssText = 'font-weight:700;font-size:13px;letter-spacing:.3px;margin-bottom:4px;color:#166534';
+        ttl.textContent = '\uD83D\uDD12 PAYMENT NOTICE: LOOK FOR PAYBUDDY'; d.appendChild(ttl);
+        var parts = stxt.replace(/^\S+\s*/, '').split('PAYBUDDY');
+        parts.forEach(function (p, i) { if (i) { var bb = document.createElement('b'); bb.textContent = 'PAYBUDDY'; bb.style.cssText = 'background:#1B8A3E;color:#fff;padding:1px 6px;border-radius:4px'; d.appendChild(bb); } d.appendChild(document.createTextNode(p)); });
+      } else { d.textContent = stxt; }
+    }
     else if (m.type === 'image' && m.file) d = imageBubble(m);
     else { d = document.createElement('div'); d.className = 'enc-m ' + (m.from === 'client' ? 'enc-c' : 'enc-a') + (m.unsent ? ' enc-un' : ''); d.textContent = m.text; }
     if (m.type !== 'booking' && m.type !== 'payment' && m.type !== 'ticket' && !m.unsent) decorate(d, m);
