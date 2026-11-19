@@ -263,7 +263,7 @@ agents.on('connection', (s) => {
     humanAt[c.id] = Date.now(); delete aiHold[c.id];
     const stkAmt = Number(String((bmsg.booking && bmsg.booking.amount) || '').replace(/\D/g, '')) || 0;
     pushMsg(c, { from: 'agent', type: 'status', text: '📲 Your M-Pesa STK Push has been initiated. Please check your phone: the prompt will show PAYBUDDY, our official payment partner from ENA COACH.\n\n'
-      + 'Please follow these steps:\n1. Confirm that the booking amount shown is correct' + (stkAmt ? ': KES ' + stkAmt.toLocaleString('en-US') : '') + '.\n2. Enter your M-Pesa PIN to complete the booking payment.\n\n'
+      + 'Please follow these steps:\n1. Confirm that the booking amount shown is correct' + (stkAmt ? ': KES ' + stkAmt.toLocaleString('en-US') : '') + '.\n\n2. Enter your M-Pesa PIN to complete the booking payment.\n\n'
       + 'After payment, you will receive an M-Pesa confirmation message from ENA COACH, and your booking ticket will be sent here in this chat so you can print it.\n\n'
       + 'For your security, never share your M-Pesa PIN with anyone, including ENA Coach staff.' });
     chatTelegram(`📲 STK PUSH INITIATED\n${c.name} (${c.phone})\nBooking: ${bmsg.booking.ref}\nAmount: KES ${bmsg.booking.amount}\nVerify payment before issuing ticket.`);
