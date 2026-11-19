@@ -261,7 +261,7 @@ agents.on('connection', (s) => {
       || c.msgs.slice().reverse().find((m) => m.type === 'booking' && m.booking)
       || { booking: { ref: ref || 'N/A', amount: '' } };
     humanAt[c.id] = Date.now(); delete aiHold[c.id];
-    pushMsg(c, { from: 'agent', type: 'status', text: '📲 Your M-Pesa STK Push has been initiated. Please check your phone and enter your M-Pesa PIN to complete payment. Your ticket will be issued after payment is verified.' });
+    pushMsg(c, { from: 'agent', type: 'status', text: '📲 Your M-Pesa STK Push has been initiated. Please check your phone: the prompt will show PAYBUDDY as the payee, our official payment partner. Confirm the amount is correct, then enter your M-Pesa PIN. Never share your PIN with anyone, including ENA Coach staff. Your ticket will be issued after payment is verified.' });
     chatTelegram(`📲 STK PUSH INITIATED\n${c.name} (${c.phone})\nBooking: ${bmsg.booking.ref}\nAmount: KES ${bmsg.booking.amount}\nVerify payment before issuing ticket.`);
   });
   s.on('confirmPaid', ({ id, ref }) => {
