@@ -710,11 +710,16 @@ async function aiReply(c) {
   if (handoff && !(payNow && paymentMode !== 'automatic')) chatTelegram(`🙋 Customer waiting for YOUR reply (told to please wait)\n${c.name} (${c.phone}):\n"${clip(last.text, 200)}"\n\nReply: https://enacoach-frontend.onrender.com/agent.html`);
 }
 
-function aiSchedule(c) {
+function aiSchedule(c, ms) {
   if (!aiCfg.enabled) return;
   clearTimeout(aiTimers[c.id]);
-  aiTimers[c.id] = setTimeout(() => { aiReply(c).catch((e) => aiFail(e.message)); }, 2500); // wait for the customer to finish typing
+  aiTimers[c.id] = setTimeout(() => { aiReply(c).catch((e) => aiFail(e.message)); }, ms || 2500); // wait for the customer to finish typing (a phone number is answered almost at once)
 }
+// a Kenyan mobile number sent on its own, e.g. 0712345678, 0112345678, +254712345678, 254 712 345 678
+function isPhoneNumber(t) { return /^(?:\+?254|0)?[17]\d{8}$/.test(String(t || '').replace(/[\s\-().]/g, '')); }
+// follow-up reminders when the customer is slow to send the M-Pesa number
+const followT = {};
+function clearFollow(id) { (followT[id] || []).forEach(clearTimeout); delete followT[id]; }
 
 app.get('/api/ai-settings', adminAuth, (req, res) => {
   res.json({ enabled: aiCfg.enabled, model: aiCfg.model, notes: aiCfg.notes, pauseMinutes: aiCfg.pauseMinutes, hasKey: !!process.env.GEMINI_API_KEY, lastError: aiState.lastError, lastErrorAt: aiState.lastErrorAt });
@@ -790,19 +795,37 @@ io.on('connection', (s) => {
     setTimeout(() => pushMsg(c, { from: 'agent', auto: true, text: sw
       ? `Karibu ${clip(booking.pax.split(',')[0], 40)}! 👋 Tumepokea uhifadhi wako ${ref}. Tafadhali tuandikie nambari ya simu ya M-Pesa utakayotumia kulipa, kisha subiri ombi la M-Pesa au maelezo ya malipo kutoka kwetu. Tiketi yako rasmi itatumwa hapa baada ya malipo kuthibitishwa.`
       : `Welcome ${clip(booking.pax.split(',')[0], 40)}! 👋 We have received your booking ${ref}. Please type the M-Pesa phone number you will use to pay, then wait for an M-Pesa prompt or payment details from us. Your official ticket will be sent here once payment is confirmed.` }), 600);
+    // if the customer is slow to send the M-Pesa number, follow up politely (2 min, then 5 min)
+    clearFollow(c.id);
+    const nm = clip(booking.pax.split(',')[0], 40);
+    const awaiting = () => {
+      const i = c.msgs.findIndex((m) => m.type === 'booking' && m.booking && m.booking.ref === ref);
+      if (i < 0 || c.msgs[i].booking.status !== 'pending' || c.msgs[i].booking.paidClaimed) return false;
+      return !c.msgs.slice(i + 1).some((m) => (m.from === 'client' && m.type !== 'booking') || (m.from === 'agent' && !m.auto));
+    };
+    const remind = (en, swt) => () => { if (awaiting()) pushMsg(c, { from: 'agent', auto: true, text: sw ? swt : en }); };
+    followT[c.id] = [
+      setTimeout(remind(
+        `Hello ${nm}, your booking ${ref} is still waiting for payment. Please type the M-Pesa phone number you will pay with and we will send the payment prompt right away. 🙏`,
+        `Habari ${nm}, uhifadhi wako ${ref} bado unasubiri malipo. Tafadhali andika nambari ya simu ya M-Pesa utakayotumia kulipa, nasi tutakutumia ombi la malipo mara moja. 🙏`), 120000),
+      setTimeout(remind(
+        `Kindly type your M-Pesa number here to complete booking ${ref}. If you need any help, just reply and we will assist you.`,
+        `Tafadhali andika nambari yako ya M-Pesa hapa ili kukamilisha uhifadhi ${ref}. Ukihitaji msaada, jibu tu hapa nasi tutakusaidia.`), 300000)
+    ];
   });
   s.on('msg', (text) => {
     const c = chatSessions[s.data.id];
     if (!c || !text) return;
     const isFirst = !c.msgs.some((m) => m.from === 'client');
     pushMsg(c, { from: 'client', text: clip(text, 2000) });
+    clearFollow(c.id);
     // "Book a ticket" while a payment is pending: remind about the unpaid booking instead of the generic reply
     const pbk = /^book a ticket$/i.test(String(text).replace(/^[^a-z]+/i, '').trim()) ? pendingBooking(c) : null;
     if (pbk && c.msgs.some((m) => m.type === 'payment' && m.payment && !m.hiddenForClient && (!m.payment.ref || m.payment.ref === pbk.ref))) {
       const amtK = Number(String(pbk.amount || '').replace(/[^\d]/g, '')) || 0;
       setTimeout(() => pushMsg(c, { from: 'agent', auto: true,
         text: `Your booking ${pbk.ref} is waiting for payment${amtK ? ' of KES ' + amtK.toLocaleString('en-US') : ''}. Please pay, then tap "I have paid".` }), 400);
-    } else aiSchedule(c);
+    } else aiSchedule(c, isPhoneNumber(text) ? 300 : 2500);
     if (isFirst) chatTelegram(`💬 NEW CHAT\n${c.name} (${c.phone})\n"${clip(text, 200)}"\n\nReply: https://enacoach-frontend.onrender.com/agent.html`);
     else chatTelegram(`💬 ${c.name} (${c.phone}):\n"${clip(text, 200)}"\n\nReply: https://enacoach-frontend.onrender.com/agent.html`);
   });
