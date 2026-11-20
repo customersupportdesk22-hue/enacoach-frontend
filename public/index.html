@@ -713,7 +713,7 @@ function searchRoutes() {
   if (exactRoute) baseFare = Number(exactRoute.fare_kes) || 0;
   else {
     const coastKeywords = ['mombasa','malindi','kilifi','diani','ukunda','watamu','lamu','voi','coast','mtwapa','garsen','taveta'];
-    baseFare = coastKeywords.some(k => fromSearch.includes(k) || toSearch.includes(k)) ? 2500 : 1500;
+    baseFare = coastKeywords.some(k => fromSearch.includes(k) || toSearch.includes(k)) ? 3000 : 1700;
   }
   if (Number(fareSettings.override) > 0) baseFare = Number(fareSettings.override);
   currentRoute.baseFare = baseFare;
