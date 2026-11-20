@@ -278,7 +278,9 @@ body.enc-open{overflow:hidden}
     });
   }
   function updateUI() {
-    $('enc-chips').classList.toggle('enc-hold', payPending());
+    // hide the quick buttons (Book a ticket / Check price / Departure times) while a booking is in progress
+    var lb0 = lastBooking(), activeBooking = !!(lb0 && lb0.booking && lb0.booking.status !== 'paid' && lb0.booking.status !== 'cancelled');
+    $('enc-chips').classList.toggle('enc-hold', activeBooking || payPending());
     Array.prototype.forEach.call(msgs.querySelectorAll('.enc-paid-btn'), function (btn) {
       var bm = lastBooking(btn.getAttribute('data-ref')), b = bm && bm.booking; if (!b) return;
       if (b.status === 'paid') setPaidBtn(btn, 'Payment confirmed ✓', false);
