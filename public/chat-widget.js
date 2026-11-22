@@ -173,7 +173,8 @@ body.enc-open{overflow:hidden}
     h.appendChild(lg); h.appendChild(t); d.appendChild(h);
     d.appendChild(row(String(p.accountLabel || 'Paybill').toUpperCase() + ' NUMBER', String(p.number || ''), 26));
     if (p.account) d.appendChild(row('ACCOUNT NUMBER', String(p.account), 22));
-    d.appendChild(row('ACCOUNT NAME', String(p.name || 'ENA COACH'), 20));
+    // account name only when the account number is numeric (a word account such as "enacoach" already says who we are)
+    if (!p.account || /^[0-9\s]+$/.test(String(p.account))) d.appendChild(row('ACCOUNT NAME', String(p.name || 'ENA COACH'), 20));
     if (p.amount) d.appendChild(row('AMOUNT TO PAY', 'KES ' + fmt(p.amount), 24, true));
     var bar = document.createElement('div'); bar.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;padding:6px 12px 4px';
     function cp(label, v) {
@@ -185,6 +186,13 @@ body.enc-open{overflow:hidden}
     cp('Copy ' + String(p.accountLabel || 'Paybill').toLowerCase(), String(p.number || ''));
     if (p.account) cp('Copy account', String(p.account));
     d.appendChild(bar);
+    // word account numbers (e.g. enacoach) must be typed exactly as shown
+    if (p.account && !/^[0-9\s]+$/.test(String(p.account))) {
+      var aw = document.createElement('div');
+      aw.textContent = 'Important: when paying for your booking ticket on M-Pesa, use the account number ' + String(p.account) + ' exactly as shown, in small letters, with no changes and no extra characters.';
+      aw.style.cssText = 'margin:0 12px 6px;padding:4px 6px;border-radius:6px;background:#fff7ed;border:1px solid #fdba74;color:#9a3412;text-align:center;font:600 10px/1.3 Arial,sans-serif';
+      d.appendChild(aw);
+    }
     var n = document.createElement('div'); n.textContent = 'Pay via M-Pesa, then tap "I have paid" below. You can also paste your M-Pesa message here.';
     n.style.cssText = 'padding:0 12px 10px;text-align:center;color:#475569;font:12px Arial,sans-serif';
     d.appendChild(n);
