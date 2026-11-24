@@ -223,7 +223,6 @@ function pushMsg(c, m) {
   m.id = newId();
   c.msgs.push(m); c.last = m.t;
   if (m.from === 'client') c.unread++;
-  if (m.from === 'agent') markSeen(c);
   io.to(c.id).emit('msg', m);
   agents.emit('update', c);
   saveChat(c);
@@ -316,8 +315,16 @@ agents.on('connection', (s) => {
     agents.emit('update', c); saveChat(c);
   });
   s.on('read', (id) => {
-    // only act when there is something to mark as read (prevents an endless update <-> read loop)
-    if (chatSessions[id] && chatSessions[id].unread) { chatSessions[id].unread = 0; markSeen(chatSessions[id]); saveChat(chatSessions[id]); agents.emit('update', chatSessions[id]); }
+    const c = chatSessions[id];
+    if (!c) return;
+    const hadUnread = !!c.unread;
+    c.unread = 0;
+    const hasUnseen = c.msgs.some((m) => m.from === 'client' && !m.seen);
+    if (hasUnseen) markSeen(c);
+    if (hadUnread || hasUnseen) {
+      saveChat(c);
+      agents.emit('update', c);
+    }
   });
 });
 
