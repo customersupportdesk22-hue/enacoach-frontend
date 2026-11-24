@@ -181,7 +181,7 @@ body.enc-open{overflow:hidden}
     var label = document.createElement('label'); label.textContent = 'M-Pesa phone number';
     label.style.cssText = 'display:block;font:600 12px Arial,sans-serif;margin-bottom:6px;color:#374151'; body.appendChild(label);
     var input = document.createElement('input'); input.type = 'tel'; input.inputMode = 'tel'; input.autocomplete = 'tel';
-    input.placeholder = 'Number you will pay with, e.g. 0712345678'; input.value = '';
+    input.placeholder = 'Enter M-Pesa number you will pay with, e.g. 0712345678'; input.value = '';
     input.style.cssText = 'box-sizing:border-box;width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:8px;font:16px Arial,sans-serif;color:#111;background:#fff'; body.appendChild(input);
     var pay = document.createElement('button'); pay.type = 'button'; pay.textContent = 'Pay KES ' + fmt(m.amount) + ' with STK Push';
     pay.style.cssText = 'width:100%;margin-top:12px;padding:12px 10px;border:0;border-radius:24px;background:#087c45;color:#fff;font:bold 14px Arial,sans-serif';
