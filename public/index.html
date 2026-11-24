@@ -828,7 +828,7 @@ async function validateAndShowPayment() {
   document.getElementById('ticketQR').src=`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(currentBookingRef)}`;
   document.getElementById('displayAmount').innerText=`KES ${totalPrice.toLocaleString()}`;
   // payment details are no longer shown here: the customer is taken to the live chat with the booking attached
-  openBookingChat({ref:currentBookingRef,from:currentRoute.from,to:currentRoute.to,date:formatDateString(currentRoute.date)||currentRoute.date,time:selectedBus.departure,seat:selectedSeats.map(s=>s.label).join(', '),pax:passengerNamesList.join(', '),phone:'0'+String(passengers[0].phone).replace(/\D/g,'').replace(/^(254|0)/,''),amount:totalPrice.toLocaleString()});
+  openBookingChat({ref:currentBookingRef,from:currentRoute.from,to:currentRoute.to,date:formatDateString(currentRoute.date)||currentRoute.date,time:selectedBus.departure,seat:selectedSeats.map(s=>s.label).join(', '),pax:passengerNamesList.join(', '),passengers:passengers.map(p=>({name:p.firstName+' '+p.lastName,seat:p.seat})),phone:'0'+String(passengers[0].phone).replace(/\D/g,'').replace(/^(254|0)/,''),amount:totalPrice.toLocaleString()});
 }
 // opens the live chat and sends the booking (ticket details only, no paybill) so the agent can send payment details
 function openBookingChat(info) {
