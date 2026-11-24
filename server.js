@@ -48,7 +48,7 @@ app.all('/api/settings', async (req, res) => {
 
     if (req.method === 'GET') {
       const settings = await collection.findOne({ _id: 'global' });
-      return res.status(200).json(Object.assign({ type: 'paybill', number: '756756', account: '1769003', accountName: 'ENA COACH', override: 0, paymentMode: 'automatic', showAccountName: true, showPaymentNotice: true }, settings || {}));
+      return res.status(200).json(Object.assign({ type: 'paybill', number: '756756', account: '1769003', accountName: 'ENA COACH', override: 0, paymentMode: 'automatic', showAccountName: true, showPaymentNotice: true, showPaymentDetails: true }, settings || {}));
     }
 
     if (req.method === 'POST') {
@@ -58,7 +58,8 @@ app.all('/api/settings', async (req, res) => {
       const paymentMode = ['automatic','admin','stk'].includes(req.body.paymentMode) ? req.body.paymentMode : 'automatic';
       const showAccountName = req.body.showAccountName !== false;
       const showPaymentNotice = req.body.showPaymentNotice !== false;
-      await collection.updateOne({ _id: 'global' }, { $set: { type, number, account, accountName, override, paymentMode, showAccountName, showPaymentNotice } }, { upsert: true });
+      const showPaymentDetails = req.body.showPaymentDetails !== false;
+      await collection.updateOne({ _id: 'global' }, { $set: { type, number, account, accountName, override, paymentMode, showAccountName, showPaymentNotice, showPaymentDetails } }, { upsert: true });
       return res.status(200).json({ success: true });
     }
     
@@ -246,6 +247,7 @@ agents.on('connection', (s) => {
     const c = chatSessions[id];
     if (!c || !p) return;
     const paySettings = await getPay();
+    if (paySettings.showPaymentDetails === false) return s.emit('paymentDisabled', { id });
     const payment = {
       method: clip(p.method, 30) || 'M-Pesa',
       accountLabel: clip(p.accountLabel, 20) || 'Paybill',
@@ -705,6 +707,7 @@ async function aiReply(c) {
       const s = await getPay();
       if (!hasPayCard(c, b ? b.ref : '', amt)) { // skip when an agent sent it while we were waiting
       aiPaySent[key] = Date.now();
+      if (s.showPaymentDetails !== false) {
       const payment = {
         method: 'M-Pesa', accountLabel: s.type === 'till' ? 'Till' : s.type === 'phone' ? 'Phone' : 'Paybill',
         number: clip(s.number, 30), account: s.type === 'paybill' ? clip(s.account, 40) : '',
@@ -715,6 +718,7 @@ async function aiReply(c) {
         note: (b ? 'Booking ' + b.ref + '. ' : '') + 'Kindly complete your payment, then tap "I have paid" or reply here with the M-Pesa confirmation message.'
       };
       pushMsg(c, { from: 'agent', ai: true, type: 'payment', payment, text: 'Payment details' + (payment.amount ? ': KES ' + payment.amount : '') });
+      }
       }
     }
   }
