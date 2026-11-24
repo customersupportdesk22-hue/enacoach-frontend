@@ -276,7 +276,7 @@ async function initiateHashPay(c, booking, phone) {
     chatTelegram('⚠️ HASHPAY STK NOT STARTED\nBooking: ' + booking.ref + '\nCheck API key, account ID, amount and customer phone.');
     return false;
   }
-  if (booking.hashpay && ['initiating','initiated'].includes(booking.hashpay.status)) return false;
+  if (booking.hashpay && ['initiating','initiated'].includes(booking.hashpay.status) && Date.now() - (booking.hashpay.initiatedAt || booking.hashpay.startedAt || 0) < HASHPAY_PROMPT_TTL + 30000) return false;
   booking.phone = '0' + msisdn.slice(3);
   const providerReference = 'PAY' + crypto.randomBytes(8).toString('hex').toUpperCase();
   booking.hashpay = { status: 'initiating', accountId, msisdn, amount, providerReference, startedAt: Date.now() };
@@ -308,6 +308,10 @@ async function initiateHashPay(c, booking, phone) {
     saveChat(c);
     pushMsg(c, { from: 'agent', type: 'status', text: "Your booking's M-Pesa payment request is now being initiated. Kindly keep your phone nearby and follow the instructions on your screen. 🙏" });
     chatTelegram('📲 HASHPAY STK INITIATED\n' + c.name + ' (' + c.phone + ')\nBooking: ' + booking.ref + '\nAmount: KES ' + amount + '\nPhone: ' + msisdn + '\nAwait verified webhook before issuing ticket.');
+    setTimeout(() => {
+      const h = booking.hashpay;
+      if (h && h.status === 'initiated' && h.providerReference === providerReference && booking.status !== 'paid') failHashPay(c, booking, 'timeout', true);
+    }, HASHPAY_PROMPT_TTL);
     return true;
   } catch (e) {
     booking.hashpay = { status: 'failed', accountId, msisdn, amount, failedAt: Date.now() };
@@ -337,6 +341,63 @@ function issueBookingTickets(c, m) {
   return true;
 }
 
+const HASHPAY_PROMPT_TTL = 120000; // ms to wait for a webhook before treating the prompt as failed
+
+function hashPayReasonText(reason) {
+  const r = String(reason || '');
+  if (/cancel/i.test(r)) return 'it was cancelled';
+  if (/insufficient|balance|funds/i.test(r)) return 'there was insufficient M-Pesa balance';
+  if (/pin|wrong|invalid.*initiator/i.test(r)) return 'the M-Pesa PIN was incorrect';
+  if (/timeout|timed out|expire|no response/i.test(r)) return 'the prompt timed out';
+  return '';
+}
+
+// Mark a booking's STK request as failed, tell the customer in the chat, reset their Pay button and alert staff.
+function failHashPay(c, booking, reason, isTimeout) {
+  if (!c || !booking || booking.status === 'paid') return false;
+  const h = booking.hashpay;
+  if (!h || !['initiating', 'initiated'].includes(h.status)) return false; // already handled (duplicate webhook / timer)
+  booking.hashpay = Object.assign({}, h, { status: 'failed', failedAt: Date.now(), failReason: clip(reason || (isTimeout ? 'timeout' : 'failed'), 160) });
+  saveChat(c);
+  let text;
+  if (isTimeout) text = 'We have not received your M-Pesa payment confirmation yet. If you did not get the prompt or did not complete it, tap Pay on the payment card to try again. If you already paid, please wait while ENA Coach verifies it. 🙏';
+  else {
+    const why = hashPayReasonText(reason);
+    text = 'Your M-Pesa payment was not completed' + (why ? ' because ' + why : '') + '. Please tap Pay on the payment card to try again, or wait while ENA Coach assists you. 🙏';
+  }
+  pushMsg(c, { from: 'agent', type: 'status', error: true, text: '⚠️ ' + text });
+  io.to(c.id).emit('hashpay:result', { ref: booking.ref, success: false, message: 'Payment not completed. Tap Pay to try again.' });
+  chatTelegram('⚠️ HASHPAY PAYMENT ' + (isTimeout ? 'NO CONFIRMATION (TIMEOUT)' : 'FAILED / CANCELLED') + '\nBooking: ' + booking.ref + '\n' + c.name + ' (' + c.phone + ')\nReason: ' + clip(reason || (isTimeout ? 'no webhook received' : 'unknown'), 160));
+  return true;
+}
+
+async function handleHashPayFailure(payload) {
+  const providerReference = clip(payload.TransactionReference || payload.reference || payload.Reference, 40);
+  if (!/^PAY[A-F0-9]{16}$/.test(providerReference)) {
+    chatTelegram('⚠️ HASHPAY FAILED-PAYMENT WEBHOOK COULD NOT BE MATCHED\nReference: ' + providerReference + '\nEvent: ' + clip(payload.event, 60));
+    return;
+  }
+  const reason = payload.ResultDesc || payload.ResponseDescription || payload.message || payload.reason || payload.event || 'failed';
+  let found = null;
+  for (const c of Object.values(chatSessions)) {
+    const m = c.msgs.find((x) => x.type === 'booking' && x.booking && x.booking.hashpay && x.booking.hashpay.providerReference === providerReference);
+    if (m) { found = { c, m }; break; }
+  }
+  if (!found) {
+    try {
+      const db = (await clientPromise).db('enacoach');
+      const doc = await db.collection('chats').findOne({ msgs: { $elemMatch: { type: 'booking', 'booking.hashpay.providerReference': providerReference } } });
+      if (doc) {
+        const c = chatSessions[doc._id] || (chatSessions[doc._id] = { id: doc._id, name: doc.name, phone: doc.phone, msgs: doc.msgs || [], unread: doc.unread || 0, last: doc.last || 0 });
+        const m = c.msgs.find((x) => x.type === 'booking' && x.booking && x.booking.hashpay && x.booking.hashpay.providerReference === providerReference);
+        if (m) found = { c, m };
+      }
+    } catch (e) { console.error('HashPay failure lookup failed:', e.message); }
+  }
+  if (!found) { chatTelegram('⚠️ HASHPAY FAILED PAYMENT - BOOKING NOT FOUND\nReference: ' + providerReference); return; }
+  failHashPay(found.c, found.m.booking, String(reason), false);
+}
+
 async function processHashPayWebhook(payload) {
   const expectedAccount = process.env.HASHPAY_ACCOUNT_ID || 'HP139328';
   const accountId = String(payload && payload.AccountID || '');
@@ -344,7 +405,14 @@ async function processHashPayWebhook(payload) {
     chatTelegram('⚠️ HASHPAY WEBHOOK ACCOUNT MISMATCH\nReceived AccountID: ' + accountId);
     return;
   }
-  if (payload.event !== 'payment.success' || String(payload.ResponseCode) !== '0') return;
+  const isSuccess = payload.event === 'payment.success' && String(payload.ResponseCode) === '0';
+  if (!isSuccess) {
+    console.log('HashPay non-success webhook:', JSON.stringify(payload).slice(0, 800)); // check Render logs for the real event name/fields
+    const code = payload.ResponseCode;
+    const looksFailed = /fail|cancel|timeout|reject|declin|expire/i.test(String(payload.event || '')) || (code !== undefined && code !== null && code !== '' && String(code) !== '0');
+    if (looksFailed) await handleHashPayFailure(payload);
+    return;
+  }
   const providerReference = clip(payload.TransactionReference, 40);
   const txId = clip(payload.TransactionID || payload.TransactionReceipt, 80);
   const amount = Number(payload.TransactionAmount);
@@ -1022,7 +1090,10 @@ io.on('connection', (s) => {
     const c = chatSessions[s.data.id];
     const ref = clip(data && data.ref, 12);
     const phone = clip(data && data.phone, 24);
-    if (!c || !/^ENA\d{6}$/.test(ref)) return;
+    if (!c || !/^ENA\d{6}$/.test(ref)) {
+      s.emit('hashpay:result', { ref: ref || 'unknown', success: false, message: 'Your chat session expired. Please refresh the page and try again.' });
+      return;
+    }
     if (await getPaymentMode() !== 'stk_auto') {
       s.emit('hashpay:result', { ref, success: false, message: 'Automatic STK Push is not currently enabled.' });
       return;
@@ -1033,7 +1104,7 @@ io.on('connection', (s) => {
       s.emit('hashpay:result', { ref, success: false, message: 'This booking is not currently available for payment.' });
       return;
     }
-    if (booking.hashpay && ['initiating', 'initiated'].includes(booking.hashpay.status)) {
+    if (booking.hashpay && ['initiating', 'initiated'].includes(booking.hashpay.status) && Date.now() - (booking.hashpay.initiatedAt || booking.hashpay.startedAt || 0) < HASHPAY_PROMPT_TTL + 30000) {
       s.emit('hashpay:result', { ref, success: true, message: 'An M-Pesa prompt has already been requested for this booking.' });
       return;
     }
@@ -1044,7 +1115,8 @@ io.on('connection', (s) => {
     }
     humanAt[c.id] = Date.now();
     aiHold[c.id] = true;
-    const ok = await initiateHashPay(c, booking, phone);
+    let ok = false;
+    try { ok = await initiateHashPay(c, booking, phone); } catch (e) { console.error('hashpay:request error:', e.message); }
     s.emit('hashpay:result', { ref, success: !!ok, message: ok ? 'M-Pesa prompt request accepted.' : 'We could not send the prompt. Please check the number and try again.' });
   });
   s.on('msg', async (text) => {
