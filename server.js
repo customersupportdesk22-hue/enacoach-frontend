@@ -47,14 +47,15 @@ app.all('/api/settings', async (req, res) => {
 
     if (req.method === 'GET') {
       const settings = await collection.findOne({ _id: 'global' });
-      return res.status(200).json(settings || { type: 'paybill', number: '756756', account: '1769003', override: 0, paymentMode: 'automatic' });
+      return res.status(200).json(settings || { type: 'paybill', number: '756756', account: '1769003', accountName: 'ENA COACH', override: 0, paymentMode: 'automatic' });
     }
 
     if (req.method === 'POST') {
       if (req.get('x-admin-password') !== (process.env.AGENT_PASSWORD || 'change-me')) return res.status(401).json({ error: 'Wrong password' });
       const { type, number, account, override } = req.body;
+      const accountName = clip(req.body.accountName, 60).trim();
       const paymentMode = ['automatic','admin','stk'].includes(req.body.paymentMode) ? req.body.paymentMode : 'automatic';
-      await collection.updateOne({ _id: 'global' }, { $set: { type, number, account, override, paymentMode } }, { upsert: true });
+      await collection.updateOne({ _id: 'global' }, { $set: { type, number, account, accountName, override, paymentMode } }, { upsert: true });
       return res.status(200).json({ success: true });
     }
     
@@ -238,14 +239,14 @@ agents.on('connection', (s) => {
     humanAt[c.id] = Date.now(); delete aiHold[c.id];
     pushMsg(c, { from: 'agent', type: 'ticket', ticket, text: 'Ticket ' + ticket.no });
   });
-  s.on('payment', ({ id, p }) => {
+  s.on('payment', async ({ id, p }) => {
     const c = chatSessions[id];
     if (!c || !p) return;
     const payment = {
       method: clip(p.method, 30) || 'M-Pesa',
       accountLabel: clip(p.accountLabel, 20) || 'Paybill',
       number: clip(p.number, 30), account: clip(p.account, 40),
-      name: clip(p.name, 60) || 'ENA COACH', amount: clip(p.amount, 12),
+      name: clip((await getPay()).accountName, 60).trim() || clip(p.name, 60) || 'ENA COACH', amount: clip(p.amount, 12),
       note: clip(p.note, 200)
     };
     if (!payment.number || !payment.amount) return;
@@ -699,7 +700,7 @@ async function aiReply(c) {
       aiPaySent[key] = Date.now();
       const payment = {
         method: 'M-Pesa', accountLabel: s.type === 'till' ? 'Till' : s.type === 'phone' ? 'Phone' : 'Paybill',
-        number: clip(s.number, 30), account: s.type === 'paybill' ? clip(s.account, 40) : '', name: 'ENA COACH', amount: clip(amt, 12),
+        number: clip(s.number, 30), account: s.type === 'paybill' ? clip(s.account, 40) : '', name: clip(s.accountName, 60).trim() || 'ENA COACH', amount: clip(amt, 12),
         ref: b ? b.ref : '',
         note: (b ? 'Booking ' + b.ref + '. ' : '') + 'Kindly complete your payment, then tap "I have paid" or reply here with the M-Pesa confirmation message.'
       };
