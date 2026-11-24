@@ -193,10 +193,6 @@ body.enc-open{overflow:hidden}
       aw.style.cssText = 'margin:0 12px 6px;padding:4px 6px;border-radius:6px;background:#fff7ed;border:1px solid #fdba74;color:#9a3412;text-align:center;font:600 10px/1.3 Arial,sans-serif';
       d.appendChild(aw);
     }
-    var warning = document.createElement('div');
-    warning.textContent = 'Security check: If the account name shown on M-Pesa is different from the name on this card, cancel the payment.';
-    warning.style.cssText = 'margin:2px 12px 8px;padding:8px;border-radius:8px;background:#fff7ed;border:1px solid #fdba74;color:#9a3412;text-align:center;font:600 11px/1.4 Arial,sans-serif';
-    d.appendChild(warning);
     var check = document.createElement('div'); check.style.cssText = 'padding:0 12px 8px;text-align:center;color:#334155;font:600 12px Arial,sans-serif';
     check.textContent = 'Does the account name shown on M-Pesa match the name on this card?';
     d.appendChild(check);
