@@ -1,5 +1,6 @@
 const express = require('express');
 const http = require('http');
+const path = require('path');
 const { Server } = require('socket.io');
 const { MongoClient } = require('mongodb');
 const cors = require('cors');
@@ -926,6 +927,11 @@ io.on('connection', (s) => {
   });
 });
 // ===================  END LIVE CHAT  ===================
+
+// Admin settings page (admin.html is stored in the project root, outside /public)
+app.get(['/admin', '/admin.html'], (req, res) => {
+    res.sendFile(path.join(__dirname, 'admin.html'));
+});
 
 // Root Route
 app.get('/', (req, res) => {
