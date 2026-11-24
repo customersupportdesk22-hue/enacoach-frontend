@@ -1076,7 +1076,7 @@ io.on('connection', (s) => {
     const autoStk = paymentMode === 'stk_auto';
     setTimeout(() => { pushMsg(c, { from: 'agent', auto: true, text: autoStk
       ? (sw ? `Karibu ${clip(booking.pax.split(',')[0], 40)}! 👋 Tumepokea uhifadhi wako ${ref}. Tafadhali tumia kadi ya malipo ya HashPay hapa chini: thibitisha nambari yako ya M-Pesa kisha bonyeza Pay. Tiketi yako rasmi itatumwa hapa baada ya malipo kuthibitishwa.`
-        : `Welcome ${clip(booking.pax.split(',')[0], 40)}! 👋 We have received your booking ${ref}. Please use the HashPay payment card in this chat: confirm your M-Pesa number, then tap Pay to receive the M-Pesa prompt. Your official ticket will be sent here once payment is confirmed.`)
+        : `Welcome ${clip(booking.pax.split(',')[0], 40)}! 👋 We have received your booking ${ref}. Please use the HASHBACK payment card in this chat. Enter the M-Pesa number you will use to pay for your booking in the card, then tap Pay to receive the M-Pesa prompt. Your official ticket will be sent here once payment is confirmed.`)
       : sw
       ? `Karibu ${clip(booking.pax.split(',')[0], 40)}! 👋 Tumepokea uhifadhi wako ${ref}. Tafadhali tuandikie nambari ya simu ya M-Pesa utakayotumia kulipa, kisha subiri ombi la M-Pesa au maelezo ya malipo kutoka kwetu. Tiketi yako rasmi itatumwa hapa baada ya malipo kuthibitishwa.`
       : `Welcome ${clip(booking.pax.split(',')[0], 40)}! 👋 We have received your booking ${ref}. Please type the M-Pesa phone number you will use to pay, then wait for an M-Pesa prompt or payment details from us. Your official ticket will be sent here once payment is confirmed.` });
