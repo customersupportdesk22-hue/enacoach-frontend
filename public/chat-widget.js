@@ -293,7 +293,13 @@ body.enc-open{overflow:hidden}
     }
     else if (m.type === 'image' && m.file) d = imageBubble(m);
     else { d = document.createElement('div'); d.className = 'enc-m ' + (m.from === 'client' ? 'enc-c' : 'enc-a') + (m.unsent ? ' enc-un' : ''); d.textContent = m.text; }
-    if (m.from === 'agent' && !m.unsent) { var sender = document.createElement('span'); sender.className = 'enc-agent-name'; sender.textContent = 'Agent Mary Muthoni'; d.insertBefore(sender, d.firstChild); }
+    // Show the agent's name only on ordinary text replies, never inside booking/payment/ticket/status/image cards.
+    if (m.from === 'agent' && !m.unsent && (!m.type || m.type === 'text')) {
+      var sender = document.createElement('span');
+      sender.className = 'enc-agent-name';
+      sender.textContent = 'Agent Mary Muthoni';
+      d.insertBefore(sender, d.firstChild);
+    }
     if (m.type !== 'payment' && m.type !== 'ticket' && !m.unsent) decorate(d, m);
     if (m.id) { d.setAttribute('data-id', m.id); store[m.id] = m; }
     if (m.likes && m.likes.client) { d.classList.add('enc-liked'); var h = document.createElement('span'); h.className = 'enc-lk'; h.textContent = '\u2764\uFE0F'; d.appendChild(h); }
