@@ -206,8 +206,15 @@ body.enc-open{overflow:hidden}
     var no = document.createElement('button'); no.type = 'button'; no.textContent = 'No, cancel';
     no.style.cssText = 'flex:1;border:1px solid #dc2626;border-radius:18px;padding:10px 8px;background:#fff;color:#b91c1c;font-weight:700';
     choice.appendChild(yes); choice.appendChild(no); d.appendChild(choice);
-    var n = document.createElement('div'); n.textContent = 'After payment, you will receive an M-Pesa confirmation message from ENACOACH, and your ticket will also appear here in this chat.';
-    n.style.cssText = 'padding:0 12px 10px;text-align:center;color:#475569;font:12px/1.4 Arial,sans-serif';
+    var n = document.createElement('div');
+    n.style.cssText = 'margin:4px 12px 12px;padding:13px 12px;border:1px solid #86d6a0;border-left:5px solid #16803c;border-radius:10px;background:#effaf2;color:#164b2b;text-align:left;box-sizing:border-box';
+    var nh = document.createElement('div');
+    nh.textContent = 'WHAT HAPPENS AFTER PAYMENT';
+    nh.style.cssText = 'margin:0 0 7px;color:#126332;font:bold 12px/1.35 Arial,sans-serif;letter-spacing:.35px;text-align:center';
+    var nt = document.createElement('div');
+    nt.textContent = 'After completing your payment, keep the M-Pesa confirmation SMS. Once your payment has been verified, your booking ticket will be sent directly to this chat.';
+    nt.style.cssText = 'color:#244b35;font:600 13px/1.55 Arial,sans-serif;text-align:center';
+    n.appendChild(nh); n.appendChild(nt);
     d.appendChild(n);
     var pw = document.createElement('div'); pw.style.cssText = 'padding:0 12px 12px;display:none';
     var pbtn = document.createElement('button'); pbtn.type = 'button'; pbtn.className = 'enc-paid-btn'; pbtn.setAttribute('data-ref', String(p.ref || ''));
