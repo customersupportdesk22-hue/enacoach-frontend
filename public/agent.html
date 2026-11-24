@@ -63,7 +63,7 @@ $('in').onclick=function(){
   sock.on('sessions',function(a){a.forEach(function(c){S[c.id]=c});render();if(cur&&S[cur])show(false)});
   sock.on('paidClaim',function(p){flash('💰 '+(p.name||'Customer')+' says they have paid · '+p.ref+' · KES '+p.amount+'. Check M-Pesa, then send the ticket. Tap to open.',p.id)});
   sock.on('payDup',function(p){flash('ℹ️ Payment details were already sent for '+(p.ref||'this booking')+'. A second card was not sent.',p.id,'#2563eb')});
-  sock.on('update',function(c){var o=S[c.id],ol=o?o.msgs.length:0,lm=c.msgs[c.msgs.length-1];if(c.msgs.length>ol&&lm&&lm.from==='client'){beep();notify(c)}S[c.id]=c;render();if(cur===c.id){show(false);if(c.unread)sock.emit('read',cur)}});
+  sock.on('update',function(c){var o=S[c.id],ol=o?o.msgs.length:0,lm=c.msgs[c.msgs.length-1];if(c.msgs.length>ol&&lm&&lm.from==='client'){beep();notify(c)}S[c.id]=c;render();if(cur===c.id&&!document.hidden&&$('main').classList.contains('open')){show(false);if(c.unread)sock.emit('read',cur)}});
 };
 function flash(t,id,bg){
   var d=document.createElement('div');d.textContent=t;
@@ -100,6 +100,7 @@ function render(){
     d.querySelector('small').textContent=c.phone;
     d.onclick=function(){cur=c.id;$('main').classList.add('open');$('title').textContent=(c.name||'Guest')+' · '+c.phone;show(true);sock.emit('read',cur)};
     l.appendChild(d)})}
+document.addEventListener('visibilitychange',function(){if(!document.hidden&&cur&&$('main').classList.contains('open')&&sock)sock.emit('read',cur)});
 var shown={id:null,n:0};
 function atBottom(m){return m.scrollHeight-m.scrollTop-m.clientHeight<80}
 function show(force){
