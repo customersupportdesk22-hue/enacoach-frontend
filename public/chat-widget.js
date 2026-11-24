@@ -173,8 +173,8 @@ body.enc-open{overflow:hidden}
     h.appendChild(lg); h.appendChild(t); d.appendChild(h);
     d.appendChild(row(String(p.accountLabel || 'Paybill').toUpperCase() + ' NUMBER', String(p.number || ''), 26));
     if (p.account) d.appendChild(row('ACCOUNT NUMBER', String(p.account), 22));
-    // account name only when the account number is numeric (a word account such as "enacoach" already says who we are)
-    if (!p.account || /^[0-9\s]+$/.test(String(p.account))) d.appendChild(row('ACCOUNT NAME', String(p.name || 'ENA COACH'), 20));
+    // Show the exact account name configured by the admin on every payment card.
+    d.appendChild(row('ACCOUNT NAME', String(p.name || 'ENA COACH'), 20));
     if (p.amount) d.appendChild(row('AMOUNT TO PAY', 'KES ' + fmt(p.amount), 24, true));
     var bar = document.createElement('div'); bar.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;padding:6px 12px 4px';
     function cp(label, v) {
@@ -193,13 +193,28 @@ body.enc-open{overflow:hidden}
       aw.style.cssText = 'margin:0 12px 6px;padding:4px 6px;border-radius:6px;background:#fff7ed;border:1px solid #fdba74;color:#9a3412;text-align:center;font:600 10px/1.3 Arial,sans-serif';
       d.appendChild(aw);
     }
-    var n = document.createElement('div'); n.textContent = 'Pay via M-Pesa, then tap "I have paid" below. You can also paste your M-Pesa message here.';
-    n.style.cssText = 'padding:0 12px 10px;text-align:center;color:#475569;font:12px Arial,sans-serif';
+    var warning = document.createElement('div');
+    warning.textContent = 'Security check: If the account name shown on M-Pesa is different from the name on this card, cancel the payment.';
+    warning.style.cssText = 'margin:2px 12px 8px;padding:8px;border-radius:8px;background:#fff7ed;border:1px solid #fdba74;color:#9a3412;text-align:center;font:600 11px/1.4 Arial,sans-serif';
+    d.appendChild(warning);
+    var check = document.createElement('div'); check.style.cssText = 'padding:0 12px 8px;text-align:center;color:#334155;font:600 12px Arial,sans-serif';
+    check.textContent = 'Does the account name shown on M-Pesa match the name on this card?';
+    d.appendChild(check);
+    var choice = document.createElement('div'); choice.style.cssText = 'display:flex;gap:8px;padding:0 12px 8px';
+    var yes = document.createElement('button'); yes.type = 'button'; yes.textContent = 'Yes, it matches';
+    yes.style.cssText = 'flex:1;border:0;border-radius:18px;padding:10px 8px;background:#16803c;color:#fff;font-weight:700';
+    var no = document.createElement('button'); no.type = 'button'; no.textContent = 'No, cancel';
+    no.style.cssText = 'flex:1;border:1px solid #dc2626;border-radius:18px;padding:10px 8px;background:#fff;color:#b91c1c;font-weight:700';
+    choice.appendChild(yes); choice.appendChild(no); d.appendChild(choice);
+    var n = document.createElement('div'); n.textContent = 'After payment, you will receive an M-Pesa confirmation message from ENACOACH, and your ticket will also appear here in this chat.';
+    n.style.cssText = 'padding:0 12px 10px;text-align:center;color:#475569;font:12px/1.4 Arial,sans-serif';
     d.appendChild(n);
-    var pw = document.createElement('div'); pw.style.cssText = 'padding:0 12px 12px';
+    var pw = document.createElement('div'); pw.style.cssText = 'padding:0 12px 12px;display:none';
     var pbtn = document.createElement('button'); pbtn.type = 'button'; pbtn.className = 'enc-paid-btn'; pbtn.setAttribute('data-ref', String(p.ref || ''));
     pbtn.style.cssText = 'width:100%;border:0;border-radius:22px;padding:11px 14px;color:#fff;font:bold 15px system-ui,sans-serif';
     setPaidBtn(pbtn, '✅ I have paid', true);
+    yes.onclick = function () { choice.style.display = 'none'; check.textContent = 'Thank you. Please complete your payment using the details above.'; pw.style.display = 'block'; };
+    no.onclick = function () { choice.style.display = 'none'; check.textContent = 'Payment cancelled for your safety. Please do not send money to this account. Contact ENA Coach for verified payment details.'; pw.style.display = 'none'; n.style.display = 'none'; };
     pbtn.onclick = function () {
       if (pbtn.disabled) return;
       if (!socket || !socket.connected) return toast('Not connected. Please try again.');
