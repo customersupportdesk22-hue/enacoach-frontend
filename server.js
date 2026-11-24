@@ -2,12 +2,33 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const { MongoClient } = require('mongodb');
+const crypto = require('crypto');
 const cors = require('cors');
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' }, pingInterval: 10000, pingTimeout: 10000, maxHttpBufferSize: 3e6 });
 
 app.use(cors());
+app.post('/api/hashpay/webhook', express.raw({ type: 'application/json', limit: '256kb' }), async (req, res) => {
+  try {
+    const secret = process.env.HASHPAY_WEBHOOK_SECRET;
+    if (!secret) return res.status(503).send('Webhook not configured');
+    if (!Buffer.isBuffer(req.body)) return res.status(400).send('Invalid body');
+    const signature = String(req.get('x-hashpay-signature') || '');
+    const expected = 'sha256=' + crypto.createHmac('sha256', secret).update(req.body).digest('hex');
+    const actualBuf = Buffer.from(signature);
+    const expectedBuf = Buffer.from(expected);
+    if (actualBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(actualBuf, expectedBuf)) {
+      return res.status(401).send('Invalid signature');
+    }
+    const payload = JSON.parse(req.body.toString('utf8'));
+    await processHashPayWebhook(payload);
+    return res.status(200).send('OK');
+  } catch (e) {
+    console.error('HashPay webhook error:', e.message);
+    return res.status(400).send('Invalid webhook');
+  }
+});
 app.use(express.json());
 app.use(express.static('public')); // serves chat-widget.js and agent.html
 
@@ -54,7 +75,7 @@ app.all('/api/settings', async (req, res) => {
       if (req.get('x-admin-password') !== (process.env.AGENT_PASSWORD || 'change-me')) return res.status(401).json({ error: 'Wrong password' });
       const { type, number, account, override } = req.body;
       const accountName = clip(req.body.accountName, 60).trim();
-      const paymentMode = ['automatic','admin','stk'].includes(req.body.paymentMode) ? req.body.paymentMode : 'automatic';
+      const paymentMode = ['automatic','admin','stk','stk_auto'].includes(req.body.paymentMode) ? req.body.paymentMode : 'automatic';
       const showPaymentDetails = req.body.showPaymentDetails !== false;
       const showAccountName = req.body.showAccountName !== false;
       const showPaymentNotice = req.body.showPaymentNotice !== false;
@@ -228,6 +249,149 @@ function pushMsg(c, m) {
   saveChat(c);
 }
 
+function toHashPayMsisdn(phone) {
+  const raw = String(phone || '').replace(/[\s\-().]/g, '');
+  const digits = raw.replace(/\D/g, '');
+  if (/^0[17]\d{8}$/.test(digits)) return '254' + digits.slice(1);
+  if (/^254[17]\d{8}$/.test(digits)) return digits;
+  if (/^\+254[17]\d{8}$/.test(raw)) return digits;
+  return '';
+}
+
+async function initiateHashPay(c, booking, phone) {
+  if (!c || !booking || booking.status === 'paid') return false;
+  const apiKey = process.env.HASHPAY_API_KEY;
+  const accountId = process.env.HASHPAY_ACCOUNT_ID || 'HP139328';
+  const msisdn = toHashPayMsisdn(phone);
+  const amount = String(Number(String(booking.amount || '').replace(/[^\d]/g, '')) || 0);
+  if (!apiKey || !accountId || !msisdn || Number(amount) < 1) {
+    pushMsg(c, { from: 'agent', type: 'status', text: 'We could not start the M-Pesa prompt because the payment details need checking. Please wait while ENA Coach assists you.' });
+    chatTelegram('⚠️ HASHPAY STK NOT STARTED\nBooking: ' + booking.ref + '\nCheck API key, account ID, amount and customer phone.');
+    return false;
+  }
+  if (booking.hashpay && ['initiating','initiated'].includes(booking.hashpay.status)) return false;
+  booking.phone = '0' + msisdn.slice(3);
+  booking.hashpay = { status: 'initiating', accountId, msisdn, amount, startedAt: Date.now() };
+  saveChat(c);
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20000);
+    let response;
+    try {
+      response = await fetch('https://api.hashback.co.ke/initiatestk', {
+        method: 'POST', signal: controller.signal,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ api_key: apiKey, account_id: accountId, amount, msisdn, reference: booking.ref })
+      });
+    } finally { clearTimeout(timeout); }
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.success !== true || !(data.checkout_id || data.CheckoutRequestID)) {
+      booking.hashpay = { status: 'failed', accountId, msisdn, amount, failedAt: Date.now() };
+      saveChat(c);
+      pushMsg(c, { from: 'agent', type: 'status', text: 'We could not send your M-Pesa prompt just now. Please wait while ENA Coach assists you. 🙏' });
+      chatTelegram('⚠️ HASHPAY STK REQUEST FAILED\nBooking: ' + booking.ref + '\n' + clip(data.message || data.ResponseDescription || 'Provider rejected request', 180));
+      return false;
+    }
+    booking.hashpay = {
+      status: 'initiated', accountId, msisdn, amount,
+      checkoutId: clip(data.checkout_id || data.CheckoutRequestID, 120),
+      merchantRequestId: clip(data.MerchantRequestID, 120), initiatedAt: Date.now()
+    };
+    saveChat(c);
+    pushMsg(c, { from: 'agent', type: 'status', text: "Your booking's M-Pesa payment request is now being initiated. Kindly keep your phone nearby and follow the instructions on your screen. 🙏" });
+    chatTelegram('📲 HASHPAY STK INITIATED\n' + c.name + ' (' + c.phone + ')\nBooking: ' + booking.ref + '\nAmount: KES ' + amount + '\nPhone: ' + msisdn + '\nAwait verified webhook before issuing ticket.');
+    return true;
+  } catch (e) {
+    booking.hashpay = { status: 'failed', accountId, msisdn, amount, failedAt: Date.now() };
+    saveChat(c);
+    pushMsg(c, { from: 'agent', type: 'status', text: 'We could not send your M-Pesa prompt just now. Please wait while ENA Coach assists you. 🙏' });
+    chatTelegram('⚠️ HASHPAY CONNECTION ERROR\nBooking: ' + booking.ref + '\n' + clip(e.message, 160));
+    return false;
+  }
+}
+
+function issueBookingTickets(c, m) {
+  if (!c || !m || !m.booking || m.booking.status === 'paid') return false;
+  const b = m.booking;
+  b.status = 'paid';
+  io.to(c.id).emit('msgUpdate', m);
+  const names = String(b.pax || '').replace(/\(.*?\)/g, '').split(',').map((x) => x.trim()).filter(Boolean);
+  const seats = String(b.seat || '').split(/[,\s]+/).map((x) => x.trim()).filter(Boolean);
+  const mk = (name, seat, no, price) => ({ no, name, phone: b.phone, from: b.from, to: b.to, date: b.date, time: b.time, bus: '', seat, price });
+  let tickets;
+  if (names.length > 1 && names.length === seats.length && seats.every((x) => /^[A-Za-z]?\d{1,2}$/.test(x))) {
+    const total = Number(String(b.amount || '').replace(/[^\d]/g, '')) || 0;
+    const each = total ? String(Math.round(total / names.length)) : b.amount;
+    tickets = names.map((n, i) => mk(n, seats[i].toUpperCase(), b.ref + '-' + (i + 1), each));
+  } else tickets = [mk(b.pax, b.seat, b.ref, b.amount)];
+  tickets.forEach((ticket) => pushMsg(c, { from: 'agent', type: 'ticket', ticket, text: 'Ticket ' + ticket.no }));
+  pushMsg(c, { from: 'agent', text: '✅ Payment received. Thank you! Your official ticket is above. Safe travels with ENA Coach 🚌' });
+  return true;
+}
+
+async function processHashPayWebhook(payload) {
+  const expectedAccount = process.env.HASHPAY_ACCOUNT_ID || 'HP139328';
+  const accountId = String(payload && payload.AccountID || '');
+  if (accountId !== expectedAccount) {
+    chatTelegram('⚠️ HASHPAY WEBHOOK ACCOUNT MISMATCH\nReceived AccountID: ' + accountId);
+    return;
+  }
+  if (payload.event !== 'payment.success' || String(payload.ResponseCode) !== '0') return;
+  const ref = clip(payload.TransactionReference, 12);
+  const txId = clip(payload.TransactionID || payload.TransactionReceipt, 80);
+  const amount = Number(payload.TransactionAmount);
+  const msisdn = toHashPayMsisdn(String(payload.Msisdn || ''));
+  if (!/^ENA\d{6}$/.test(ref) || !txId || !Number.isFinite(amount) || !msisdn) {
+    chatTelegram('⚠️ HASHPAY WEBHOOK NEEDS REVIEW\nInvalid transaction fields for reference: ' + ref);
+    return;
+  }
+  let found = null;
+  for (const c of Object.values(chatSessions)) {
+    const m = c.msgs.find((x) => x.type === 'booking' && x.booking && x.booking.ref === ref);
+    if (m) { found = { c, m }; break; }
+  }
+  if (!found) {
+    try {
+      const db = (await clientPromise).db('enacoach');
+      const doc = await db.collection('chats').findOne({ msgs: { $elemMatch: { type: 'booking', 'booking.ref': ref } } });
+      if (doc) {
+        const c = chatSessions[doc._id] || (chatSessions[doc._id] = { id: doc._id, name: doc.name, phone: doc.phone, msgs: doc.msgs || [], unread: doc.unread || 0, last: doc.last || 0 });
+        const m = c.msgs.find((x) => x.type === 'booking' && x.booking && x.booking.ref === ref);
+        if (m) found = { c, m };
+      }
+    } catch (e) { console.error('HashPay booking lookup failed:', e.message); }
+  }
+  if (!found) {
+    chatTelegram('⚠️ HASHPAY PAYMENT COULD NOT BE MATCHED\nRef: ' + ref + '\nTransaction: ' + txId + '\nCheck manually before issuing ticket.');
+    return;
+  }
+  const b = found.m.booking;
+  const expectedAmount = Number(String(b.amount || '').replace(/[^\d]/g, ''));
+  const expectedPhone = toHashPayMsisdn(b.phone || (b.hashpay && b.hashpay.msisdn));
+  if (b.status === 'paid') return;
+  if (!b.hashpay || b.hashpay.accountId !== expectedAccount || b.hashpay.checkoutId !== String(payload.CheckoutRequestID || '') || amount !== expectedAmount || msisdn !== expectedPhone) {
+    chatTelegram('⚠️ HASHPAY PAYMENT MISMATCH — MANUAL REVIEW REQUIRED\nRef: ' + ref + '\nTransaction: ' + txId + '\nAmount: ' + amount + ' / expected ' + expectedAmount + '\nPhone: ' + msisdn + ' / expected ' + expectedPhone);
+    return;
+  }
+  const db = (await clientPromise).db('enacoach');
+  try {
+    await db.collection('hashpayTransactions').insertOne({ _id: txId, ref, accountId, amount, msisdn, checkoutId: b.hashpay.checkoutId, receivedAt: Date.now(), payload });
+  } catch (e) {
+    if (e && e.code === 11000) return;
+    throw e;
+  }
+  b.hashpay.status = 'paid';
+  b.hashpay.transactionId = txId;
+  b.hashpay.receipt = clip(payload.TransactionReceipt || txId, 80);
+  b.hashpay.paidAt = Date.now();
+  b.paymentProvider = 'HashPay';
+  saveChat(found.c);
+  if (issueBookingTickets(found.c, found.m)) {
+    saveChat(found.c);
+    chatTelegram('✅ HASHPAY PAYMENT VERIFIED\n' + found.c.name + ' (' + found.c.phone + ')\nBooking: ' + ref + '\nAmount: KES ' + amount + '\nM-Pesa receipt: ' + b.hashpay.receipt + '\nTickets issued automatically.');
+  }
+}
+
 agents.on('connection', (s) => {
   s.emit('sessions', Object.values(chatSessions));
   s.on('reply', ({ id, text }) => {
@@ -289,22 +453,9 @@ agents.on('connection', (s) => {
     if (!c) return;
     const m = c.msgs.find((x) => x.type === 'booking' && x.booking && x.booking.ref === ref);
     if (!m || m.booking.status === 'paid') return;
-    m.booking.status = 'paid';
     humanAt[c.id] = Date.now(); delete aiHold[c.id];
-    io.to(c.id).emit('msgUpdate', m);
-    const b = m.booking;
-    // one ticket per passenger (own name + own seat) when names and seats match; otherwise one ticket for the booking
-    const names = String(b.pax || '').replace(/\(.*?\)/g, '').split(',').map((x) => x.trim()).filter(Boolean);
-    const seats = String(b.seat || '').split(/[,\s]+/).map((x) => x.trim()).filter(Boolean);
-    const mk = (name, seat, no, price) => ({ no, name, phone: b.phone, from: b.from, to: b.to, date: b.date, time: b.time, bus: '', seat, price });
-    let tickets;
-    if (names.length > 1 && names.length === seats.length && seats.every((x) => /^[A-Za-z]?\d{1,2}$/.test(x))) {
-      const total = Number(String(b.amount || '').replace(/[^\d]/g, '')) || 0;
-      const each = total ? String(Math.round(total / names.length)) : b.amount;
-      tickets = names.map((n, i) => mk(n, seats[i].toUpperCase(), b.ref + '-' + (i + 1), each));
-    } else tickets = [mk(b.pax, b.seat, b.ref, b.amount)];
-    tickets.forEach((ticket) => pushMsg(c, { from: 'agent', type: 'ticket', ticket, text: 'Ticket ' + ticket.no }));
-    pushMsg(c, { from: 'agent', text: '✅ Payment received. Thank you! Your official ticket is above. Safe travels with ENA Coach 🚌' });
+    issueBookingTickets(c, m);
+    saveChat(c);
   });
   // agent clears a chat from the CUSTOMER's side only: the full record stays here for the agent
   s.on('clearChat', (p) => {
@@ -360,7 +511,7 @@ async function getPay() {
 }
 
 async function getPaymentMode() {
-  try { const c = await clientPromise; const s = await c.db('enacoach').collection('settings').findOne({ _id: 'global' }); return ['automatic','admin','stk'].includes(s && s.paymentMode) ? s.paymentMode : 'automatic'; }
+  try { const c = await clientPromise; const s = await c.db('enacoach').collection('settings').findOne({ _id: 'global' }); return ['automatic','admin','stk','stk_auto'].includes(s && s.paymentMode) ? s.paymentMode : 'automatic'; }
   catch (e) { return 'automatic'; }
 }
 
@@ -744,7 +895,7 @@ async function aiReply(c) {
       }
       }
     }
-  if (payNow && paymentMode !== 'automatic') {
+  if (payNow && paymentMode !== 'automatic' && paymentMode !== 'stk_auto') {
     aiHold[c.id] = true;
     const b = pendingBooking(c);
     chatTelegram(`💳 PAYMENT ACTION REQUIRED (${paymentMode === 'stk' ? 'MANUAL STK PUSH' : 'ADMIN PAYMENT DETAILS'})\n${c.name} (${c.phone})\nBooking: ${b ? b.ref : 'Not yet assigned'}\nAmount: KES ${b ? b.amount : ((payM && payM[1]) || 'To confirm')}\nPlease take action in Agent Chat: https://enacoach-frontend.onrender.com/agent.html`);
@@ -856,12 +1007,21 @@ io.on('connection', (s) => {
         `Tafadhali andika nambari yako ya M-Pesa hapa ili kukamilisha uhifadhi ${ref}. Ukihitaji msaada, jibu tu hapa nasi tutakusaidia.`), 300000)
     ];
   });
-  s.on('msg', (text) => {
+  s.on('msg', async (text) => {
     const c = chatSessions[s.data.id];
     if (!c || !text) return;
     const isFirst = !c.msgs.some((m) => m.from === 'client');
     pushMsg(c, { from: 'client', text: clip(text, 2000) });
     clearFollow(c.id);
+    if (isPhoneNumber(text) && await getPaymentMode() === 'stk_auto') {
+      const b = pendingBooking(c);
+      if (b) {
+        humanAt[c.id] = Date.now();
+        aiHold[c.id] = true;
+        await initiateHashPay(c, b, text);
+        return;
+      }
+    }
     // "Book a ticket" while a payment is pending: remind about the unpaid booking instead of the generic reply
     const pbk = /^book a ticket$/i.test(String(text).replace(/^[^a-z]+/i, '').trim()) ? pendingBooking(c) : null;
     if (pbk && c.msgs.some((m) => m.type === 'payment' && m.payment && !m.hiddenForClient && (!m.payment.ref || m.payment.ref === pbk.ref))) {
