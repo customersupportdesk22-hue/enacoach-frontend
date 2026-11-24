@@ -193,15 +193,6 @@ body.enc-open{overflow:hidden}
       aw.style.cssText = 'margin:0 12px 6px;padding:4px 6px;border-radius:6px;background:#fff7ed;border:1px solid #fdba74;color:#9a3412;text-align:center;font:600 10px/1.3 Arial,sans-serif';
       d.appendChild(aw);
     }
-    var check = document.createElement('div'); check.style.cssText = 'padding:0 12px 8px;text-align:center;color:#334155;font:600 12px Arial,sans-serif';
-    check.textContent = 'Does the account name shown on M-Pesa match the name on this card?';
-    d.appendChild(check);
-    var choice = document.createElement('div'); choice.style.cssText = 'display:flex;gap:8px;padding:0 12px 8px';
-    var yes = document.createElement('button'); yes.type = 'button'; yes.textContent = 'Yes, it matches';
-    yes.style.cssText = 'flex:1;border:0;border-radius:18px;padding:10px 8px;background:#16803c;color:#fff;font-weight:700';
-    var no = document.createElement('button'); no.type = 'button'; no.textContent = 'No, cancel';
-    no.style.cssText = 'flex:1;border:1px solid #dc2626;border-radius:18px;padding:10px 8px;background:#fff;color:#b91c1c;font-weight:700';
-    choice.appendChild(yes); choice.appendChild(no); d.appendChild(choice);
     var n = document.createElement('div');
     n.style.cssText = 'margin:4px 12px 12px;padding:14px 13px;border:1px solid #86d6a0;border-left:5px solid #16803c;border-radius:10px;background:#effaf2;color:#244b35;text-align:center;box-sizing:border-box;font:600 14px/1.6 Arial,sans-serif';
     n.appendChild(document.createTextNode('After payment, you will receive an M-Pesa confirmation message from '));
@@ -209,14 +200,12 @@ body.enc-open{overflow:hidden}
     brand.textContent = 'ENACOACH';
     brand.style.cssText = 'display:inline-block;color:#126332;font:bold 15px/1.4 Arial,sans-serif;letter-spacing:.7px;white-space:nowrap';
     n.appendChild(brand);
-    n.appendChild(document.createTextNode(', and your ticket will also appear here in this chat.'));
+    n.appendChild(document.createTextNode(', and your ticket will also appear here in this chat. Please keep your ticket safe and present it to our staff when boarding.'));
     d.appendChild(n);
-    var pw = document.createElement('div'); pw.style.cssText = 'padding:0 12px 12px;display:none';
+    var pw = document.createElement('div'); pw.style.cssText = 'padding:0 12px 12px';
     var pbtn = document.createElement('button'); pbtn.type = 'button'; pbtn.className = 'enc-paid-btn'; pbtn.setAttribute('data-ref', String(p.ref || ''));
     pbtn.style.cssText = 'width:100%;border:0;border-radius:22px;padding:11px 14px;color:#fff;font:bold 15px system-ui,sans-serif';
     setPaidBtn(pbtn, '✅ I have paid', true);
-    yes.onclick = function () { choice.style.display = 'none'; check.textContent = 'Thank you. Please complete your payment using the details above.'; pw.style.display = 'block'; };
-    no.onclick = function () { choice.style.display = 'none'; check.textContent = 'Payment cancelled for your safety. Please do not send money to this account. Contact ENA Coach for verified payment details.'; pw.style.display = 'none'; n.style.display = 'none'; };
     pbtn.onclick = function () {
       if (pbtn.disabled) return;
       if (!socket || !socket.connected) return toast('Not connected. Please try again.');
