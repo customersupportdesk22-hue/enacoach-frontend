@@ -89,7 +89,7 @@ body.enc-open{overflow:hidden}
 .enc-mt{display:block;text-align:right;font-size:10.5px;line-height:1;color:#667781;margin-top:3px;white-space:nowrap}
 .enc-img .enc-mt{padding:0 4px 2px}
 .enc-tk{margin-left:4px;letter-spacing:-2px;font-size:11px}
-.enc-tk.seen{color:#34b7f1}
+.enc-tk.seen{color:#34b7f1}.enc-receipt{margin-left:4px;color:#667781;letter-spacing:0;font-size:10px}
 .enc-ag{margin-left:34px;max-width:calc(80% - 20px)}
 .enc-agent-name{display:block;margin:0 0 5px;color:#34398e;font:700 10px/1.2 system-ui,sans-serif;letter-spacing:.2px}
 .enc-lg{position:absolute;left:-34px;bottom:0;width:26px;height:26px;border-radius:50%;background:#fff;border:1px solid #e5e7eb;overflow:hidden;display:flex;align-items:center;justify-content:center;font:700 13px system-ui,sans-serif;color:#fff}
@@ -253,7 +253,19 @@ body.enc-open{overflow:hidden}
     if (m.t) {
       var mt = document.createElement('span'); mt.className = 'enc-mt';
       mt.appendChild(document.createTextNode(clock(m.t)));
-      if (m.from === 'client') { var tk = document.createElement('span'); tk.className = 'enc-tk' + (m.seen ? ' seen' : ''); tk.textContent = m.seen ? '✓✓' : '✓'; mt.appendChild(tk); }
+      if (m.from === 'client') {
+        var tk = document.createElement('span');
+        var readAt = m.seenAt || 0, deliveredAt = m.deliveredAt || 0;
+        tk.className = 'enc-tk' + (m.seen ? ' seen' : '');
+        tk.textContent = m.seen || deliveredAt ? '✓✓' : '✓';
+        mt.appendChild(tk);
+        var receipt = document.createElement('span');
+        receipt.className = 'enc-receipt';
+        if (m.seen && readAt) receipt.textContent = 'Seen ' + clock(readAt);
+        else if (deliveredAt) receipt.textContent = 'Delivered ' + clock(deliveredAt);
+        else receipt.textContent = 'Sent';
+        mt.appendChild(receipt);
+      }
       d.appendChild(mt);
     }
     if (m.from === 'agent') { d.classList.add('enc-ag'); d.appendChild(logoDot()); }
@@ -282,7 +294,7 @@ body.enc-open{overflow:hidden}
     else if (m.type === 'image' && m.file) d = imageBubble(m);
     else { d = document.createElement('div'); d.className = 'enc-m ' + (m.from === 'client' ? 'enc-c' : 'enc-a') + (m.unsent ? ' enc-un' : ''); d.textContent = m.text; }
     if (m.from === 'agent' && !m.unsent) { var sender = document.createElement('span'); sender.className = 'enc-agent-name'; sender.textContent = 'Agent Mary Muthoni'; d.insertBefore(sender, d.firstChild); }
-    if (m.type !== 'booking' && m.type !== 'payment' && m.type !== 'ticket' && !m.unsent) decorate(d, m);
+    if (m.type !== 'payment' && m.type !== 'ticket' && !m.unsent) decorate(d, m);
     if (m.id) { d.setAttribute('data-id', m.id); store[m.id] = m; }
     if (m.likes && m.likes.client) { d.classList.add('enc-liked'); var h = document.createElement('span'); h.className = 'enc-lk'; h.textContent = '\u2764\uFE0F'; d.appendChild(h); }
     return d;
@@ -472,11 +484,13 @@ body.enc-open{overflow:hidden}
           if (box.style.display === 'flex' && !m.auto) { tone('in'); try { navigator.vibrate && navigator.vibrate([150, 80, 150]); } catch (e) {} }
         }
       });
-      socket.on('seen', function (ids) {
-        (ids || []).forEach(function (mid) {
-          var m = store[mid]; if (!m) return; m.seen = true;
-          var e = findEl(mid), tk = e && e.querySelector('.enc-tk');
-          if (tk) { tk.className = 'enc-tk seen'; tk.textContent = '✓✓'; }
+      socket.on('seen', function (items) {
+        (items || []).forEach(function (item) {
+          var mid = typeof item === 'string' ? item : item.id;
+          var m = store[mid]; if (!m) return;
+          m.seen = true; m.seenAt = (typeof item === 'object' && item.seenAt) || Date.now();
+          var e = findEl(mid);
+          if (e) { var n = build(m); msgs.replaceChild(n, e); }
         });
       });
       socket.on('fileError', function (t) { toast(t); });
