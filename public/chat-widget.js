@@ -194,13 +194,13 @@ body.enc-open{overflow:hidden}
       d.appendChild(aw);
     }
     var n = document.createElement('div');
-    n.style.cssText = 'margin:4px 12px 12px;padding:14px 13px;border:1px solid #86d6a0;border-left:5px solid #16803c;border-radius:10px;background:#effaf2;color:#244b35;text-align:center;box-sizing:border-box;font:600 14px/1.6 Arial,sans-serif';
+    n.style.cssText = 'margin:4px 12px 12px;padding:15px 14px;border:1px solid #86d6a0;border-left:5px solid #16803c;border-radius:10px;background:#effaf2;color:#244b35;text-align:left;box-sizing:border-box;font:600 14px/1.65 Arial,sans-serif;white-space:pre-line;overflow-wrap:anywhere';
     n.appendChild(document.createTextNode('After payment, you will receive an M-Pesa confirmation message from '));
-    var brand = document.createElement('span');
+    var brand = document.createElement('strong');
     brand.textContent = 'ENACOACH';
-    brand.style.cssText = 'display:inline-block;color:#126332;font:bold 15px/1.4 Arial,sans-serif;letter-spacing:.7px;white-space:nowrap';
+    brand.style.cssText = 'color:#126332;font-weight:800;letter-spacing:.5px';
     n.appendChild(brand);
-    n.appendChild(document.createTextNode(', and your ticket will also appear here in this chat. Please keep your ticket safe and present it to our staff when boarding.'));
+    n.appendChild(document.createTextNode(', and your ticket will be sent here in this chat.\\n\\nPlease keep your ticket safe and present it to our staff when boarding.\\n\\nKindly arrive at your boarding point at least 30 minutes before the scheduled departure time.'));
     d.appendChild(n);
     var pw = document.createElement('div'); pw.style.cssText = 'padding:0 12px 12px';
     var pbtn = document.createElement('button'); pbtn.type = 'button'; pbtn.className = 'enc-paid-btn'; pbtn.setAttribute('data-ref', String(p.ref || ''));
