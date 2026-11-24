@@ -168,6 +168,40 @@ body.enc-open{overflow:hidden}
       '<div class="st' + (paid ? ' ok' : ' wait') + '">' + (paid ? '✅ Payment confirmed · ticket issued' : '<span class="hg">⏳</span> ' + (b.paidClaimed ? 'Payment verification in progress' : 'Waiting for payment')) + '</div></div>';
     return d;
   }
+  function hashpayCard(m) {
+    var d = document.createElement('div'); d.className = 'enc-m enc-a';
+    d.style.cssText = 'width:300px;max-width:92%;padding:0;border:1.5px solid #16803c;border-radius:14px;overflow:hidden;background:#fff;color:#172033';
+    var head = document.createElement('div'); head.textContent = 'ENA COACH · SECURE M-PESA PAYMENT';
+    head.style.cssText = 'background:#087c45;color:#fff;padding:12px 14px;font:bold 12px Arial,sans-serif;letter-spacing:.35px'; d.appendChild(head);
+    var body = document.createElement('div'); body.style.cssText = 'padding:14px';
+    var ref = document.createElement('div'); ref.textContent = 'BOOKING REFERENCE · ' + String(m.ref || '');
+    ref.style.cssText = 'font:700 10px Arial,sans-serif;color:#6b7280;margin-bottom:8px'; body.appendChild(ref);
+    var amount = document.createElement('div'); amount.textContent = 'KES ' + fmt(m.amount);
+    amount.style.cssText = 'font:bold 25px Arial,sans-serif;color:#123b2b;margin-bottom:12px'; body.appendChild(amount);
+    var label = document.createElement('label'); label.textContent = 'M-Pesa phone number';
+    label.style.cssText = 'display:block;font:600 12px Arial,sans-serif;margin-bottom:6px;color:#374151'; body.appendChild(label);
+    var input = document.createElement('input'); input.type = 'tel'; input.inputMode = 'tel'; input.autocomplete = 'tel';
+    input.placeholder = 'e.g. 0712345678'; input.value = String(m.phone || localStorage.getItem('enc_ph') || '');
+    input.style.cssText = 'box-sizing:border-box;width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:8px;font:16px Arial,sans-serif;color:#111;background:#fff'; body.appendChild(input);
+    var pay = document.createElement('button'); pay.type = 'button'; pay.textContent = 'Pay KES ' + fmt(m.amount) + ' with STK Push';
+    pay.style.cssText = 'width:100%;margin-top:12px;padding:12px 10px;border:0;border-radius:24px;background:#087c45;color:#fff;font:bold 14px Arial,sans-serif';
+    pay.setAttribute('data-hp-ref', String(m.ref || ''));
+    pay.onclick = function () {
+      if (pay.disabled) return;
+      var phone = input.value.trim();
+      if (!/^((0[17][0-9]{8})|(254[17][0-9]{8})|(\+254[17][0-9]{8}))$/.test(phone.replace(/[\s-]/g, ''))) {
+        toast('Enter a valid Kenyan M-Pesa number, for example 0712345678.'); input.focus(); return;
+      }
+      if (!socket || !socket.connected) return toast('Not connected. Please try again.');
+      pay.disabled = true; pay.textContent = 'Requesting M-Pesa prompt…'; pay.style.opacity = '.7';
+      socket.emit('hashpay:request', { ref: String(m.ref || ''), phone: phone }); tone('out');
+    };
+    body.appendChild(pay);
+    var note = document.createElement('div'); note.textContent = 'Check the amount before continuing. You will receive an M-Pesa prompt on your phone and enter your M-Pesa PIN there.';
+    note.style.cssText = 'margin-top:10px;font:11px/1.45 Arial,sans-serif;color:#64748b'; body.appendChild(note);
+    d.appendChild(body); return d;
+  }
+
   var store = {};
   // pc-poster
   function fmt(n) { var v = Number(String(n).replace(/[^0-9.]/g, '')); return v ? v.toLocaleString('en-US') : String(n); }
@@ -272,6 +306,7 @@ body.enc-open{overflow:hidden}
   function build(m) {
     var d;
     if (m.type === 'booking' && m.booking) d = bookingCard(m.booking);
+    else if (m.type === 'hashpay') d = hashpayCard(m);
     else if (m.type === 'payment') d = payment(m.payment);
     else if (m.type === 'ticket') d = ticket(m.ticket);
     else if (m.type === 'status') {
@@ -500,6 +535,15 @@ body.enc-open{overflow:hidden}
           m.seen = true; m.seenAt = (typeof item === 'object' && item.seenAt) || Date.now();
           var e = findEl(mid);
           if (e) { var n = build(m); msgs.replaceChild(n, e); }
+        });
+      });
+      socket.on('hashpay:result', function (r) {
+        if (!r || !r.ref) return;
+        var cards = msgs.querySelectorAll('button[data-hp-ref]');
+        Array.prototype.forEach.call(cards, function (b) {
+          if (b.getAttribute('data-hp-ref') !== String(r.ref)) return;
+          if (r.success) { b.textContent = 'M-Pesa prompt requested'; b.disabled = true; }
+          else { b.disabled = false; b.textContent = 'Pay with STK Push'; b.style.opacity = '1'; if (r.message) toast(r.message); }
         });
       });
       socket.on('fileError', function (t) { toast(t); });
