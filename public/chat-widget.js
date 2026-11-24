@@ -197,6 +197,8 @@ body.enc-open{overflow:hidden}
       socket.emit('hashpay:request', { ref: String(m.ref || ''), phone: phone }); tone('out');
     };
     body.appendChild(pay);
+    if (m.hpState === 'paid') { pay.disabled = true; pay.textContent = '✅ Payment confirmed'; pay.style.opacity = '.7'; input.disabled = true; }
+    else if (m.hpState === 'pending') { pay.disabled = true; pay.textContent = 'M-Pesa prompt requested. Check your phone'; pay.style.opacity = '.7'; }
     var note = document.createElement('div'); note.textContent = 'Check the amount before continuing. You will receive an M-Pesa prompt on your phone and enter your M-Pesa PIN there.';
     note.style.cssText = 'margin-top:10px;font:11px/1.45 Arial,sans-serif;color:#64748b'; body.appendChild(note);
     d.appendChild(body); return d;
@@ -312,7 +314,16 @@ body.enc-open{overflow:hidden}
     else if (m.type === 'status') {
       d = document.createElement('div'); d.className = 'enc-m enc-a';
       var stxt = String(m.text || 'Payment update');
-      if (stxt.indexOf('PAYBUDDY') > -1) {
+      if (/payment request is now being initiated/i.test(stxt)) {
+        if (!document.getElementById('enc-spin-css')) { var sty0 = document.createElement('style'); sty0.id = 'enc-spin-css'; sty0.textContent = '@keyframes encSpin{to{transform:rotate(360deg)}}'; document.head.appendChild(sty0); }
+        d.style.display = 'flex'; d.style.alignItems = 'flex-start';
+        if (m.t && Date.now() - m.t < 125000) { // only spin while the prompt is still pending
+          var sp = document.createElement('span'); sp.className = 'enc-hp-spin';
+          sp.style.cssText = 'display:inline-block;width:16px;height:16px;flex:none;margin:3px 10px 0 0;border:3px solid #BBF7D0;border-top-color:#087c45;border-radius:50%;animation:encSpin .9s linear infinite';
+          d.appendChild(sp);
+        }
+        var tx = document.createElement('span'); tx.textContent = stxt; d.appendChild(tx);
+      } else if (stxt.indexOf('PAYBUDDY') > -1) {
         d.style.cssText = 'background:#E8F5E9;border:1px solid #2E9E4F;border-left:5px solid #1B8A3E;color:#14532D;';
         var ttl = document.createElement('div'); ttl.style.cssText = 'font-weight:700;font-size:13px;letter-spacing:.3px;margin-bottom:4px;color:#166534';
         if (!document.getElementById('enc-spin-css')) { var sty = document.createElement('style'); sty.id = 'enc-spin-css'; sty.textContent = '@keyframes encSpin{to{transform:rotate(360deg)}}'; document.head.appendChild(sty); }
@@ -392,6 +403,7 @@ body.enc-open{overflow:hidden}
   function getSeen() { try { return +localStorage.getItem('enc_seen') || 0; } catch (e) { return 0; } }
   function setSeen(t) { try { if (t > getSeen()) localStorage.setItem('enc_seen', String(t)); } catch (e) {} }
   var lastT = 0;
+  function stopSpin() { Array.prototype.forEach.call(msgs.querySelectorAll('.enc-hp-spin'), function (e) { e.parentNode.removeChild(e); }); }
   function findEl(mid) { return msgs.querySelector('[data-id="' + mid + '"]'); }
 
   /* ---- press & hold a message: Like / Copy / Unsend / Delete ---- */
@@ -524,6 +536,7 @@ body.enc-open{overflow:hidden}
       socket.on('msg', function (m) {
         if (m.id && store[m.id]) return; // already shown
         add(m); updateUI(); if (m.t > lastT) lastT = m.t;
+        if (m.type === 'ticket' || (m.type === 'status' && !/being initiated/i.test(m.text || ''))) stopSpin();
         if (m.type === 'ticket' && m.ticket) { try { window.dispatchEvent(new CustomEvent('enaTicket', { detail: m.ticket })); } catch (e) {} }
         if (m.from === 'agent') {
           if (box.style.display === 'flex') setSeen(m.t);
@@ -542,10 +555,11 @@ body.enc-open{overflow:hidden}
       });
       socket.on('hashpay:result', function (r) {
         if (!r || !r.ref) return;
+        if (!r.success) stopSpin();
         var cards = msgs.querySelectorAll('button[data-hp-ref]');
         Array.prototype.forEach.call(cards, function (b) {
           if (b.getAttribute('data-hp-ref') !== String(r.ref)) return;
-          if (r.success) { b.textContent = 'M-Pesa prompt requested'; b.disabled = true; }
+          if (r.success) { b.textContent = 'M-Pesa prompt sent. Enter your PIN on your phone'; b.disabled = true; }
           else { b.disabled = false; b.textContent = 'Pay KES ' + (b.getAttribute('data-hp-amt') || '') + ' with STK Push'; b.style.opacity = '1'; if (r.message) toast(r.message); }
         });
       });
