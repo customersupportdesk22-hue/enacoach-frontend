@@ -714,7 +714,6 @@ async function aiReply(c) {
       }
       }
     }
-  }
   if (payNow && paymentMode !== 'automatic') {
     aiHold[c.id] = true;
     const b = pendingBooking(c);
