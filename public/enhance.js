@@ -13,7 +13,7 @@
   cs.textContent = '#enc-btn{bottom:165px!important}#enc-box{bottom:80px!important}';
   document.head.appendChild(cs);
   var ws = document.createElement('script');
-  ws.src = BASE + '/chat-widget.js?v=20261124-2';
+  ws.src = BASE + '/chat-widget.js?v=20261124-3';
   ws.onload = function () {
     var c = document.querySelector('#screen-help .why-card');
     if (c) { c.style.cursor = 'pointer'; c.onclick = function () { if (window.ENAChat) window.ENAChat.open(); }; }
