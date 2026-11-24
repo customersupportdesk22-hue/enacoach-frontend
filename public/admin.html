@@ -70,7 +70,7 @@
   <h3>2. Global Payment Control</h3>
   <div class="form-group"><label>How should the AI handle customer payments?</label>
     <select id="paymentMode"><option value="automatic">Automatic — AI sends official Paybill/Till details</option><option value="admin">Admin controlled — customer waits for me to send details</option><option value="stk">Manual STK Push — I initiate the prompt myself</option><option value="stk_auto">Automatic STK Push — HashPay sends the prompt</option></select>
-    <small style="display:block;color:#6B7280;margin-top:6px">Manual STK remains agent-initiated. Automatic STK uses HashPay after the customer sends their M-Pesa number in chat. A ticket is issued only after HashPay confirms payment through the secure webhook.</small>
+    <small style="display:block;color:#6B7280;margin-top:6px">Manual STK remains agent-initiated. Automatic STK uses the HashPay payment card: the customer enters their M-Pesa number in the card and taps Pay. A ticket is issued only after HashPay confirms payment through the secure webhook.</small>
   </div>
 
   <h3>3. Telegram Notifications (Set in Render)</h3>
