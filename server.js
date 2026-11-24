@@ -373,7 +373,7 @@ function aiFail(msg, who) {
   }
 }
 
-// tries the chosen model, retries once when Google is busy (503/429), then falls back to a lighter model
+// Retry temporary Gemini overloads, timeouts and network interruptions, then try the lighter model.
 async function geminiCall(system, contents) {
   const first = String(aiCfg.model || 'gemini-flash-latest').replace(/^models\//, '');
   const order = [first, first, 'gemini-flash-lite-latest'].filter((m, i, a) => !(i === 2 && m === first));
@@ -382,8 +382,12 @@ async function geminiCall(system, contents) {
     try { return await geminiOnce(system, contents, order[i]); }
     catch (e) {
       lastErr = e;
-      if (!/Gemini (429|500|502|503|504)|timed out/.test(e.message)) throw e; // real problem (bad key, empty reply...): do not retry
-      await new Promise((r) => setTimeout(r, i === 0 ? 1500 : 500));
+      const message = String(e && e.message || e);
+      const temporary = /Gemini (429|500|502|503|504)\b|timed out|fetch failed|network|ECONNRESET|ETIMEDOUT|EAI_AGAIN|socket hang up/i.test(message);
+      if (!temporary || i === order.length - 1) throw e; // Do not retry permanent errors such as an invalid API key or model.
+      const delay = Math.min(4000, 1500 * (2 ** i)); // 1.5s, then 3s.
+      console.warn('Temporary Gemini failure on ' + order[i] + '; retrying in ' + delay + 'ms:', message);
+      await new Promise((r) => setTimeout(r, delay));
     }
   }
   throw lastErr;
@@ -392,7 +396,7 @@ async function geminiOnce(system, contents, modelName) {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error('GEMINI_API_KEY is not set on Render');
   const model = modelName;
-  const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), 20000);
+  const ctl = new AbortController(); const to = setTimeout(() => ctl.abort(), 30000);
   try {
     const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
       method: 'POST', signal: ctl.signal,
