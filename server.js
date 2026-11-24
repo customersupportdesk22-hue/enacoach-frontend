@@ -301,7 +301,7 @@ async function initiateHashPay(c, booking, phone) {
       return false;
     }
     booking.hashpay = {
-      status: 'initiated', accountId, msisdn, amount,
+      status: 'initiated', accountId, msisdn, amount, providerReference,
       checkoutId: clip(data.checkout_id || data.CheckoutRequestID, 120),
       merchantRequestId: clip(data.MerchantRequestID, 120), initiatedAt: Date.now()
     };
