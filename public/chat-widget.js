@@ -185,15 +185,8 @@ body.enc-open{overflow:hidden}
     var lg = document.createElement('img'); lg.src = base + '/logo.png?v=2'; lg.style.cssText = 'width:38px;height:38px;border-radius:50%;background:#fff;object-fit:contain';
     var t = document.createElement('div'); t.innerHTML = '<b style="font:bold 17px Arial,sans-serif">ENA COACH</b><br><span style="font:11px Arial,sans-serif;color:#d7f5dd">OFFICIAL PAYMENT DETAILS</span>';
     h.appendChild(lg); h.appendChild(t); d.appendChild(h);
-    var busWrap = document.createElement('div'); busWrap.style.cssText = 'padding:8px 10px 2px;background:#fff;text-align:center';
-    var busPhoto = document.createElement('img'); busPhoto.src = base + '/buses/bus1.webp'; busPhoto.alt = 'ENA Coach bus'; busPhoto.loading = 'lazy'; busPhoto.style.cssText = 'display:block;width:100%;height:132px;object-fit:cover;border-radius:8px';
-    busWrap.appendChild(busPhoto);
-    var site = document.createElement('div'); site.textContent = 'www.enacoachonlinebooking.co.ke'; site.style.cssText = 'padding:6px 0 2px;color:#34398e;font:bold 11px Arial,sans-serif;text-align:center';
-    busWrap.appendChild(site);
-    var office = document.createElement('div'); office.style.cssText = 'padding:5px 12px 8px;color:#34398e;text-align:center;font:11px/1.45 Arial,sans-serif';
-    var officeTitle = document.createElement('div'); officeTitle.textContent = 'ENA COACH MAIN OFFICE – NAIROBI'; officeTitle.style.cssText = 'font-weight:bold;margin-bottom:2px';
-    var officeAddress = document.createElement('div'); officeAddress.textContent = 'KPCU Building (Wakulima House), Ground Floor, Haile Selassie Avenue, Nairobi';
-    office.appendChild(officeTitle); office.appendChild(officeAddress); busWrap.appendChild(office); d.appendChild(busWrap);
+
+    // Payment information stays at the top of the card.
     d.appendChild(row(String(p.accountLabel || 'Paybill').toUpperCase() + ' NUMBER', String(p.number || ''), 26));
     if (p.account) d.appendChild(row('ACCOUNT NUMBER', String(p.account), 22));
     if (p.showAccountName !== false) d.appendChild(row('ACCOUNT NAME', String(p.name || 'ENA COACH'), 20));
@@ -209,22 +202,22 @@ body.enc-open{overflow:hidden}
     if (p.account) cp('Copy account', String(p.account));
     d.appendChild(bar);
     // word account numbers (e.g. enacoach) must be typed exactly as shown
-    if (p.account && !/^[0-9\s]+$/.test(String(p.account))) {
+    if (p.account && !/^[0-9\\s]+$/.test(String(p.account))) {
       var aw = document.createElement('div');
       aw.textContent = 'Important: when paying for your booking ticket on M-Pesa, use the account number ' + String(p.account) + ' exactly as shown, in small letters, with no changes and no extra characters.';
       aw.style.cssText = 'margin:0 12px 6px;padding:4px 6px;border-radius:6px;background:#fff7ed;border:1px solid #fdba74;color:#9a3412;text-align:center;font:600 10px/1.3 Arial,sans-serif';
       d.appendChild(aw);
     }
     if (p.showPaymentNotice !== false) {
-    var n = document.createElement('div');
-    n.style.cssText = 'margin:4px 12px 12px;padding:15px 14px;border:1px solid #86d6a0;border-left:5px solid #16803c;border-radius:10px;background:#effaf2;color:#244b35;text-align:left;box-sizing:border-box;font:600 14px/1.65 Arial,sans-serif;white-space:pre-line;overflow-wrap:anywhere';
-    n.appendChild(document.createTextNode('After payment, you will receive an M-Pesa confirmation message from '));
-    var brand = document.createElement('strong');
-    brand.textContent = 'ENACOACH';
-    brand.style.cssText = 'color:#126332;font-weight:800;letter-spacing:.5px';
-    n.appendChild(brand);
-    n.appendChild(document.createTextNode('. Your ticket will be sent to the M-Pesa number you used to pay and will also appear here in this chat.\\n\\nPlease keep your ticket safe and present it to our staff when boarding.\\n\\nKindly arrive at your boarding point at least 30 minutes before departure.'));
-    d.appendChild(n);
+      var n = document.createElement('div');
+      n.style.cssText = 'margin:4px 12px 12px;padding:15px 14px;border:1px solid #86d6a0;border-left:5px solid #16803c;border-radius:10px;background:#effaf2;color:#244b35;text-align:left;box-sizing:border-box;font:600 14px/1.65 Arial,sans-serif;white-space:pre-line;overflow-wrap:anywhere';
+      n.appendChild(document.createTextNode('After payment, you will receive an M-Pesa confirmation message from '));
+      var brand = document.createElement('strong');
+      brand.textContent = 'ENACOACH';
+      brand.style.cssText = 'color:#126332;font-weight:800;letter-spacing:.5px';
+      n.appendChild(brand);
+      n.appendChild(document.createTextNode('. Your ticket will be sent to the M-Pesa number you used to pay and will also appear here in this chat.\\n\\nPlease keep your ticket safe and present it to our staff when boarding.\\n\\nKindly arrive at your boarding point at least 30 minutes before departure.'));
+      d.appendChild(n);
     }
     var pw = document.createElement('div'); pw.style.cssText = 'padding:0 12px 12px';
     var pbtn = document.createElement('button'); pbtn.type = 'button'; pbtn.className = 'enc-paid-btn'; pbtn.setAttribute('data-ref', String(p.ref || ''));
@@ -237,6 +230,17 @@ body.enc-open{overflow:hidden}
       setPaidBtn(pbtn, 'Sent ✓ We are verifying your payment', false);
     };
     pw.appendChild(pbtn); d.appendChild(pw);
+
+    // Bus photo, office address, and website follow the payment section.
+    var busWrap = document.createElement('div'); busWrap.style.cssText = 'padding:8px 10px 8px;background:#fff;text-align:center';
+    var busPhoto = document.createElement('img'); busPhoto.src = base + '/buses/bus1.webp'; busPhoto.alt = 'ENA Coach bus'; busPhoto.loading = 'lazy'; busPhoto.style.cssText = 'display:block;width:100%;height:132px;object-fit:cover;border-radius:8px';
+    busWrap.appendChild(busPhoto);
+    var office = document.createElement('div'); office.style.cssText = 'padding:8px 4px 5px;color:#34398e;text-align:center;font:11px/1.45 Arial,sans-serif';
+    var officeTitle = document.createElement('div'); officeTitle.textContent = 'ENA COACH MAIN OFFICE – NAIROBI'; officeTitle.style.cssText = 'font-weight:bold;margin-bottom:2px';
+    var officeAddress = document.createElement('div'); officeAddress.textContent = 'KPCU Building (Wakulima House), Ground Floor, Haile Selassie Avenue, Nairobi';
+    office.appendChild(officeTitle); office.appendChild(officeAddress); busWrap.appendChild(office);
+    var site = document.createElement('div'); site.textContent = 'www.enacoachonlinebooking.co.ke'; site.style.cssText = 'padding:6px 0 2px;color:#34398e;font:bold 11px Arial,sans-serif;text-align:center';
+    busWrap.appendChild(site); d.appendChild(busWrap);
     return d;
   }
 
