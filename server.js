@@ -1031,6 +1031,10 @@ io.on('connection', (s) => {
       s.emit('hashpay:result', { ref, success: false, message: 'This booking is not currently available for payment.' });
       return;
     }
+    if (booking.hashpay && ['initiating', 'initiated'].includes(booking.hashpay.status)) {
+      s.emit('hashpay:result', { ref, success: true, message: 'An M-Pesa prompt has already been requested for this booking.' });
+      return;
+    }
     const amount = Number(String(booking.amount || '').replace(/[^\d]/g, '')) || 0;
     if (amount < 1 || !toHashPayMsisdn(phone)) {
       s.emit('hashpay:result', { ref, success: false, message: 'Enter a valid Kenyan M-Pesa number and try again.' });
