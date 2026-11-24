@@ -42,8 +42,7 @@ body.enc-open{overflow:hidden}
 #enc-lbl{transition:opacity .6s,transform .6s}
 #enc-lbl.gone{opacity:0;transform:translateX(10px);pointer-events:none}
 .enc-b{max-width:92%;padding:0;background:#d9fdd3;color:#111;border-bottom-right-radius:4px;align-self:flex-end}
-.bk{padding:10px 12px}.bk h4{margin:0 0 6px;color:#075E54;font-size:14px}.bk td{padding:2px 8px 2px 0;font-size:13px;vertical-align:top}.bk td:first-child{color:#6b7280}
-.bk .st{margin-top:6px;font-size:12px;font-weight:700;color:#b45309}.bk .st.ok{color:#047857}
+.bk{padding:0;background:#fff;color:#172033}.bk .bk-head{background:#34398e;color:#fff;padding:11px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px}.bk .bk-brand{font:800 15px system-ui,sans-serif;letter-spacing:.5px}.bk .bk-tag{font:800 9px system-ui,sans-serif;background:#fff1e8;color:#d94b00;border-radius:20px;padding:5px 8px;white-space:nowrap}.bk .bk-photo{display:block;width:100%;height:116px;object-fit:cover}.bk .bk-body{padding:10px 12px}.bk .bk-route{display:flex;align-items:center;justify-content:space-between;gap:8px;color:#34398e;font-weight:800;font-size:15px;text-transform:uppercase}.bk .bk-route span:nth-child(2){color:#ff5c00}.bk .bk-meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}.bk .bk-meta div{font-size:12px;overflow-wrap:anywhere}.bk .bk-meta small{display:block;color:#7b8191;font-size:10px;text-transform:uppercase;margin-bottom:2px}.bk .bk-pass-title{font-size:11px;font-weight:800;color:#34398e;border-top:1px dashed #d8dbea;padding-top:9px;margin-top:8px}.bk .bk-pass{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid #f0f1f5;font-size:12px}.bk .bk-pass b{overflow-wrap:anywhere}.bk .bk-total{display:flex;justify-content:space-between;align-items:center;padding-top:9px;margin-top:4px;font-weight:800}.bk .bk-total strong{font-size:18px;color:#34398e}.bk .st{margin:10px 12px 12px;padding:8px;border-radius:8px;text-align:center;font-size:12px;font-weight:800;color:#b45309;background:#fff7ed;border:1px solid #fed7aa}.bk .st.ok{color:#047857;background:#ecfdf5;border-color:#a7f3d0}
 .bk .st .hg{display:inline-block;animation:encHg 1.6s ease-in-out infinite}
 @keyframes encHg{0%,40%{transform:rotate(0)}70%,100%{transform:rotate(180deg)}}
 #enc-at{background:none;border:0;font-size:24px;padding:8px 4px;align-self:flex-end;cursor:pointer}
@@ -147,11 +146,25 @@ body.enc-open{overflow:hidden}
 
   function bookingCard(b) {
     var d = document.createElement('div'); d.className = 'enc-m enc-b';
-    var r = [['Ref', b.ref], ['Passenger', b.pax], ['Route', b.from + ' → ' + b.to], ['Date', b.date], ['Time', b.time], ['Seat', b.seat], ['Amount', 'KES ' + b.amount]];
+    var passengers = Array.isArray(b.passengers) && b.passengers.length ? b.passengers : [];
+    if (!passengers.length) {
+      var names = String(b.pax || 'Passenger').split(',').map(function (x) { return x.trim(); }).filter(Boolean);
+      var seats = String(b.seat || '').split(',').map(function (x) { return x.trim(); });
+      passengers = names.map(function (name, i) { return { name: name, seat: seats[i] || (seats.length === 1 ? seats[0] : '') }; });
+    }
+    var passengerHtml = passengers.map(function (p, i) {
+      return '<div class="bk-pass"><b>' + esc(p.name || ('Passenger ' + (i + 1))) + '</b><span>' + (p.seat ? 'Seat ' + esc(p.seat) : '') + '</span></div>';
+    }).join('');
     var paid = b.status === 'paid';
-    d.innerHTML = '<div class="bk"><h4>🎫 My booking</h4><table>' +
-      r.map(function (x) { return '<tr><td>' + x[0] + '</td><td><b>' + esc(x[1]) + '</b></td></tr>'; }).join('') +
-      '</table><div class="st' + (paid ? ' ok' : ' wait') + '">' + (paid ? '✅ Paid - ticket issued' : '<span class="hg">⏳</span> ' + (b.paidClaimed ? 'Verifying your payment' : 'Awaiting payment')) + '</div></div>';
+    d.innerHTML = '<div class="bk"><div class="bk-head"><span class="bk-brand">ENA COACH · BOOKING</span><span class="bk-tag">' + (paid ? 'CONFIRMED' : 'AWAITING PAYMENT') + '</span></div>' +
+      '<img class="bk-photo" src="' + base + '/buses/bus2.webp" alt="ENA Coach bus" loading="lazy">' +
+      '<div class="bk-body"><div style="font-size:10px;color:#7b8191;font-weight:700;margin-bottom:4px">BOOKING REFERENCE · ' + esc(b.ref) + '</div>' +
+      '<div class="bk-route"><span>' + esc(b.from) + '</span><span>→</span><span>' + esc(b.to) + '</span></div>' +
+      '<div class="bk-meta"><div><small>Travel date</small><b>' + esc(b.date) + '</b></div><div><small>Departure</small><b>' + esc(b.time) + '</b></div>' +
+      '<div><small>Contact</small><b>' + esc(b.phone || '') + '</b></div><div><small>Passengers</small><b>' + passengers.length + '</b></div></div>' +
+      '<div class="bk-pass-title">PASSENGER DETAILS</div>' + passengerHtml +
+      '<div class="bk-total"><span>TOTAL FARE</span><strong>KES ' + esc(fmt(b.amount)) + '</strong></div></div>' +
+      '<div class="st' + (paid ? ' ok' : ' wait') + '">' + (paid ? '✅ Payment confirmed · ticket issued' : '<span class="hg">⏳</span> ' + (b.paidClaimed ? 'Payment verification in progress' : 'Waiting for payment')) + '</div></div>';
     return d;
   }
   var store = {};
