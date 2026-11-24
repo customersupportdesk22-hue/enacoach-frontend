@@ -212,7 +212,7 @@ body.enc-open{overflow:hidden}
     nh.textContent = 'WHAT HAPPENS AFTER PAYMENT';
     nh.style.cssText = 'margin:0 0 7px;color:#126332;font:bold 12px/1.35 Arial,sans-serif;letter-spacing:.35px;text-align:center';
     var nt = document.createElement('div');
-    nt.textContent = 'After completing your payment, keep the M-Pesa confirmation SMS. Once your payment has been verified, your booking ticket will be sent directly to this chat.';
+    nt.textContent = 'After payment, you will receive an M-Pesa confirmation message from ENACOACH, and your ticket will also appear here in this chat.';
     nt.style.cssText = 'color:#244b35;font:600 13px/1.55 Arial,sans-serif;text-align:center';
     n.appendChild(nh); n.appendChild(nt);
     d.appendChild(n);
