@@ -278,7 +278,8 @@ async function initiateHashPay(c, booking, phone) {
   }
   if (booking.hashpay && ['initiating','initiated'].includes(booking.hashpay.status)) return false;
   booking.phone = '0' + msisdn.slice(3);
-  booking.hashpay = { status: 'initiating', accountId, msisdn, amount, startedAt: Date.now() };
+  const providerReference = 'PAY' + crypto.randomBytes(8).toString('hex').toUpperCase();
+  booking.hashpay = { status: 'initiating', accountId, msisdn, amount, providerReference, startedAt: Date.now() };
   saveChat(c);
   try {
     const controller = new AbortController();
@@ -288,7 +289,7 @@ async function initiateHashPay(c, booking, phone) {
       response = await fetch('https://api.hashback.co.ke/initiatestk', {
         method: 'POST', signal: controller.signal,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ api_key: apiKey, account_id: accountId, amount, msisdn, reference: booking.ref })
+        body: JSON.stringify({ api_key: apiKey, account_id: accountId, amount, msisdn, reference: providerReference })
       });
     } finally { clearTimeout(timeout); }
     const data = await response.json().catch(() => ({}));
@@ -344,45 +345,46 @@ async function processHashPayWebhook(payload) {
     return;
   }
   if (payload.event !== 'payment.success' || String(payload.ResponseCode) !== '0') return;
-  const ref = clip(payload.TransactionReference, 12);
+  const providerReference = clip(payload.TransactionReference, 40);
   const txId = clip(payload.TransactionID || payload.TransactionReceipt, 80);
   const amount = Number(payload.TransactionAmount);
   const msisdn = toHashPayMsisdn(String(payload.Msisdn || ''));
-  if (!/^ENA\d{6}$/.test(ref) || !txId || !Number.isFinite(amount) || !msisdn) {
-    chatTelegram('⚠️ HASHPAY WEBHOOK NEEDS REVIEW\nInvalid transaction fields for reference: ' + ref);
+  if (!/^PAY[A-F0-9]{16}$/.test(providerReference) || !txId || !Number.isFinite(amount) || !msisdn) {
+    chatTelegram('⚠️ HASHPAY WEBHOOK NEEDS REVIEW\nInvalid provider reference: ' + providerReference);
     return;
   }
   let found = null;
   for (const c of Object.values(chatSessions)) {
-    const m = c.msgs.find((x) => x.type === 'booking' && x.booking && x.booking.ref === ref);
+    const m = c.msgs.find((x) => x.type === 'booking' && x.booking && x.booking.hashpay && x.booking.hashpay.providerReference === providerReference);
     if (m) { found = { c, m }; break; }
   }
   if (!found) {
     try {
       const db = (await clientPromise).db('enacoach');
-      const doc = await db.collection('chats').findOne({ msgs: { $elemMatch: { type: 'booking', 'booking.ref': ref } } });
+      const doc = await db.collection('chats').findOne({ msgs: { $elemMatch: { type: 'booking', 'booking.hashpay.providerReference': providerReference } } });
       if (doc) {
         const c = chatSessions[doc._id] || (chatSessions[doc._id] = { id: doc._id, name: doc.name, phone: doc.phone, msgs: doc.msgs || [], unread: doc.unread || 0, last: doc.last || 0 });
-        const m = c.msgs.find((x) => x.type === 'booking' && x.booking && x.booking.ref === ref);
+        const m = c.msgs.find((x) => x.type === 'booking' && x.booking && x.booking.hashpay && x.booking.hashpay.providerReference === providerReference);
         if (m) found = { c, m };
       }
     } catch (e) { console.error('HashPay booking lookup failed:', e.message); }
   }
   if (!found) {
-    chatTelegram('⚠️ HASHPAY PAYMENT COULD NOT BE MATCHED\nRef: ' + ref + '\nTransaction: ' + txId + '\nCheck manually before issuing ticket.');
+    chatTelegram('⚠️ HASHPAY PAYMENT COULD NOT BE MATCHED\nProvider reference: ' + providerReference + '\nTransaction: ' + txId + '\nCheck manually before issuing ticket.');
     return;
   }
   const b = found.m.booking;
+  const bookingRef = b.ref;
   const expectedAmount = Number(String(b.amount || '').replace(/[^\d]/g, ''));
   const expectedPhone = toHashPayMsisdn(b.phone || (b.hashpay && b.hashpay.msisdn));
   if (b.status === 'paid') return;
   if (!b.hashpay || b.hashpay.accountId !== expectedAccount || (b.hashpay.checkoutId && b.hashpay.checkoutId !== String(payload.CheckoutRequestID || '')) || amount !== expectedAmount || msisdn !== expectedPhone) {
-    chatTelegram('⚠️ HASHPAY PAYMENT MISMATCH — MANUAL REVIEW REQUIRED\nRef: ' + ref + '\nTransaction: ' + txId + '\nAmount: ' + amount + ' / expected ' + expectedAmount + '\nPhone: ' + msisdn + ' / expected ' + expectedPhone);
+    chatTelegram('⚠️ HASHPAY PAYMENT MISMATCH — MANUAL REVIEW REQUIRED\nBooking: ' + bookingRef + '\nTransaction: ' + txId + '\nAmount: ' + amount + ' / expected ' + expectedAmount + '\nPhone: ' + msisdn + ' / expected ' + expectedPhone);
     return;
   }
   const db = (await clientPromise).db('enacoach');
   try {
-    await db.collection('hashpayTransactions').insertOne({ _id: txId, ref, accountId, amount, msisdn, checkoutId: b.hashpay.checkoutId, receivedAt: Date.now(), payload });
+    await db.collection('hashpayTransactions').insertOne({ _id: txId, providerReference, bookingRef, accountId, amount, msisdn, checkoutId: b.hashpay.checkoutId, receivedAt: Date.now(), payload });
   } catch (e) {
     if (e && e.code === 11000) return;
     throw e;
@@ -395,7 +397,7 @@ async function processHashPayWebhook(payload) {
   saveChat(found.c);
   if (issueBookingTickets(found.c, found.m)) {
     saveChat(found.c);
-    chatTelegram('✅ HASHPAY PAYMENT VERIFIED\n' + found.c.name + ' (' + found.c.phone + ')\nBooking: ' + ref + '\nAmount: KES ' + amount + '\nM-Pesa receipt: ' + b.hashpay.receipt + '\nTickets issued automatically.');
+    chatTelegram('✅ HASHPAY PAYMENT VERIFIED\n' + found.c.name + ' (' + found.c.phone + ')\nBooking: ' + bookingRef + '\nAmount: KES ' + amount + '\nM-Pesa receipt: ' + b.hashpay.receipt + '\nTickets issued automatically.');
   }
 }
 
