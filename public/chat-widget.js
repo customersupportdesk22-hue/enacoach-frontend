@@ -175,7 +175,11 @@ body.enc-open{overflow:hidden}
     var busPhoto = document.createElement('img'); busPhoto.src = base + '/buses/bus1.webp'; busPhoto.alt = 'ENA Coach bus'; busPhoto.loading = 'lazy'; busPhoto.style.cssText = 'display:block;width:100%;height:132px;object-fit:cover;border-radius:8px';
     busWrap.appendChild(busPhoto);
     var site = document.createElement('div'); site.textContent = 'www.enacoachonlinebooking.co.ke'; site.style.cssText = 'padding:6px 0 2px;color:#34398e;font:bold 11px Arial,sans-serif;text-align:center';
-    busWrap.appendChild(site); d.appendChild(busWrap);
+    busWrap.appendChild(site);
+    var office = document.createElement('div'); office.style.cssText = 'padding:5px 12px 8px;color:#34398e;text-align:center;font:11px/1.45 Arial,sans-serif';
+    var officeTitle = document.createElement('div'); officeTitle.textContent = 'ENA COACH MAIN OFFICE – NAIROBI'; officeTitle.style.cssText = 'font-weight:bold;margin-bottom:2px';
+    var officeAddress = document.createElement('div'); officeAddress.textContent = 'KPCU Building (Wakulima House), Ground Floor, Haile Selassie Avenue, Nairobi';
+    office.appendChild(officeTitle); office.appendChild(officeAddress); busWrap.appendChild(office); d.appendChild(busWrap);
     d.appendChild(row(String(p.accountLabel || 'Paybill').toUpperCase() + ' NUMBER', String(p.number || ''), 26));
     if (p.account) d.appendChild(row('ACCOUNT NUMBER', String(p.account), 22));
     if (p.showAccountName !== false) d.appendChild(row('ACCOUNT NAME', String(p.name || 'ENA COACH'), 20));
