@@ -185,7 +185,7 @@ body.enc-open{overflow:hidden}
     input.style.cssText = 'box-sizing:border-box;width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:8px;font:16px Arial,sans-serif;color:#111;background:#fff'; body.appendChild(input);
     var pay = document.createElement('button'); pay.type = 'button'; pay.textContent = 'Pay KES ' + fmt(m.amount) + ' with STK Push';
     pay.style.cssText = 'width:100%;margin-top:12px;padding:12px 10px;border:0;border-radius:24px;background:#087c45;color:#fff;font:bold 14px Arial,sans-serif';
-    pay.setAttribute('data-hp-ref', String(m.ref || ''));
+    pay.setAttribute('data-hp-ref', String(m.ref || '')); pay.setAttribute('data-hp-amt', fmt(m.amount));
     pay.onclick = function () {
       if (pay.disabled) return;
       var phone = input.value.trim();
@@ -322,7 +322,10 @@ body.enc-open{overflow:hidden}
         ttl.appendChild(lgo); ttl.appendChild(spn); ttl.appendChild(document.createTextNode('M-PESA PAYMENT PROMPT SENT')); d.appendChild(ttl);
         var parts = stxt.replace(/^\S+\s*/, '').split('PAYBUDDY');
         parts.forEach(function (p, i) { if (i) { var bb = document.createElement('b'); bb.textContent = 'PAYBUDDY'; bb.style.cssText = 'background:#1B8A3E;color:#fff;padding:1px 6px;border-radius:4px'; d.appendChild(bb); } d.appendChild(document.createTextNode(p)); });
-      } else { d.textContent = stxt; }
+      } else {
+        d.textContent = stxt;
+        if (m.error) d.style.cssText = 'background:#FEF2F2;border:1px solid #FCA5A5;border-left:5px solid #DC2626;color:#7F1D1D;font-weight:600;';
+      }
     }
     else if (m.type === 'image' && m.file) d = imageBubble(m);
     else { d = document.createElement('div'); d.className = 'enc-m ' + (m.from === 'client' ? 'enc-c' : 'enc-a') + (m.unsent ? ' enc-un' : ''); d.textContent = m.text; }
@@ -395,7 +398,7 @@ body.enc-open{overflow:hidden}
   var menu = document.createElement('div'); menu.id = 'enc-menu'; menu.innerHTML = '<div class="enc-mc"></div>'; box.appendChild(menu);
   var toastEl = document.createElement('div'); toastEl.id = 'enc-toast'; box.appendChild(toastEl);
   var menuOpen = false, menuAt = 0, selEl = null, selId = null, lpTimer, lpX = 0, lpY = 0;
-  function toast(t) { toastEl.textContent = t; toastEl.style.opacity = 1; clearTimeout(toastEl._h); toastEl._h = setTimeout(function () { toastEl.style.opacity = 0; }, 1300); }
+  function toast(t) { toastEl.textContent = t; toastEl.style.opacity = 1; clearTimeout(toastEl._h); toastEl._h = setTimeout(function () { toastEl.style.opacity = 0; }, 4000); }
   function copyText(t) {
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t);
@@ -543,7 +546,7 @@ body.enc-open{overflow:hidden}
         Array.prototype.forEach.call(cards, function (b) {
           if (b.getAttribute('data-hp-ref') !== String(r.ref)) return;
           if (r.success) { b.textContent = 'M-Pesa prompt requested'; b.disabled = true; }
-          else { b.disabled = false; b.textContent = 'Pay with STK Push'; b.style.opacity = '1'; if (r.message) toast(r.message); }
+          else { b.disabled = false; b.textContent = 'Pay KES ' + (b.getAttribute('data-hp-amt') || '') + ' with STK Push'; b.style.opacity = '1'; if (r.message) toast(r.message); }
         });
       });
       socket.on('fileError', function (t) { toast(t); });
