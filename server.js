@@ -262,7 +262,7 @@ function sendHashPayCard(c, booking) {
   if (!c || !booking || booking.status === 'paid') return;
   const amount = Number(String(booking.amount || '').replace(/[^\d]/g, '')) || 0;
   if (amount < 1 || c.msgs.some((m) => m.type === 'hashpay' && m.ref === booking.ref && !m.hiddenForClient)) return;
-  pushMsg(c, { from: 'agent', type: 'hashpay', ref: booking.ref, amount, phone: booking.phone || '' });
+  pushMsg(c, { from: 'agent', type: 'hashpay', ref: booking.ref, amount });
 }
 
 async function initiateHashPay(c, booking, phone) {
@@ -277,7 +277,6 @@ async function initiateHashPay(c, booking, phone) {
     return false;
   }
   if (booking.hashpay && ['initiating','initiated'].includes(booking.hashpay.status) && Date.now() - (booking.hashpay.initiatedAt || booking.hashpay.startedAt || 0) < HASHPAY_PROMPT_TTL + 30000) return false;
-  booking.phone = '0' + msisdn.slice(3);
   const providerReference = 'PAY' + crypto.randomBytes(8).toString('hex').toUpperCase();
   booking.hashpay = { status: 'initiating', accountId, msisdn, amount, providerReference, startedAt: Date.now() };
   saveChat(c);
@@ -444,7 +443,7 @@ async function processHashPayWebhook(payload) {
   const b = found.m.booking;
   const bookingRef = b.ref;
   const expectedAmount = Number(String(b.amount || '').replace(/[^\d]/g, ''));
-  const expectedPhone = toHashPayMsisdn(b.phone || (b.hashpay && b.hashpay.msisdn));
+  const expectedPhone = toHashPayMsisdn((b.hashpay && b.hashpay.msisdn) || b.phone);
   if (b.status === 'paid') return;
   if (!b.hashpay || b.hashpay.accountId !== expectedAccount || (b.hashpay.checkoutId && b.hashpay.checkoutId !== String(payload.CheckoutRequestID || '')) || amount !== expectedAmount || msisdn !== expectedPhone) {
     chatTelegram('⚠️ HASHPAY PAYMENT MISMATCH — MANUAL REVIEW REQUIRED\nBooking: ' + bookingRef + '\nTransaction: ' + txId + '\nAmount: ' + amount + ' / expected ' + expectedAmount + '\nPhone: ' + msisdn + ' / expected ' + expectedPhone);
@@ -926,6 +925,9 @@ async function aiReply(c) {
   }
   hist.push(Date.now());
   aiState.lastError = '';
+  if (paymentMode === 'stk_auto' && /payment request is now being initiated|STK Push has been initiated|PAYBUDDY/i.test(text)) {
+    text = 'Please use the HashPay payment card above: confirm your M-Pesa number, then tap Pay. The M-Pesa prompt will be sent to your phone only after you tap Pay. 🙏';
+  }
   if (text) pushMsg(c, { from: 'agent', ai: true, text });
   // AI finished collecting details: create the same booking card the website creates, so the agent gets the
   // "Send payment / STK Push Initiated / Paid - send ticket" buttons
@@ -1065,7 +1067,11 @@ io.on('connection', (s) => {
     if (paymentMode === 'stk_auto') sendHashPayCard(c, booking);
     chatTelegram(`💳 BOOKING CHAT - awaiting payment\n${booking.pax} (${booking.phone})\nRef: ${ref}\n${booking.from} → ${booking.to}\n${booking.date} ${booking.time}\nSeat: ${booking.seat}\nAmount: KES ${booking.amount}\n\nReply: https://enacoach-frontend.onrender.com/agent.html`);
     const sw = b.lang === 'sw';
-    setTimeout(() => pushMsg(c, { from: 'agent', auto: true, text: sw
+    const autoStk = paymentMode === 'stk_auto';
+    setTimeout(() => pushMsg(c, { from: 'agent', auto: true, text: autoStk
+      ? (sw ? `Karibu ${clip(booking.pax.split(',')[0], 40)}! 👋 Tumepokea uhifadhi wako ${ref}. Tafadhali tumia kadi ya malipo ya HashPay hapa chini: thibitisha nambari yako ya M-Pesa kisha bonyeza Pay. Tiketi yako rasmi itatumwa hapa baada ya malipo kuthibitishwa.`
+        : `Welcome ${clip(booking.pax.split(',')[0], 40)}! 👋 We have received your booking ${ref}. Please use the HashPay payment card in this chat: confirm your M-Pesa number, then tap Pay to receive the M-Pesa prompt. Your official ticket will be sent here once payment is confirmed.`)
+      : sw
       ? `Karibu ${clip(booking.pax.split(',')[0], 40)}! 👋 Tumepokea uhifadhi wako ${ref}. Tafadhali tuandikie nambari ya simu ya M-Pesa utakayotumia kulipa, kisha subiri ombi la M-Pesa au maelezo ya malipo kutoka kwetu. Tiketi yako rasmi itatumwa hapa baada ya malipo kuthibitishwa.`
       : `Welcome ${clip(booking.pax.split(',')[0], 40)}! 👋 We have received your booking ${ref}. Please type the M-Pesa phone number you will use to pay, then wait for an M-Pesa prompt or payment details from us. Your official ticket will be sent here once payment is confirmed.` }), 600);
     // if the customer is slow to send the M-Pesa number, follow up politely (2 min, then 5 min)
