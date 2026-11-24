@@ -171,8 +171,8 @@ body.enc-open{overflow:hidden}
   function hashpayCard(m) {
     var d = document.createElement('div'); d.className = 'enc-m enc-a';
     d.style.cssText = 'flex:none;width:300px;max-width:92%;padding:0;border:1.5px solid #16803c;border-radius:14px;overflow:hidden;background:#fff;color:#172033';
-    var head = document.createElement('div'); head.textContent = 'ENA COACH · SECURE M-PESA PAYMENT';
-    head.style.cssText = 'background:#087c45;color:#fff;padding:12px 14px;font:bold 12px Arial,sans-serif;letter-spacing:.35px'; d.appendChild(head);
+    var head = document.createElement('div'); head.textContent = 'HASHBACK';
+    head.style.cssText = 'background:#fff;color:#dc2626;padding:12px 14px;font:900 16px Arial,sans-serif;letter-spacing:.7px;border-bottom:1px solid #fee2e2'; d.appendChild(head);
     var body = document.createElement('div'); body.style.cssText = 'padding:14px';
     var ref = document.createElement('div'); ref.textContent = 'BOOKING REFERENCE · ' + String(m.ref || '');
     ref.style.cssText = 'font:700 10px Arial,sans-serif;color:#6b7280;margin-bottom:8px'; body.appendChild(ref);
@@ -184,7 +184,7 @@ body.enc-open{overflow:hidden}
     input.placeholder = 'Number you will pay with, e.g. 0712345678'; input.value = '';
     input.style.cssText = 'box-sizing:border-box;width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:8px;font:16px Arial,sans-serif;color:#111;background:#fff'; body.appendChild(input);
     var pay = document.createElement('button'); pay.type = 'button'; pay.textContent = 'Pay KES ' + fmt(m.amount) + ' with STK Push';
-    pay.style.cssText = 'width:100%;margin-top:12px;padding:12px 10px;border:0;border-radius:24px;background:#087c45;color:#fff;font:bold 14px Arial,sans-serif';
+    pay.style.cssText = 'width:100%;margin-top:12px;padding:12px 10px;border:0;border-radius:24px;background:#dc2626;color:#fff;font:900 14px Arial,sans-serif';
     pay.setAttribute('data-hp-ref', String(m.ref || '')); pay.setAttribute('data-hp-amt', fmt(m.amount));
     pay.onclick = function () {
       if (pay.disabled) return;
