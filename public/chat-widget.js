@@ -295,7 +295,7 @@ body.enc-open{overflow:hidden}
     if (m.from === 'agent' && !m.unsent && (!m.type || m.type === 'text')) {
       var sender = document.createElement('span');
       sender.className = 'enc-agent-name';
-      sender.textContent = 'Booking Agent Assistance';
+      sender.textContent = 'ENA Coach Online Booking';
       d.insertBefore(sender, d.firstChild);
     }
     // Show the customer's saved name above their ordinary text messages only.
