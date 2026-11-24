@@ -472,9 +472,7 @@ body.enc-open{overflow:hidden}
         auth: function (cb) { cb({ id: id, name: localStorage.getItem('enc_n') || name, phone: localStorage.getItem('enc_ph') || phone }); }
       });
       socket.on('history', function (h) {
-        // customer messages older than our latest reply count as seen
-        var la = 0; h.forEach(function (m) { if (m.from === 'agent' && m.t > la) la = m.t; });
-        h.forEach(function (m) { if (m.from === 'client' && m.t < la) m.seen = true; });
+        // Seen status comes only from the agent's explicit read event on the server.
         msgs.innerHTML = ''; store = {}; closeMenu(); h.forEach(add); updateUI();
         h.forEach(function (m) { if (m.t > lastT) lastT = m.t; });
         if (!h.length) add({ from: 'agent', text: 'Welcome to ENA Coach. How may we assist you today? Kindly share your departure town, destination and travel date, and we will gladly arrange your booking.' });
