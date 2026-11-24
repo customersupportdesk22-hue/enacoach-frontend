@@ -112,7 +112,7 @@ body.enc-open{overflow:hidden}
   (function () {
     var av = document.getElementById('enc-av'), im = new Image();
     im.onload = function () { av.textContent = ''; av.style.background = '#fff'; im.style.cssText = 'width:100%;height:100%;border-radius:50%;object-fit:contain'; av.appendChild(im); };
-    im.src = base + '/logo.png';
+    im.src = base + '/logo.png?v=20261124';
   })();
 
   var $ = function (id) { return document.getElementById(id); };
