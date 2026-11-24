@@ -91,7 +91,7 @@ body.enc-open{overflow:hidden}
 .enc-tk{margin-left:4px;letter-spacing:-2px;font-size:11px}
 .enc-tk.seen{color:#34b7f1}.enc-receipt{margin-left:4px;color:#667781;letter-spacing:0;font-size:10px}
 .enc-ag{margin-left:34px;max-width:calc(80% - 20px)}
-.enc-agent-name{display:block;margin:0 0 5px;color:#34398e;font:700 10px/1.2 system-ui,sans-serif;letter-spacing:.2px}
+.enc-agent-name{display:block;margin:0 0 5px;color:#34398e;font:700 10px/1.2 system-ui,sans-serif;letter-spacing:.2px}\n.enc-customer-name{display:block;margin:0 0 5px;text-align:right;color:#34398e;font:700 10px/1.2 system-ui,sans-serif;letter-spacing:.2px}
 .enc-lg{position:absolute;left:-34px;bottom:0;width:26px;height:26px;border-radius:50%;background:#fff;border:1px solid #e5e7eb;overflow:hidden;display:flex;align-items:center;justify-content:center;font:700 13px system-ui,sans-serif;color:#fff}
 .enc-lg img{width:100%;height:100%;object-fit:contain}
 `;
@@ -299,6 +299,13 @@ body.enc-open{overflow:hidden}
       sender.className = 'enc-agent-name';
       sender.textContent = 'Agent Mary Muthoni';
       d.insertBefore(sender, d.firstChild);
+    }
+    // Show the customer's saved name above their ordinary text messages only.
+    if (m.from === 'client' && !m.unsent && (!m.type || m.type === 'text')) {
+      var customer = document.createElement('span');
+      customer.className = 'enc-customer-name';
+      customer.textContent = localStorage.getItem('enc_n') || 'Customer';
+      d.insertBefore(customer, d.firstChild);
     }
     if (m.type !== 'payment' && m.type !== 'ticket' && !m.unsent) decorate(d, m);
     if (m.id) { d.setAttribute('data-id', m.id); store[m.id] = m; }
