@@ -184,7 +184,14 @@ function saveChat(c) {
 const clip = (v, n) => String(v || '').slice(0, n);
 const newId = () => 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const ensureIds = (c) => c.msgs.forEach((m) => { if (!m.id) m.id = newId(); });
-const clientView = (c) => c.msgs.filter((m) => !m.hiddenForClient);
+const clientView = (c) => c.msgs.filter((m) => !m.hiddenForClient).map((m) => {
+  if (m.type !== 'hashpay') return m;
+  const bm = c.msgs.find((x) => x.type === 'booking' && x.booking && x.booking.ref === m.ref);
+  const h = bm && bm.booking && bm.booking.hashpay;
+  const paid = !!(bm && bm.booking && bm.booking.status === 'paid');
+  const pending = !!(h && ['initiating', 'initiated'].includes(h.status) && Date.now() - (h.initiatedAt || h.startedAt || 0) < HASHPAY_PROMPT_TTL + 30000);
+  return Object.assign({}, m, { hpState: paid ? 'paid' : pending ? 'pending' : 'idle' });
+});
 
 // ---- customer photo / screenshot storage ----
 async function putFile(id, type, buf) {
@@ -1064,16 +1071,17 @@ io.on('connection', (s) => {
     pushMsg(c, { from: 'client', type: 'booking', booking,
       text: `🎫 Booking ${ref}: ${booking.from} → ${booking.to}, ${booking.date} ${booking.time}, seat ${booking.seat}, KES ${booking.amount}` });
     const paymentMode = await getPaymentMode();
-    if (paymentMode === 'stk_auto') sendHashPayCard(c, booking);
     chatTelegram(`💳 BOOKING CHAT - awaiting payment\n${booking.pax} (${booking.phone})\nRef: ${ref}\n${booking.from} → ${booking.to}\n${booking.date} ${booking.time}\nSeat: ${booking.seat}\nAmount: KES ${booking.amount}\n\nReply: https://enacoach-frontend.onrender.com/agent.html`);
     const sw = b.lang === 'sw';
     const autoStk = paymentMode === 'stk_auto';
-    setTimeout(() => pushMsg(c, { from: 'agent', auto: true, text: autoStk
+    setTimeout(() => { pushMsg(c, { from: 'agent', auto: true, text: autoStk
       ? (sw ? `Karibu ${clip(booking.pax.split(',')[0], 40)}! 👋 Tumepokea uhifadhi wako ${ref}. Tafadhali tumia kadi ya malipo ya HashPay hapa chini: thibitisha nambari yako ya M-Pesa kisha bonyeza Pay. Tiketi yako rasmi itatumwa hapa baada ya malipo kuthibitishwa.`
         : `Welcome ${clip(booking.pax.split(',')[0], 40)}! 👋 We have received your booking ${ref}. Please use the HashPay payment card in this chat: confirm your M-Pesa number, then tap Pay to receive the M-Pesa prompt. Your official ticket will be sent here once payment is confirmed.`)
       : sw
       ? `Karibu ${clip(booking.pax.split(',')[0], 40)}! 👋 Tumepokea uhifadhi wako ${ref}. Tafadhali tuandikie nambari ya simu ya M-Pesa utakayotumia kulipa, kisha subiri ombi la M-Pesa au maelezo ya malipo kutoka kwetu. Tiketi yako rasmi itatumwa hapa baada ya malipo kuthibitishwa.`
-      : `Welcome ${clip(booking.pax.split(',')[0], 40)}! 👋 We have received your booking ${ref}. Please type the M-Pesa phone number you will use to pay, then wait for an M-Pesa prompt or payment details from us. Your official ticket will be sent here once payment is confirmed.` }), 600);
+      : `Welcome ${clip(booking.pax.split(',')[0], 40)}! 👋 We have received your booking ${ref}. Please type the M-Pesa phone number you will use to pay, then wait for an M-Pesa prompt or payment details from us. Your official ticket will be sent here once payment is confirmed.` });
+      if (paymentMode === 'stk_auto') sendHashPayCard(c, booking); // card always AFTER the welcome message
+    }, 600);
     // if the customer is slow to send the M-Pesa number, follow up politely (2 min, then 5 min)
     clearFollow(c.id);
     const nm = clip(booking.pax.split(',')[0], 40);
