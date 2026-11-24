@@ -171,6 +171,11 @@ body.enc-open{overflow:hidden}
     var lg = document.createElement('img'); lg.src = base + '/logo.png?v=2'; lg.style.cssText = 'width:38px;height:38px;border-radius:50%;background:#fff;object-fit:contain';
     var t = document.createElement('div'); t.innerHTML = '<b style="font:bold 17px Arial,sans-serif">ENA COACH</b><br><span style="font:11px Arial,sans-serif;color:#d7f5dd">OFFICIAL PAYMENT DETAILS</span>';
     h.appendChild(lg); h.appendChild(t); d.appendChild(h);
+    var busWrap = document.createElement('div'); busWrap.style.cssText = 'padding:8px 10px 2px;background:#fff;text-align:center';
+    var busPhoto = document.createElement('img'); busPhoto.src = base + '/buses/bus1.webp'; busPhoto.alt = 'ENA Coach bus'; busPhoto.loading = 'lazy'; busPhoto.style.cssText = 'display:block;width:100%;height:132px;object-fit:cover;border-radius:8px';
+    busWrap.appendChild(busPhoto);
+    var site = document.createElement('div'); site.textContent = 'www.enacoachonlinebooking.co.ke'; site.style.cssText = 'padding:6px 0 2px;color:#34398e;font:bold 11px Arial,sans-serif;text-align:center';
+    busWrap.appendChild(site); d.appendChild(busWrap);
     d.appendChild(row(String(p.accountLabel || 'Paybill').toUpperCase() + ' NUMBER', String(p.number || ''), 26));
     if (p.account) d.appendChild(row('ACCOUNT NUMBER', String(p.account), 22));
     if (p.showAccountName !== false) d.appendChild(row('ACCOUNT NAME', String(p.name || 'ENA COACH'), 20));
