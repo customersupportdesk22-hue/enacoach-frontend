@@ -933,7 +933,7 @@ async function aiReply(c) {
   hist.push(Date.now());
   aiState.lastError = '';
   if (paymentMode === 'stk_auto' && /payment request is now being initiated|STK Push has been initiated|PAYBUDDY/i.test(text)) {
-    text = 'Please use the HashPay payment card above: confirm your M-Pesa number, then tap Pay. The M-Pesa prompt will be sent to your phone only after you tap Pay. 🙏';
+    text = 'Please use the HashBack payment card above: confirm your M-Pesa number, then tap Pay. The M-Pesa prompt will be sent to your phone only after you tap Pay. 🙏';
   }
   if (text) pushMsg(c, { from: 'agent', ai: true, text });
   // AI finished collecting details: create the same booking card the website creates, so the agent gets the
