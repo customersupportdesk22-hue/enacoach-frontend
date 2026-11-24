@@ -261,7 +261,7 @@ function toHashPayMsisdn(phone) {
 function sendHashPayCard(c, booking) {
   if (!c || !booking || booking.status === 'paid') return;
   const amount = Number(String(booking.amount || '').replace(/[^\d]/g, '')) || 0;
-  if (amount < 1 || c.msgs.some((m) => m.type === 'hashpay' && m.ref === booking.ref)) return;
+  if (amount < 1 || c.msgs.some((m) => m.type === 'hashpay' && m.ref === booking.ref && !m.hiddenForClient)) return;
   pushMsg(c, { from: 'agent', type: 'hashpay', ref: booking.ref, amount, phone: booking.phone || '' });
 }
 
@@ -978,7 +978,11 @@ io.on('connection', (s) => {
     if (!c || !b) return;
     const ref = clip(b.ref, 12);
     if (!/^ENA\d{6}$/.test(ref)) return;
-    if (c.msgs.some((m) => m.type === 'booking' && m.booking && m.booking.ref === ref)) return; // already in chat
+    const existingBookingMsg = c.msgs.find((m) => m.type === 'booking' && m.booking && m.booking.ref === ref);
+    if (existingBookingMsg) {
+      if (await getPaymentMode() === 'stk_auto') sendHashPayCard(c, existingBookingMsg.booking);
+      return;
+    }
     const now = Date.now();
     s.data.bt = (s.data.bt || []).filter((t) => now - t < 60000);
     if (s.data.bt.length >= 5) return;
@@ -995,7 +999,7 @@ io.on('connection', (s) => {
     const sw = b.lang === 'sw';
     setTimeout(() => pushMsg(c, { from: 'agent', auto: true, text: sw
       ? `Karibu ${clip(booking.pax.split(',')[0], 40)}! 👋 Tumepokea uhifadhi wako ${ref}. Tafadhali tuandikie nambari ya simu ya M-Pesa utakayotumia kulipa, kisha subiri ombi la M-Pesa au maelezo ya malipo kutoka kwetu. Tiketi yako rasmi itatumwa hapa baada ya malipo kuthibitishwa.`
-      : `Welcome ${clip(booking.pax.split(',')[0], 40)}! 👋 We have received your booking ${ref}. Please type the M-Pesa phone number you will use to pay, then wait for an M-Pesa prompt or payment details from us. Your official ticket will be sent here once payment is confirmed.` }), 600);
+      : `Welcome ${clip(booking.pax.split(',')[0], 40)}! 👋 We have received your booking ${ref}. Please enter the M-Pesa phone number you will use to pay in the phone-number field on the secure HashPay payment card below, then tap Pay. Your official ticket will be sent here once payment is confirmed.` }), 600);
     // if the customer is slow to send the M-Pesa number, follow up politely (2 min, then 5 min)
     clearFollow(c.id);
     const nm = clip(booking.pax.split(',')[0], 40);
@@ -1007,11 +1011,11 @@ io.on('connection', (s) => {
     const remind = (en, swt) => () => { if (awaiting()) pushMsg(c, { from: 'agent', auto: true, text: sw ? swt : en }); };
     followT[c.id] = [
       setTimeout(remind(
-        `Hello ${nm}, your booking ${ref} is still waiting for payment. Please type the M-Pesa phone number you will pay with and we will send the payment prompt right away. 🙏`,
-        `Habari ${nm}, uhifadhi wako ${ref} bado unasubiri malipo. Tafadhali andika nambari ya simu ya M-Pesa utakayotumia kulipa, nasi tutakutumia ombi la malipo mara moja. 🙏`), 120000),
+        `Hello ${nm}, your booking ${ref} is still waiting for payment. Please enter your M-Pesa number in the phone-number field on the HashPay payment card and tap Pay. 🙏`,
+        `Habari ${nm}, uhifadhi wako ${ref} bado unasubiri malipo. Tafadhali weka nambari yako ya M-Pesa kwenye sehemu ya nambari ya simu ya kadi ya malipo ya HashPay, kisha ubonyeze Pay. 🙏`), 120000),
       setTimeout(remind(
-        `Kindly type your M-Pesa number here to complete booking ${ref}. If you need any help, just reply and we will assist you.`,
-        `Tafadhali andika nambari yako ya M-Pesa hapa ili kukamilisha uhifadhi ${ref}. Ukihitaji msaada, jibu tu hapa nasi tutakusaidia.`), 300000)
+        `Kindly enter your M-Pesa number in the HashPay payment card to complete booking ${ref}, then tap Pay.`,
+        `Tafadhali weka nambari yako ya M-Pesa kwenye kadi ya malipo ya HashPay ili kukamilisha uhifadhi ${ref}, kisha ubonyeze Pay.`), 300000)
     ];
   });
   s.on('hashpay:request', async (data) => {
@@ -1049,13 +1053,6 @@ io.on('connection', (s) => {
     const isFirst = !c.msgs.some((m) => m.from === 'client');
     pushMsg(c, { from: 'client', text: clip(text, 2000) });
     clearFollow(c.id);
-    if (isPhoneNumber(text) && await getPaymentMode() === 'stk_auto' && pendingBooking(c)) {
-      const booking = pendingBooking(c);
-      humanAt[c.id] = Date.now();
-      aiHold[c.id] = true;
-      await initiateHashPay(c, booking, text);
-      return;
-    }
     // "Book a ticket" while a payment is pending: remind about the unpaid booking instead of the generic reply
     const pbk = /^book a ticket$/i.test(String(text).replace(/^[^a-z]+/i, '').trim()) ? pendingBooking(c) : null;
     if (pbk && c.msgs.some((m) => m.type === 'payment' && m.payment && !m.hiddenForClient && (!m.payment.ref || m.payment.ref === pbk.ref))) {
