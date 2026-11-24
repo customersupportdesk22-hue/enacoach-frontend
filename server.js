@@ -207,11 +207,19 @@ agents.use((s, next) =>
 // customer messages become "seen" (blue ticks) once we reply or an agent opens the chat
 function markSeen(c) {
   const ids = [];
-  c.msgs.forEach((m) => { if (m.from === 'client' && !m.seen) { m.seen = true; ids.push(m.id); } });
+  const seenAt = Date.now();
+  c.msgs.forEach((m) => {
+    if (m.from === 'client' && !m.seen) {
+      m.seen = true;
+      m.seenAt = seenAt;
+      ids.push({ id: m.id, seenAt });
+    }
+  });
   if (ids.length) io.to(c.id).emit('seen', ids);
 }
 function pushMsg(c, m) {
   m.t = Date.now();
+  if (m.from === 'client') m.deliveredAt = m.t; // accepted and stored by the ENA Coach chat server
   m.id = newId();
   c.msgs.push(m); c.last = m.t;
   if (m.from === 'client') c.unread++;
