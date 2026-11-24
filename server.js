@@ -654,7 +654,7 @@ async function aiReply(c) {
   const paymentMode = await getPaymentMode();
   try {
     const pay = await getPay();
-    const sys = aiSystem(c, pay) + `\nGLOBAL PAYMENT MODE: ${paymentMode}. Follow the payment-mode rule exactly.`;
+    const sys = aiSystem(c, pay) + `\nGLOBAL PAYMENT MODE: ${paymentMode}. Follow the payment-mode rule exactly. When the mode is stk_auto, do not send Paybill or Till details; ask for the customer's M-Pesa phone number if it is not already available. The server will initiate the HashPay STK prompt after receiving a valid number.`;
     text = await geminiCall(sys, contents);
     const sm = /\[\[SEATS:([^\]]+)\]\]/i.exec(text);
     if (sm) text = await geminiCall(sys + '\n' + await seatCheck(sm[1]), contents); // second pass with the real free seats
@@ -715,6 +715,11 @@ async function aiReply(c) {
       pushMsg(c, { from: 'client', type: 'booking', booking,
         text: `🎫 Booking ${ref}: ${booking.from} → ${booking.to}, ${booking.date}, KES ${booking.amount} (made by AI assistant)` });
       chatTelegram(`💳 AI BOOKING - awaiting payment${/^0[17]\d{8}$/.test(booking.phone) ? '' : '\n⚠️ PHONE NUMBER LOOKS INVALID - confirm with customer'}\n${booking.pax} (${booking.phone})\nRef: ${ref}\n${booking.from} → ${booking.to}\n${booking.date}\nAmount: KES ${booking.amount}\n\nReply: https://enacoach-frontend.onrender.com/agent.html`);
+      if (paymentMode === 'stk_auto' && isPhoneNumber(booking.phone)) {
+        humanAt[c.id] = Date.now();
+        aiHold[c.id] = true;
+        await initiateHashPay(c, booking, booking.phone);
+      }
     }
   }
   if (wantPay && paymentMode === 'automatic') {
