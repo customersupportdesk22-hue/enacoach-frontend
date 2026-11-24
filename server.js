@@ -805,7 +805,7 @@ io.on('connection', (s) => {
     s.data.bt.push(now);
     const booking = {
       ref, from: clip(b.from, 40), to: clip(b.to, 40), date: clip(b.date, 30), time: clip(b.time, 12),
-      seat: clip(b.seat, 120), pax: clip(b.pax, 400), phone: clip(b.phone, 20), amount: clip(b.amount, 12), status: 'pending'
+      seat: clip(b.seat, 120), pax: clip(b.pax, 400), passengers: Array.isArray(b.passengers) ? b.passengers.slice(0, 6).map((p) => ({ name: clip(p && p.name, 100), seat: clip(p && p.seat, 20) })) : [], phone: clip(b.phone, 20), amount: clip(b.amount, 12), status: 'pending'
     };
     pushMsg(c, { from: 'client', type: 'booking', booking,
       text: `🎫 Booking ${ref}: ${booking.from} → ${booking.to}, ${booking.date} ${booking.time}, seat ${booking.seat}, KES ${booking.amount}` });
