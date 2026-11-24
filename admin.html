@@ -58,11 +58,6 @@
     <label>Account Number</label>
     <input type="text" id="payAccount" placeholder="e.g. 1769003">
   </div>
-  <div class="sw"><div><b>Show account name on payment card</b><small>Turn off to show the Paybill/Till number and account number without the account name.</small></div>
-    <label class="tg"><input type="checkbox" id="showAccountName" checked><span></span></label></div>
-  <div class="sw"><div><b>Show payment notice on payment card</b><small>Turn off to hide the After payment, ticket and boarding instructions.</small></div>
-    <label class="tg"><input type="checkbox" id="showPaymentNotice" checked><span></span></label></div>
-
   <h3>2. Global Payment Control</h3>
   <div class="form-group"><label>How should the AI handle customer payments?</label>
     <select id="paymentMode"><option value="automatic">Automatic — AI sends official Paybill/Till details</option><option value="admin">Admin controlled — customer waits for me to send details</option><option value="stk">Manual STK Push — I initiate the prompt myself</option></select>
@@ -114,8 +109,6 @@
       document.getElementById('fareOverride').value = data.override || 0;
       document.getElementById('paymentMode').value = data.paymentMode || 'automatic';
       document.getElementById('showPaymentDetails').checked = data.showPaymentDetails !== false;
-      document.getElementById('showAccountName').checked = data.showAccountName !== false;
-      document.getElementById('showPaymentNotice').checked = data.showPaymentNotice !== false;
       
       toggleAccountField();
     } catch (error) {
@@ -207,8 +200,6 @@
           type, number, account, override,
           paymentMode: document.getElementById('paymentMode').value,
           showPaymentDetails: document.getElementById('showPaymentDetails').checked,
-          showAccountName: document.getElementById('showAccountName').checked,
-          showPaymentNotice: document.getElementById('showPaymentNotice').checked
         })
       });
       const ai = await adminFetch('/api/ai-settings', { method: 'POST', body: JSON.stringify(aiPayload()) });
