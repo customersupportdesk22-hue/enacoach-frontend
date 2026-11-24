@@ -332,7 +332,7 @@ const hashPayPollRunning = new Set();
 function scheduleHashPayPoll(c, booking, delay = 10000) {
   if (!c || !booking || !booking.hashpay || booking.hashpay.status !== 'initiated' || !booking.hashpay.checkoutId) return;
   const key = String(booking.hashpay.checkoutId);
-  if (hashPayPollTimers.has(key) || hashPayPollRunning.has(key)) return;
+  if (hashPayPollTimers.has(key)) return;
   const timer = setTimeout(async () => {
     hashPayPollTimers.delete(key);
     await pollHashPayStatus(c, booking);
