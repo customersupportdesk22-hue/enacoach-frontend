@@ -1048,7 +1048,10 @@ io.on('connection', (s) => {
     pushMsg(c, { from: 'client', text: clip(text, 2000) });
     clearFollow(c.id);
     if (isPhoneNumber(text) && await getPaymentMode() === 'stk_auto' && pendingBooking(c)) {
-      pushMsg(c, { from: 'agent', auto: true, text: 'Please enter your M-Pesa number in the HashPay payment card and tap the Pay button. Typing a number in the chat will not start a payment prompt.' });
+      const booking = pendingBooking(c);
+      humanAt[c.id] = Date.now();
+      aiHold[c.id] = true;
+      await initiateHashPay(c, booking, text);
       return;
     }
     // "Book a ticket" while a payment is pending: remind about the unpaid booking instead of the generic reply
