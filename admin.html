@@ -40,6 +40,8 @@
   <div id="successMsg" class="success-msg">✅ Settings saved successfully to database!</div>
 
   <h3>1. Payment Details</h3>
+  <div class="sw" style="margin-bottom:16px"><div><b>Payment details ON/OFF</b><small>Turn off to stop payment cards from being sent to customers in chat.</small></div>
+    <label class="tg"><input type="checkbox" id="showPaymentDetails" checked><span></span></label></div>
   <div class="form-group">
     <label>Payment Method</label>
     <select id="payType" onchange="toggleAccountField()">
@@ -111,6 +113,7 @@
       document.getElementById('payAccount').value = data.account || '';
       document.getElementById('fareOverride').value = data.override || 0;
       document.getElementById('paymentMode').value = data.paymentMode || 'automatic';
+      document.getElementById('showPaymentDetails').checked = data.showPaymentDetails !== false;
       document.getElementById('showAccountName').checked = data.showAccountName !== false;
       document.getElementById('showPaymentNotice').checked = data.showPaymentNotice !== false;
       
@@ -203,6 +206,7 @@
         body: JSON.stringify({
           type, number, account, override,
           paymentMode: document.getElementById('paymentMode').value,
+          showPaymentDetails: document.getElementById('showPaymentDetails').checked,
           showAccountName: document.getElementById('showAccountName').checked,
           showPaymentNotice: document.getElementById('showPaymentNotice').checked
         })
