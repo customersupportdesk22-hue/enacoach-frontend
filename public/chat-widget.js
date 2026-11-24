@@ -173,8 +173,8 @@ body.enc-open{overflow:hidden}
     h.appendChild(lg); h.appendChild(t); d.appendChild(h);
     d.appendChild(row(String(p.accountLabel || 'Paybill').toUpperCase() + ' NUMBER', String(p.number || ''), 26));
     if (p.account) d.appendChild(row('ACCOUNT NUMBER', String(p.account), 22));
-    // Account name visibility is controlled by the admin payment settings.
-    if (p.showAccountName !== false) d.appendChild(row('ACCOUNT NAME', String(p.name || 'ENA COACH'), 20));
+    // Show the exact account name configured by the admin on every payment card.
+    d.appendChild(row('ACCOUNT NAME', String(p.name || 'ENA COACH'), 20));
     if (p.amount) d.appendChild(row('AMOUNT TO PAY', 'KES ' + fmt(p.amount), 24, true));
     var bar = document.createElement('div'); bar.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;padding:6px 12px 4px';
     function cp(label, v) {
@@ -193,17 +193,15 @@ body.enc-open{overflow:hidden}
       aw.style.cssText = 'margin:0 12px 6px;padding:4px 6px;border-radius:6px;background:#fff7ed;border:1px solid #fdba74;color:#9a3412;text-align:center;font:600 10px/1.3 Arial,sans-serif';
       d.appendChild(aw);
     }
-    if (p.showNotice !== false) {
-      var n = document.createElement('div');
-      n.style.cssText = 'margin:4px 12px 12px;padding:15px 14px;border:1px solid #86d6a0;border-left:5px solid #16803c;border-radius:10px;background:#effaf2;color:#244b35;text-align:left;box-sizing:border-box;font:600 14px/1.65 Arial,sans-serif;white-space:pre-line;overflow-wrap:anywhere';
-      n.appendChild(document.createTextNode('After payment, you will receive an M-Pesa confirmation message from '));
-      var brand = document.createElement('strong');
-      brand.textContent = 'ENACOACH';
-      brand.style.cssText = 'color:#126332;font-weight:800;letter-spacing:.5px';
-      n.appendChild(brand);
-      n.appendChild(document.createTextNode('. Your ticket will be sent to the M-Pesa number you used to pay and will also appear here in this chat.\n\nPlease keep your ticket safe and present it to our staff when boarding.\n\nKindly arrive at your boarding point at least 30 minutes before departure.'));
-      d.appendChild(n);
-    }
+    var n = document.createElement('div');
+    n.style.cssText = 'margin:4px 12px 12px;padding:15px 14px;border:1px solid #86d6a0;border-left:5px solid #16803c;border-radius:10px;background:#effaf2;color:#244b35;text-align:left;box-sizing:border-box;font:600 14px/1.65 Arial,sans-serif;white-space:pre-line;overflow-wrap:anywhere';
+    n.appendChild(document.createTextNode('After payment, you will receive an M-Pesa confirmation message from '));
+    var brand = document.createElement('strong');
+    brand.textContent = 'ENACOACH';
+    brand.style.cssText = 'color:#126332;font-weight:800;letter-spacing:.5px';
+    n.appendChild(brand);
+    n.appendChild(document.createTextNode('. Your ticket will be sent to the M-Pesa number you used to pay and will also appear here in this chat.\\n\\nPlease keep your ticket safe and present it to our staff when boarding.\\n\\nKindly arrive at your boarding point at least 30 minutes before departure.'));
+    d.appendChild(n);
     var pw = document.createElement('div'); pw.style.cssText = 'padding:0 12px 12px';
     var pbtn = document.createElement('button'); pbtn.type = 'button'; pbtn.className = 'enc-paid-btn'; pbtn.setAttribute('data-ref', String(p.ref || ''));
     pbtn.style.cssText = 'width:100%;border:0;border-radius:22px;padding:11px 14px;color:#fff;font:bold 15px system-ui,sans-serif';
