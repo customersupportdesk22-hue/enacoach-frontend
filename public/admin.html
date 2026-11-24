@@ -56,6 +56,10 @@
     <label>Account Number</label>
     <input type="text" id="payAccount" placeholder="e.g. 1769003">
   </div>
+  <div class="form-group">
+    <label>M-Pesa Account Name (must match the name customers see in M-Pesa)</label>
+    <input type="text" id="accountName" maxlength="60" placeholder="Enter the exact registered M-Pesa account name">
+  </div>
 
   <h3>2. Global Payment Control</h3>
   <div class="form-group"><label>How should the AI handle customer payments?</label>
@@ -105,6 +109,7 @@
       document.getElementById('payType').value = data.type || 'paybill';
       document.getElementById('payNumber').value = data.number || '';
       document.getElementById('payAccount').value = data.account || '';
+      document.getElementById('accountName').value = data.accountName || 'ENA COACH';
       document.getElementById('fareOverride').value = data.override || 0;
       document.getElementById('paymentMode').value = data.paymentMode || 'automatic';
       
@@ -184,6 +189,7 @@
     const type = document.getElementById('payType').value;
     const number = document.getElementById('payNumber').value.trim();
     const account = document.getElementById('payAccount').value.trim();
+    const accountName = document.getElementById('accountName').value.trim();
     const override = parseFloat(document.getElementById('fareOverride').value) || 0;
 
     if (!number) return alert("Please enter the payment number.");
@@ -194,7 +200,7 @@
     try {
       const response = await adminFetch('/api/settings', {
         method: 'POST',
-        body: JSON.stringify({ type, number, account, override, paymentMode: document.getElementById('paymentMode').value })
+        body: JSON.stringify({ type, number, account, accountName, override, paymentMode: document.getElementById('paymentMode').value })
       });
       const ai = await adminFetch('/api/ai-settings', { method: 'POST', body: JSON.stringify(aiPayload()) });
 
