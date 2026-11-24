@@ -58,6 +58,14 @@
     <label>Account Number</label>
     <input type="text" id="payAccount" placeholder="e.g. 1769003">
   </div>
+  <div class="form-group">
+    <label>M-Pesa Account Name (must match the name customers see in M-Pesa)</label>
+    <input type="text" id="accountName" placeholder="e.g. ENA COACH">
+  </div>
+  <div class="sw" style="margin-bottom:12px"><div><b>Account name ON/OFF</b><small>Turn off to hide the M-Pesa account name on customer payment cards.</small></div>
+    <label class="tg"><input type="checkbox" id="showAccountName" checked><span></span></label></div>
+  <div class="sw" style="margin-bottom:16px"><div><b>After-payment notice ON/OFF</b><small>Turn off to hide the ticket, safety and boarding instructions on payment cards.</small></div>
+    <label class="tg"><input type="checkbox" id="showPaymentNotice" checked><span></span></label></div>
   <h3>2. Global Payment Control</h3>
   <div class="form-group"><label>How should the AI handle customer payments?</label>
     <select id="paymentMode"><option value="automatic">Automatic — AI sends official Paybill/Till details</option><option value="admin">Admin controlled — customer waits for me to send details</option><option value="stk">Manual STK Push — I initiate the prompt myself</option></select>
@@ -106,6 +114,9 @@
       document.getElementById('payType').value = data.type || 'paybill';
       document.getElementById('payNumber').value = data.number || '';
       document.getElementById('payAccount').value = data.account || '';
+      document.getElementById('accountName').value = data.accountName || '';
+      document.getElementById('showAccountName').checked = data.showAccountName !== false;
+      document.getElementById('showPaymentNotice').checked = data.showPaymentNotice !== false;
       document.getElementById('fareOverride').value = data.override || 0;
       document.getElementById('paymentMode').value = data.paymentMode || 'automatic';
       document.getElementById('showPaymentDetails').checked = data.showPaymentDetails !== false;
@@ -197,7 +208,10 @@
       const response = await adminFetch('/api/settings', {
         method: 'POST',
         body: JSON.stringify({
-          type, number, account, override,
+          type, number, account, accountName: document.getElementById('accountName').value.trim(),
+          override,
+          showAccountName: document.getElementById('showAccountName').checked,
+          showPaymentNotice: document.getElementById('showPaymentNotice').checked,
           paymentMode: document.getElementById('paymentMode').value,
           showPaymentDetails: document.getElementById('showPaymentDetails').checked,
         })
