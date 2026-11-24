@@ -255,15 +255,13 @@ body.enc-open{overflow:hidden}
       mt.appendChild(document.createTextNode(clock(m.t)));
       if (m.from === 'client') {
         var tk = document.createElement('span');
-        var readAt = m.seenAt || 0, deliveredAt = m.deliveredAt || 0;
+        var readAt = m.seenAt || 0;
         tk.className = 'enc-tk' + (m.seen ? ' seen' : '');
-        tk.textContent = m.seen || deliveredAt ? '✓✓' : '✓';
+        tk.textContent = m.seen ? '✓✓' : '✓';
         mt.appendChild(tk);
         var receipt = document.createElement('span');
         receipt.className = 'enc-receipt';
-        if (m.seen && readAt) receipt.textContent = 'Seen ' + clock(readAt);
-        else if (deliveredAt) receipt.textContent = 'Delivered ' + clock(deliveredAt);
-        else receipt.textContent = 'Sent';
+        receipt.textContent = m.seen && readAt ? 'Seen ' + clock(readAt) : 'Sent';
         mt.appendChild(receipt);
       }
       d.appendChild(mt);
