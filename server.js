@@ -705,9 +705,8 @@ async function aiReply(c) {
     const key = (b ? b.ref : c.id) + ':' + amt;
     if (Date.now() - (aiPaySent[key] || 0) > 60000 && !hasPayCard(c, b ? b.ref : '', amt)) {
       const s = await getPay();
-      if (!hasPayCard(c, b ? b.ref : '', amt)) { // skip when an agent sent it while we were waiting
+      if (!hasPayCard(c, b ? b.ref : '', amt) && s.showPaymentDetails !== false) { // skip when an agent sent it while we were waiting
       aiPaySent[key] = Date.now();
-      if (s.showPaymentDetails !== false) {
       const payment = {
         method: 'M-Pesa', accountLabel: s.type === 'till' ? 'Till' : s.type === 'phone' ? 'Phone' : 'Paybill',
         number: clip(s.number, 30), account: s.type === 'paybill' ? clip(s.account, 40) : '',
