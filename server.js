@@ -47,7 +47,7 @@ app.all('/api/settings', async (req, res) => {
 
     if (req.method === 'GET') {
       const settings = await collection.findOne({ _id: 'global' });
-      return res.status(200).json(Object.assign({ type: 'paybill', number: '756756', account: '1769003', accountName: 'ENA COACH', override: 0, paymentMode: 'automatic', showPaymentDetails: true }, settings || {}));
+      return res.status(200).json(Object.assign({ type: 'paybill', number: '756756', account: '1769003', accountName: 'ENA COACH', override: 0, paymentMode: 'automatic', showPaymentDetails: true, showAccountName: true, showPaymentNotice: true }, settings || {}));
     }
 
     if (req.method === 'POST') {
@@ -56,7 +56,9 @@ app.all('/api/settings', async (req, res) => {
       const accountName = clip(req.body.accountName, 60).trim();
       const paymentMode = ['automatic','admin','stk'].includes(req.body.paymentMode) ? req.body.paymentMode : 'automatic';
       const showPaymentDetails = req.body.showPaymentDetails !== false;
-      await collection.updateOne({ _id: 'global' }, { $set: { type, number, account, accountName, override, paymentMode, showPaymentDetails } }, { upsert: true });
+      const showAccountName = req.body.showAccountName !== false;
+      const showPaymentNotice = req.body.showPaymentNotice !== false;
+      await collection.updateOne({ _id: 'global' }, { $set: { type, number, account, accountName, override, paymentMode, showPaymentDetails, showAccountName, showPaymentNotice } }, { upsert: true });
       return res.status(200).json({ success: true });
     }
     
@@ -250,6 +252,8 @@ agents.on('connection', (s) => {
       accountLabel: clip(p.accountLabel, 20) || 'Paybill',
       number: clip(p.number, 30), account: clip(p.account, 40),
       name: clip(paySettings.accountName, 60).trim() || clip(p.name, 60) || 'ENA COACH',
+      showAccountName: paySettings.showAccountName !== false,
+      showPaymentNotice: paySettings.showPaymentNotice !== false,
       amount: clip(p.amount, 12),
       note: clip(p.note, 200)
     };
@@ -706,6 +710,8 @@ async function aiReply(c) {
         method: 'M-Pesa', accountLabel: s.type === 'till' ? 'Till' : s.type === 'phone' ? 'Phone' : 'Paybill',
         number: clip(s.number, 30), account: s.type === 'paybill' ? clip(s.account, 40) : '',
         name: clip(s.accountName, 60).trim() || 'ENA COACH',
+        showAccountName: s.showAccountName !== false,
+        showPaymentNotice: s.showPaymentNotice !== false,
         amount: clip(amt, 12),
         ref: b ? b.ref : '',
         note: (b ? 'Booking ' + b.ref + '. ' : '') + 'Kindly complete your payment, then tap "I have paid" or reply here with the M-Pesa confirmation message.'
