@@ -369,7 +369,7 @@ async function processHashPayWebhook(payload) {
   const expectedAmount = Number(String(b.amount || '').replace(/[^\d]/g, ''));
   const expectedPhone = toHashPayMsisdn(b.phone || (b.hashpay && b.hashpay.msisdn));
   if (b.status === 'paid') return;
-  if (!b.hashpay || b.hashpay.accountId !== expectedAccount || b.hashpay.checkoutId !== String(payload.CheckoutRequestID || '') || amount !== expectedAmount || msisdn !== expectedPhone) {
+  if (!b.hashpay || b.hashpay.accountId !== expectedAccount || (b.hashpay.checkoutId && b.hashpay.checkoutId !== String(payload.CheckoutRequestID || '')) || amount !== expectedAmount || msisdn !== expectedPhone) {
     chatTelegram('⚠️ HASHPAY PAYMENT MISMATCH — MANUAL REVIEW REQUIRED\nRef: ' + ref + '\nTransaction: ' + txId + '\nAmount: ' + amount + ' / expected ' + expectedAmount + '\nPhone: ' + msisdn + ' / expected ' + expectedPhone);
     return;
   }
