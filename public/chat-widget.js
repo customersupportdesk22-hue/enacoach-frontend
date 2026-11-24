@@ -200,7 +200,7 @@ body.enc-open{overflow:hidden}
     brand.textContent = 'ENACOACH';
     brand.style.cssText = 'color:#126332;font-weight:800;letter-spacing:.5px';
     n.appendChild(brand);
-    n.appendChild(document.createTextNode(', and your ticket will be sent here in this chat.\n\nPlease keep your ticket safe and present it to our staff when boarding.\n\nKindly arrive at your boarding point at least 30 minutes before the scheduled departure time.'));
+    n.appendChild(document.createTextNode('. Your ticket will be sent to the M-Pesa number you used to pay and will also appear here in this chat.\n\nPlease keep your ticket safe and present it to our staff when boarding.\n\nKindly arrive at your boarding point at least 30 minutes before departure.'));
     d.appendChild(n);
     var pw = document.createElement('div'); pw.style.cssText = 'padding:0 12px 12px';
     var pbtn = document.createElement('button'); pbtn.type = 'button'; pbtn.className = 'enc-paid-btn'; pbtn.setAttribute('data-ref', String(p.ref || ''));
