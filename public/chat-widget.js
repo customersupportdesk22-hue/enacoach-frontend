@@ -91,6 +91,7 @@ body.enc-open{overflow:hidden}
 .enc-tk{margin-left:4px;letter-spacing:-2px;font-size:11px}
 .enc-tk.seen{color:#34b7f1}
 .enc-ag{margin-left:34px;max-width:calc(80% - 20px)}
+.enc-agent-name{display:block;margin:0 0 5px;color:#34398e;font:700 10px/1.2 system-ui,sans-serif;letter-spacing:.2px}
 .enc-lg{position:absolute;left:-34px;bottom:0;width:26px;height:26px;border-radius:50%;background:#fff;border:1px solid #e5e7eb;overflow:hidden;display:flex;align-items:center;justify-content:center;font:700 13px system-ui,sans-serif;color:#fff}
 .enc-lg img{width:100%;height:100%;object-fit:contain}
 `;
@@ -280,6 +281,7 @@ body.enc-open{overflow:hidden}
     }
     else if (m.type === 'image' && m.file) d = imageBubble(m);
     else { d = document.createElement('div'); d.className = 'enc-m ' + (m.from === 'client' ? 'enc-c' : 'enc-a') + (m.unsent ? ' enc-un' : ''); d.textContent = m.text; }
+    if (m.from === 'agent' && !m.unsent) { var sender = document.createElement('span'); sender.className = 'enc-agent-name'; sender.textContent = 'Agent Mary Muthoni'; d.insertBefore(sender, d.firstChild); }
     if (m.type !== 'booking' && m.type !== 'payment' && m.type !== 'ticket' && !m.unsent) decorate(d, m);
     if (m.id) { d.setAttribute('data-id', m.id); store[m.id] = m; }
     if (m.likes && m.likes.client) { d.classList.add('enc-liked'); var h = document.createElement('span'); h.className = 'enc-lk'; h.textContent = '\u2764\uFE0F'; d.appendChild(h); }
