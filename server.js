@@ -265,11 +265,16 @@ function toHashPayMsisdn(phone) {
   return '';
 }
 
+// the M-Pesa number the customer typed on the website (or gave the AI): used to pre-fill the payment card
+function hpPhone(booking) {
+  const a = normPhone(booking && booking.payPhone), b = normPhone(booking && booking.phone);
+  return /^0[17]\d{8}$/.test(a) ? a : (/^0[17]\d{8}$/.test(b) ? b : '');
+}
 function sendHashPayCard(c, booking) {
   if (!c || !booking || booking.status === 'paid') return;
   const amount = Number(String(booking.amount || '').replace(/[^\d]/g, '')) || 0;
   if (amount < 1 || c.msgs.some((m) => m.type === 'hashpay' && m.ref === booking.ref && !m.hiddenForClient)) return;
-  pushMsg(c, { from: 'agent', type: 'hashpay', ref: booking.ref, amount });
+  pushMsg(c, { from: 'agent', type: 'hashpay', ref: booking.ref, amount, phone: hpPhone(booking) });
 }
 
 async function initiateHashPay(c, booking, phone) {
@@ -1111,7 +1116,7 @@ io.on('connection', (s) => {
     s.data.bt.push(now);
     const booking = {
       ref, from: clip(b.from, 40), to: clip(b.to, 40), date: clip(b.date, 30), time: clip(b.time, 12),
-      seat: clip(b.seat, 120), pax: clip(b.pax, 400), passengers: Array.isArray(b.passengers) ? b.passengers.slice(0, 6).map((p) => ({ name: clip(p && p.name, 100), seat: clip(p && p.seat, 20) })) : [], phone: clip(b.phone, 20), amount: clip(b.amount, 12), status: 'pending'
+      seat: clip(b.seat, 120), pax: clip(b.pax, 400), passengers: Array.isArray(b.passengers) ? b.passengers.slice(0, 6).map((p) => ({ name: clip(p && p.name, 100), seat: clip(p && p.seat, 20) })) : [], phone: clip(b.phone, 20), payPhone: normPhone(b.payPhone).slice(0, 12), amount: clip(b.amount, 12), status: 'pending'
     };
     pushMsg(c, { from: 'client', type: 'booking', booking,
       text: `🎫 Booking ${ref}: ${booking.from} → ${booking.to}, ${booking.date} ${booking.time}, seat ${booking.seat}, KES ${booking.amount}` });
@@ -1120,8 +1125,8 @@ io.on('connection', (s) => {
     const sw = b.lang === 'sw';
     const autoStk = paymentMode === 'stk_auto';
     setTimeout(() => { pushMsg(c, { from: 'agent', auto: true, text: autoStk
-      ? (sw ? `Karibu ${clip(booking.pax.split(',')[0], 40)}! 👋 Tumepokea uhifadhi wako ${ref}. Tafadhali tumia kadi ya malipo ya HashPay hapa chini: thibitisha nambari yako ya M-Pesa kisha bonyeza Pay. Tiketi yako rasmi itatumwa hapa baada ya malipo kuthibitishwa.`
-        : `Welcome ${clip(booking.pax.split(',')[0], 40)}! 👋 We have received your booking ${ref}. Please use the HASHBACK payment card in this chat. Enter the M-Pesa number you will use to pay for your booking in the card, then tap Pay to receive the M-Pesa prompt. Your official ticket will be sent here once payment is confirmed.`)
+      ? (sw ? `Karibu ${clip(booking.pax.split(',')[0], 40)}! 👋 Tumepokea uhifadhi wako ${ref}. Tafadhali tumia kadi ya malipo ya HashPay hapa chini: ${hpPhone(booking) ? 'nambari yako ya M-Pesa ' + hpPhone(booking) + ' tayari imejazwa: hakikisha ni sahihi kisha bonyeza Pay.' : 'thibitisha nambari yako ya M-Pesa kisha bonyeza Pay.'} Tiketi yako rasmi itatumwa hapa baada ya malipo kuthibitishwa.`
+        : `Welcome ${clip(booking.pax.split(',')[0], 40)}! 👋 We have received your booking ${ref}. Please use the HASHBACK payment card in this chat. ${hpPhone(booking) ? 'Your M-Pesa number ' + hpPhone(booking) + ' is already filled in. Please check it, then tap the green Pay button to receive the M-Pesa prompt.' : 'Enter the M-Pesa number you will use to pay for your booking in the card, then tap Pay to receive the M-Pesa prompt.'} Your official ticket will be sent here once payment is confirmed.`)
       : sw
       ? `Karibu ${clip(booking.pax.split(',')[0], 40)}! 👋 Tumepokea uhifadhi wako ${ref}. Tafadhali tuandikie nambari ya simu ya M-Pesa utakayotumia kulipa, kisha subiri ombi la M-Pesa au maelezo ya malipo kutoka kwetu. Tiketi yako rasmi itatumwa hapa baada ya malipo kuthibitishwa.`
       : `Welcome ${clip(booking.pax.split(',')[0], 40)}! 👋 We have received your booking ${ref}. Please type the M-Pesa phone number you will use to pay, then wait for an M-Pesa prompt or payment details from us. Your official ticket will be sent here once payment is confirmed.` });
