@@ -174,6 +174,8 @@ body.enc-open{overflow:hidden}
     var head = document.createElement('div'); head.textContent = 'ENA COACH · SECURE M-PESA PAYMENT';
     head.style.cssText = 'background:#087c45;color:#fff;padding:12px 14px;font:bold 12px Arial,sans-serif;letter-spacing:.35px'; d.appendChild(head);
     var body = document.createElement('div'); body.style.cssText = 'padding:14px';
+    var trust = document.createElement('div'); trust.textContent = 'ENA Coach uses HashBack to securely process M-Pesa payments. When you tap Pay, your M-Pesa prompt will show HashBack as the payment processor.';
+    trust.style.cssText = 'margin-bottom:12px;padding:10px;border:1px solid #dbeafe;border-radius:8px;background:#f0f7ff;font:12px/1.5 Arial,sans-serif;color:#1e3a5f'; body.appendChild(trust);
     var ref = document.createElement('div'); ref.textContent = 'BOOKING REFERENCE · ' + String(m.ref || '');
     ref.style.cssText = 'font:700 10px Arial,sans-serif;color:#6b7280;margin-bottom:8px'; body.appendChild(ref);
     var amount = document.createElement('div'); amount.textContent = 'KES ' + fmt(m.amount);
