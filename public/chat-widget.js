@@ -1,6 +1,7 @@
 (function () {
   if (window.ENAChat) return;
   var base = document.currentScript.src.replace(/\/chat-widget\.js.*$/, '');
+  var awaitingBooking = false; // true while a website booking is about to arrive, so no generic greeting is shown
   var css = document.createElement('style');
   css.textContent = `
 #enc-btn{position:fixed;right:16px;bottom:90px;width:60px;height:60px;border-radius:50%;background:#25D366;color:#fff;border:0;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 18px rgba(37,211,102,.55);z-index:99998}
@@ -158,14 +159,13 @@ body.enc-open{overflow:hidden}
     }).join('');
     var paid = b.status === 'paid';
     d.innerHTML = '<div class="bk"><div class="bk-head"><span class="bk-brand">ENA COACH · BOOKING</span><span class="bk-tag">' + (paid ? 'CONFIRMED' : 'AWAITING PAYMENT') + '</span></div>' +
-      '<img class="bk-photo" src="' + base + '/buses/bus2.webp" alt="ENA Coach bus" loading="lazy">' +
       '<div class="bk-body"><div style="font-size:10px;color:#7b8191;font-weight:700;margin-bottom:4px">BOOKING REFERENCE · ' + esc(b.ref) + '</div>' +
       '<div class="bk-route"><span>' + esc(b.from) + '</span><span>→</span><span>' + esc(b.to) + '</span></div>' +
       '<div class="bk-meta"><div><small>Travel date</small><b>' + esc(b.date) + '</b></div><div><small>Departure</small><b>' + esc(b.time) + '</b></div>' +
       '<div><small>Contact</small><b>' + esc(b.phone || '') + '</b></div><div><small>Passengers</small><b>' + passengers.length + '</b></div></div>' +
       '<div class="bk-pass-title">PASSENGER DETAILS</div>' + passengerHtml +
       '<div class="bk-total"><span>TOTAL FARE</span><strong>KES ' + esc(fmt(b.amount)) + '</strong></div></div>' +
-      '<div class="st' + (paid ? ' ok' : ' wait') + '">' + (paid ? '✅ Payment confirmed · ticket issued' : '<span class="hg">⏳</span> ' + (b.paidClaimed ? 'Payment verification in progress' : 'Waiting for payment')) + '</div></div>';
+      '<div class="st' + (paid ? ' ok' : ' wait') + '">' + (paid ? '✅ Payment confirmed · ticket issued' : '' + (b.paidClaimed ? 'Payment verification in progress' : 'Waiting for payment')) + '</div></div>';
     return d;
   }
   // green Pay button label: M-PESA logo badge + wording (drop an official mpesa-logo.png in /public to replace the text badge)
@@ -191,10 +191,9 @@ body.enc-open{overflow:hidden}
     var head = document.createElement('div'); head.textContent = 'ENA COACH · SECURE M-PESA PAYMENT';
     head.style.cssText = 'background:#087c45;color:#fff;padding:12px 14px;font:bold 12px Arial,sans-serif;letter-spacing:.35px'; d.appendChild(head);
     var body = document.createElement('div'); body.style.cssText = 'padding:14px';
-    var trust = document.createElement('div'); trust.textContent = 'ENA Coach uses HashBack to securely process M-Pesa payments. When you tap Pay, your M-Pesa prompt will show HashBack as the payment processor.';
-    trust.style.cssText = 'margin-bottom:12px;padding:10px;border:1px solid #dbeafe;border-radius:8px;background:#f0f7ff;font:12px/1.5 Arial,sans-serif;color:#1e3a5f'; body.appendChild(trust);
     var ref = document.createElement('div'); ref.textContent = 'BOOKING REFERENCE · ' + String(m.ref || '');
-    ref.style.cssText = 'font:700 10px Arial,sans-serif;color:#6b7280;margin-bottom:8px'; body.appendChild(ref);
+    ref.style.cssText = 'font:700 10px Arial,sans-serif;color:#6b7280;margin-bottom:4px'; body.appendChild(ref);
+    if (m.trip) { var trip = document.createElement('div'); trip.textContent = String(m.trip); trip.style.cssText = 'font:600 13px Arial,sans-serif;color:#374151;margin-bottom:8px'; body.appendChild(trip); }
     var amount = document.createElement('div'); amount.textContent = 'KES ' + fmt(m.amount);
     amount.style.cssText = 'font:bold 25px Arial,sans-serif;color:#123b2b;margin-bottom:12px'; body.appendChild(amount);
     var label = document.createElement('label'); label.textContent = 'M-Pesa phone number';
@@ -224,7 +223,7 @@ body.enc-open{overflow:hidden}
     if (m.hpState !== 'paid' && m.hpState !== 'pending') pay.classList.add('enc-hp-go');
     if (m.hpState === 'paid') { pay.disabled = true; pay.textContent = '✅ Payment confirmed'; pay.style.opacity = '.7'; input.disabled = true; }
     else if (m.hpState === 'pending') { pay.disabled = true; pay.textContent = 'M-Pesa prompt requested. Check your phone'; pay.style.opacity = '.7'; }
-    var note = document.createElement('div'); note.textContent = 'Check this number and your M-Pesa balance before you tap Pay. You will receive an M-Pesa prompt on your phone and enter your M-Pesa PIN there.';
+    var note = document.createElement('div'); note.textContent = 'Payments are processed securely by HashBack. Check your M-Pesa balance first, and never share your PIN with anyone.';
     note.style.cssText = 'margin-top:10px;font:11px/1.45 Arial,sans-serif;color:#64748b'; body.appendChild(note);
     d.appendChild(body); return d;
   }
@@ -564,7 +563,7 @@ body.enc-open{overflow:hidden}
         // Seen status comes only from the agent's explicit read event on the server.
         msgs.innerHTML = ''; store = {}; closeMenu(); h.forEach(add); updateUI();
         h.forEach(function (m) { if (m.t > lastT) lastT = m.t; });
-        if (!h.length) add({ from: 'agent', text: 'Welcome to ENA Coach. How may we assist you today? Kindly share your departure town, destination and travel date, and we will gladly arrange your booking.' });
+        if (!h.length && !awaitingBooking) add({ from: 'agent', text: 'Welcome to ENA Coach. How may we assist you today? Kindly share your departure town, destination and travel date, and we will gladly arrange your booking.' });
         if (box.style.display === 'flex') setSeen(lastT);
         else {
           // customer came back to the site: count agent messages sent while they were away
@@ -694,7 +693,8 @@ body.enc-open{overflow:hidden}
     try { if (b.phone && !localStorage.getItem('enc_ph')) localStorage.setItem('enc_ph', b.phone); } catch (e) {}
     afterClose = done || null;
     openChat();
-    $('enc-t').placeholder = 'Type the M-Pesa number you will pay with...';
+    awaitingBooking = true;
+    $('enc-t').placeholder = 'Type a message...';
     outbox.push(function () { socket.emit('booking', b); });
     flushOut();
   }

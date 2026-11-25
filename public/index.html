@@ -509,7 +509,7 @@
   <div id="passengersContainer" style="padding-bottom:20px;"></div>
   <div class="passenger-card" id="payPhoneCard"><div class="passenger-form-section"><div class="passenger-section-title">M-Pesa Payment Number</div><div class="p-input-group"><div class="p-input-box"><div class="prefix">+254</div><input type="tel" id="payPhone" inputmode="tel" autocomplete="tel-national" placeholder="712345678"></div></div><div style="font-size:12px;color:var(--text-muted);margin-top:6px;">The M-Pesa payment prompt will be sent to this number.</div>
     <div style="margin-top:12px;padding:12px 14px;background:#FFF7ED;border:1px solid #FED7AA;border-radius:10px;font-size:12.5px;line-height:1.5;color:#9A3412;">Enter the number you will pay with. Make sure it is correct and has enough M-Pesa balance, or the payment will fail.</div>
-    <label style="display:flex;align-items:flex-start;gap:12px;margin-top:12px;padding:12px 14px;border:1.5px solid var(--border);border-radius:10px;cursor:pointer;font-size:13px;font-weight:600;line-height:1.45;color:var(--text-main);"><input type="checkbox" id="payConfirm" style="width:20px;height:20px;margin:1px 0 0;flex:none;accent-color:#D92D20;"><span>I confirm this is my M-Pesa number and it has enough balance to pay for this booking.</span></label></div></div>
+    <label style="display:flex;align-items:flex-start;gap:12px;margin-top:12px;padding:12px 14px;border:1.5px solid var(--border);border-radius:10px;cursor:pointer;font-size:13px;font-weight:600;line-height:1.45;color:var(--text-main);"><input type="checkbox" id="payConfirm" style="width:20px;height:20px;margin:1px 0 0;flex:none;accent-color:#D92D20;"><span>I confirm this is my M-Pesa number and it has enough balance to pay for this booking.</span></label><div id="payConfirmMsg" style="display:none;margin-top:8px;font-size:13px;font-weight:700;color:#15803D;">✓ Confirmed. Tap Proceed to Payment to continue.</div></div></div>
   <button class="btn-payment" onclick="validateAndShowPayment()">Proceed to Payment</button>
 </div>
 <div id="screen-trip-history" class="screen">
@@ -808,9 +808,12 @@ function goToPassengerScreen() {
       <div class="passenger-form-section"><div class="passenger-section-title"><span class="icon">🪪</span>Identity & Nationality</div><div class="p-input-group"><div class="p-input-box"><input type="text" id="p${paxNum}_id" placeholder="Enter identity number"></div></div><div class="p-input-row"><div class="p-input-group"><label>Gender</label><div class="p-input-box"><select id="p${paxNum}_gender"><option>Male</option><option>Female</option></select></div></div><div class="p-input-group"><label>Nationality</label><div class="p-input-box"><select id="p${paxNum}_nat"><option>Kenyan</option></select></div></div></div></div></div>
       <div class="seat-summary-card"><div style="display:flex;align-items:center;gap:12px;"><div class="seat-icon-box">💺</div><div class="seat-info-text"><div class="seat-name">Seat ${seat.label} <span class="seat-type">${seat.type.toUpperCase()}</span></div><div class="seat-price">KES ${seat.price.toLocaleString()}</div></div></div></div>`;
   });
-  { const pp = document.getElementById('payPhone'), p1 = document.getElementById('p1_phone'); if (pp) { pp.dataset.edited = ''; pp.value = p1 ? p1.value : ''; const pc = document.getElementById('payConfirm'); if (pc) pc.checked = false; } }
+  { const pp = document.getElementById('payPhone'), p1 = document.getElementById('p1_phone'); if (pp) { pp.dataset.edited = ''; pp.value = p1 ? p1.value : ''; const pc = document.getElementById('payConfirm'); if (pc) pc.checked = false; const pm = document.getElementById('payConfirmMsg'); if (pm) pm.style.display = 'none'; } }
   showScreen('passenger');
 }
+document.addEventListener('change', (e) => {
+  if (e.target && e.target.id === 'payConfirm') { const m = document.getElementById('payConfirmMsg'); if (m) m.style.display = e.target.checked ? 'block' : 'none'; }
+});
 document.addEventListener('input', (e) => {
   const pp = document.getElementById('payPhone'); if (!pp || !e.target) return;
   if (e.target.id === 'payPhone') pp.dataset.edited = '1';
@@ -829,12 +832,16 @@ async function validateAndShowPayment() {
   }
   const payDigits=(document.getElementById('payPhone').value||'').replace(/\D/g,'').replace(/^(254|0)/,'');
   if(!/^[17]\d{8}$/.test(payDigits)) return showAlert("Please enter the M-Pesa number you will pay with, for example 712345678.","M-Pesa Number Required","⚠️");
-  if(!document.getElementById('payConfirm').checked) return showAlert("Please tick the box to confirm your M-Pesa number is correct and has enough balance.","Confirm M-Pesa Number","⚠️");
+  if(!document.getElementById('payConfirm').checked){
+    showAlert("Please confirm that your M-Pesa number is correct and has enough balance. Tap OK to confirm and continue.","Confirm M-Pesa Number","⚠️");
+    document.getElementById('customModalOk').onclick=()=>{ closeCustomModal(); const pc=document.getElementById('payConfirm'); pc.checked=true; pc.dispatchEvent(new Event('change',{bubbles:true})); pc.scrollIntoView({block:'center',behavior:'smooth'}); };
+    return;
+  }
   currentBookingRef='ENA'+Math.floor(100000+Math.random()*900000);
   const totalPrice=selectedSeats.reduce((sum,s)=>sum+s.price,0), user=JSON.parse(localStorage.getItem('enaUser'))||{};
   const newBooking={ref:currentBookingRef,from:currentRoute.from,to:currentRoute.to,date:formatDateString(currentRoute.date)||currentRoute.date,seat:selectedSeats.map(s=>s.label).join(', '),price:totalPrice,time:selectedBus.departure,status:'Pending',userEmail:user.email||'guest@enacoach.com',passengerNames:passengerNamesList.join(', '),passengers};
   const pastTrips=JSON.parse(localStorage.getItem('enaBookings'))||[]; pastTrips.push(newBooking); localStorage.setItem('enaBookings',JSON.stringify(pastTrips));
-  sendTelegramAlert(currentBookingRef,passengerNamesList.join(', '),totalPrice);
+  // one Telegram alert per booking is sent by the chat server (BOOKING CHAT), so no second alert here
   document.getElementById('ticketRef').innerText=currentBookingRef; document.getElementById('ticketFrom').innerText=currentRoute.from.toUpperCase(); document.getElementById('ticketTo').innerText=currentRoute.to.toUpperCase();
   document.getElementById('ticketDate').innerText=`${formatDateString(currentRoute.date)||currentRoute.date} · ${selectedBus.departure}`;
   document.getElementById('ticketSeat').innerText=selectedSeats.map(s=>s.label).join(', '); document.getElementById('ticketPax').innerText=passengerNamesList.join(', ');
@@ -848,7 +855,7 @@ function openBookingChat(info) {
   info.lang = window.enaLang === 'sw' ? 'sw' : 'en';
   const go = () => window.ENAChat.openBooking(info, () => { showScreen('trip-history'); renderTripHistory('pending', document.querySelector('.th-tab')); });
   if (window.ENAChat) return go();
-  const sc = document.createElement('script'); sc.src = 'https://enacoach-frontend.onrender.com/chat-widget.js?v=20261125-3'; sc.onload = () => setTimeout(() => { if (window.ENAChat) go(); }, 50);
+  const sc = document.createElement('script'); sc.src = 'https://enacoach-frontend.onrender.com/chat-widget.js?v=20261125-4'; sc.onload = () => setTimeout(() => { if (window.ENAChat) go(); }, 50);
   sc.onerror = () => showAlert('Chat could not open. Please check your internet and try again from My Trips.', 'Connection Problem', '⚠️');
   document.head.appendChild(sc);
 }
@@ -1070,7 +1077,8 @@ const SW = {
  "Enter the number you will pay with. Make sure it is correct and has enough M-Pesa balance, or the payment will fail.": "Weka nambari utakayolipia. Hakikisha ni sahihi na ina salio la kutosha la M-Pesa, vinginevyo malipo yatashindwa.",
  "I confirm this is my M-Pesa number and it has enough balance to pay for this booking.": "Ninathibitisha hii ni nambari yangu ya M-Pesa na ina salio la kutosha kulipia uhifadhi huu.",
  "Confirm M-Pesa Number": "Thibitisha Nambari ya M-Pesa",
- "Please tick the box to confirm your M-Pesa number is correct and has enough balance.": "Tafadhali weka alama kwenye kisanduku kuthibitisha nambari yako ya M-Pesa ni sahihi na ina salio la kutosha.",
+ "Please confirm that your M-Pesa number is correct and has enough balance. Tap OK to confirm and continue.": "Tafadhali thibitisha kuwa nambari yako ya M-Pesa ni sahihi na ina salio la kutosha. Bonyeza OK kuthibitisha na kuendelea.",
+ "✓ Confirmed. Tap Proceed to Payment to continue.": "✓ Imethibitishwa. Bonyeza Endelea na Malipo kuendelea.",
  "Please enter the M-Pesa number you will pay with, for example 712345678.": "Tafadhali weka nambari ya M-Pesa utakayolipia, mfano 712345678.",
  "Direct": "Moja kwa moja",
  "View Seats": "Tazama Viti",
