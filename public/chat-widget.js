@@ -192,7 +192,7 @@ body.enc-open{overflow:hidden}
       if (pay.disabled) return;
       var phone = input.value.trim();
       if (!/^((0[17][0-9]{8})|(254[17][0-9]{8})|(\+254[17][0-9]{8}))$/.test(phone.replace(/[\s-]/g, ''))) {
-        toast('Enter a valid Kenyan M-Pesa number, for example 0712345678.'); input.focus(); return;
+        toast('Enter a valid M-Pesa number, for example 0712345678.'); input.focus(); return;
       }
       if (!socket || !socket.connected) return toast('Not connected. Please try again.');
       pay.disabled = true; pay.textContent = 'Requesting M-Pesa prompt…'; pay.style.opacity = '.7';
