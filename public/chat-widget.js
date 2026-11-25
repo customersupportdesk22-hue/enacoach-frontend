@@ -168,6 +168,23 @@ body.enc-open{overflow:hidden}
       '<div class="st' + (paid ? ' ok' : ' wait') + '">' + (paid ? '✅ Payment confirmed · ticket issued' : '<span class="hg">⏳</span> ' + (b.paidClaimed ? 'Payment verification in progress' : 'Waiting for payment')) + '</div></div>';
     return d;
   }
+  // green Pay button label: M-PESA logo badge + wording (drop an official mpesa-logo.png in /public to replace the text badge)
+  function hpLabel(btn, amt) {
+    btn.textContent = '';
+    var badge = document.createElement('span');
+    badge.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;background:#fff;border-radius:6px;padding:3px 7px;flex:none';
+    var img = new Image(); img.alt = 'M-PESA'; img.style.cssText = 'height:16px;width:auto;display:block';
+    img.onerror = function () {
+      var tx = document.createElement('b'); tx.textContent = 'M-PESA';
+      tx.style.cssText = 'font:900 12px Arial,sans-serif;color:#43b02a;letter-spacing:.3px';
+      if (img.parentNode) img.parentNode.replaceChild(tx, img);
+    };
+    img.src = base + '/mpesa-logo.png';
+    badge.appendChild(img);
+    var tx2 = document.createElement('span'); tx2.textContent = 'Pay KES ' + amt + ' to ENA Coach via HashBack';
+    tx2.style.cssText = 'text-align:left;line-height:1.25';
+    btn.appendChild(badge); btn.appendChild(tx2);
+  }
   function hashpayCard(m) {
     var d = document.createElement('div'); d.className = 'enc-m enc-a';
     d.style.cssText = 'flex:none;width:300px;max-width:92%;padding:0;border:1.5px solid #16803c;border-radius:14px;overflow:hidden;background:#fff;color:#172033';
@@ -185,8 +202,8 @@ body.enc-open{overflow:hidden}
     var input = document.createElement('input'); input.type = 'tel'; input.inputMode = 'tel'; input.autocomplete = 'tel';
     input.placeholder = 'Enter M-Pesa number you will pay with, e.g. 0712345678'; input.value = m.phone ? String(m.phone) : '';
     input.style.cssText = 'box-sizing:border-box;width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:8px;font:16px Arial,sans-serif;color:#111;background:#fff'; body.appendChild(input);
-    var pay = document.createElement('button'); pay.type = 'button'; pay.textContent = 'Pay KES ' + fmt(m.amount) + ' with STK Push';
-    pay.style.cssText = 'width:100%;margin-top:12px;padding:12px 10px;border:0;border-radius:24px;background:#087c45;color:#fff;font:bold 14px Arial,sans-serif';
+    var pay = document.createElement('button'); pay.type = 'button'; hpLabel(pay, fmt(m.amount));
+    pay.style.cssText = 'width:100%;margin-top:12px;padding:11px 12px;border:0;border-radius:28px;background:#087c45;color:#fff;font:bold 14px Arial,sans-serif;display:flex;align-items:center;justify-content:center;gap:10px';
     if (!document.getElementById('enc-hp-style')) {
       var st = document.createElement('style'); st.id = 'enc-hp-style';
       st.textContent = '@keyframes enc-hp-pulse{0%{box-shadow:0 0 0 0 rgba(8,124,69,.65);transform:scale(1)}70%{box-shadow:0 0 0 14px rgba(8,124,69,0);transform:scale(1.04)}100%{box-shadow:0 0 0 0 rgba(8,124,69,0);transform:scale(1)}}.enc-hp-go{animation:enc-hp-pulse 1.3s ease-in-out infinite}@media (prefers-reduced-motion:reduce){.enc-hp-go{animation:none}}';
@@ -582,7 +599,7 @@ body.enc-open{overflow:hidden}
         Array.prototype.forEach.call(cards, function (b) {
           if (b.getAttribute('data-hp-ref') !== String(r.ref)) return;
           if (r.success) { b.classList.remove('enc-hp-go'); b.textContent = 'M-Pesa prompt sent. Enter your PIN on your phone'; b.disabled = true; }
-          else { b.disabled = false; b.classList.add('enc-hp-go'); b.textContent = 'Pay KES ' + (b.getAttribute('data-hp-amt') || '') + ' with STK Push'; b.style.opacity = '1'; if (r.message) toast(r.message); }
+          else { b.disabled = false; b.classList.add('enc-hp-go'); hpLabel(b, b.getAttribute('data-hp-amt') || ''); b.style.opacity = '1'; if (r.message) toast(r.message); }
         });
       });
       socket.on('fileError', function (t) { toast(t); });

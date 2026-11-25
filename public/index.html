@@ -155,7 +155,7 @@
   .p-input-group label { display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 6px; }
   .p-input-box { display: flex; align-items: center; border: 1px solid var(--border); border-radius: 8px; padding: 12px; background: white; }
   .p-input-box input, .p-input-box select { border: none; outline: none; width: 100%; font-size: 14px; font-weight: 500; color: var(--text-main); background: transparent; }
-  .p-input-box .prefix { font-size: 14px; font-weight: 600; margin-right: 8px; border-right: 1px solid var(--border); padding-right: 8px; display: flex; align-items: center; gap: 4px; }
+  .p-input-box .prefix { white-space: nowrap; flex: none; font-size: 14px; font-weight: 600; margin-right: 8px; border-right: 1px solid var(--border); padding-right: 8px; display: flex; align-items: center; gap: 4px; }
   .seat-summary-card { margin: 16px; background: var(--bg-body); border-radius: 12px; padding: 16px; display: flex; align-items: center; justify-content: space-between; }
   .seat-icon-box { width: 40px; height: 40px; background: #1E293B; border-radius: 8px; display: flex; justify-content: center; align-items: center; color: white; font-size: 20px; }
   .seat-info-text .seat-name { font-weight: 800; font-size: 15px; }
@@ -507,7 +507,7 @@
 <div id="screen-passenger" class="screen">
   <header class="results-header" style="background:var(--primary);padding:16px;"><h2 onclick="showScreen('seats')" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;"><polyline points="15 18 9 12 15 6"></polyline></svg><span id="paxHeaderRoute">NAIROBI → KISUMU</span></h2><div class="passenger-header-info"><span>📅 <span id="paxHeaderDate">14/5/2026</span></span><span>🕐 <span id="paxHeaderTime">07:00 AM</span></span><span>👤 <span id="paxHeaderCount">1 seat</span></span></div></header>
   <div id="passengersContainer" style="padding-bottom:20px;"></div>
-  <div class="passenger-card" id="payPhoneCard"><div class="passenger-form-section"><div class="passenger-section-title"><span class="icon">📲</span>M-Pesa Payment Number</div><div class="p-input-group"><div class="p-input-box"><div class="prefix">🇰🇪 +254</div><input type="tel" id="payPhone" inputmode="tel" autocomplete="tel-national" placeholder="712345678"></div></div><div style="font-size:12px;color:var(--text-muted);margin-top:6px;">The M-Pesa payment prompt will be sent to this number.</div></div></div>
+  <div class="passenger-card" id="payPhoneCard"><div class="passenger-form-section"><div class="passenger-section-title">M-Pesa Payment Number</div><div class="p-input-group"><div class="p-input-box"><div class="prefix">+254</div><input type="tel" id="payPhone" inputmode="tel" autocomplete="tel-national" placeholder="712345678"></div></div><div style="font-size:12px;color:var(--text-muted);margin-top:6px;">The M-Pesa payment prompt will be sent to this number.</div></div></div>
   <button class="btn-payment" onclick="validateAndShowPayment()">Proceed to Payment</button>
 </div>
 <div id="screen-trip-history" class="screen">
@@ -802,7 +802,7 @@ function goToPassengerScreen() {
     container.innerHTML+=`
       <div class="passenger-card"><div class="passenger-card-header"><div class="passenger-badge">${paxNum}</div><div><div class="passenger-title">Passenger ${paxNum}</div><div class="passenger-subtitle">of ${selectedSeats.length} passenger(s)</div></div></div>
       <div class="passenger-form-section"><div class="passenger-section-title"><span class="icon">👤</span>Full Name</div><div class="p-input-row"><div class="p-input-group"><div class="p-input-box"><input type="text" id="p${paxNum}_fname" placeholder="First Name" value="${escapeHtml(defaultFname)}" required></div></div><div class="p-input-group"><div class="p-input-box"><input type="text" id="p${paxNum}_lname" placeholder="Last Name" value="${escapeHtml(defaultLname)}" required></div></div></div></div>
-      <div class="passenger-form-section"><div class="passenger-section-title"><span class="icon">✉️</span>Contact Details</div><div class="p-input-group"><div class="p-input-box"><input type="email" id="p${paxNum}_email" placeholder="Email Address" value="${escapeHtml(defaultEmail)}"></div></div><div class="p-input-group"><div class="p-input-box"><div class="prefix">🇰🇪 +254</div><input type="tel" id="p${paxNum}_phone" placeholder="712345678" value="${escapeHtml(defaultPhone)}" required></div></div></div>
+      <div class="passenger-form-section"><div class="passenger-section-title"><span class="icon">✉️</span>Contact Details</div><div class="p-input-group"><div class="p-input-box"><input type="email" id="p${paxNum}_email" placeholder="Email Address" value="${escapeHtml(defaultEmail)}"></div></div><div class="p-input-group"><div class="p-input-box"><div class="prefix">+254</div><input type="tel" id="p${paxNum}_phone" placeholder="712345678" value="${escapeHtml(defaultPhone)}" required></div></div></div>
       <div class="passenger-form-section"><div class="passenger-section-title"><span class="icon">🪪</span>Identity & Nationality</div><div class="p-input-group"><div class="p-input-box"><input type="text" id="p${paxNum}_id" placeholder="Enter identity number"></div></div><div class="p-input-row"><div class="p-input-group"><label>Gender</label><div class="p-input-box"><select id="p${paxNum}_gender"><option>Male</option><option>Female</option></select></div></div><div class="p-input-group"><label>Nationality</label><div class="p-input-box"><select id="p${paxNum}_nat"><option>Kenyan</option></select></div></div></div></div></div>
       <div class="seat-summary-card"><div style="display:flex;align-items:center;gap:12px;"><div class="seat-icon-box">💺</div><div class="seat-info-text"><div class="seat-name">Seat ${seat.label} <span class="seat-type">${seat.type.toUpperCase()}</span></div><div class="seat-price">KES ${seat.price.toLocaleString()}</div></div></div></div>`;
   });
@@ -845,7 +845,7 @@ function openBookingChat(info) {
   info.lang = window.enaLang === 'sw' ? 'sw' : 'en';
   const go = () => window.ENAChat.openBooking(info, () => { showScreen('trip-history'); renderTripHistory('pending', document.querySelector('.th-tab')); });
   if (window.ENAChat) return go();
-  const sc = document.createElement('script'); sc.src = 'https://enacoach-frontend.onrender.com/chat-widget.js?v=20261125-1'; sc.onload = () => setTimeout(() => { if (window.ENAChat) go(); }, 50);
+  const sc = document.createElement('script'); sc.src = 'https://enacoach-frontend.onrender.com/chat-widget.js?v=20261125-2'; sc.onload = () => setTimeout(() => { if (window.ENAChat) go(); }, 50);
   sc.onerror = () => showAlert('Chat could not open. Please check your internet and try again from My Trips.', 'Connection Problem', '⚠️');
   document.head.appendChild(sc);
 }
