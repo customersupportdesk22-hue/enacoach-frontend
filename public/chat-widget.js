@@ -337,7 +337,9 @@ body.enc-open{overflow:hidden}
         parts.forEach(function (p, i) { if (i) { var bb = document.createElement('b'); bb.textContent = 'PAYBUDDY'; bb.style.cssText = 'background:#1B8A3E;color:#fff;padding:1px 6px;border-radius:4px'; d.appendChild(bb); } d.appendChild(document.createTextNode(p)); });
       } else {
         d.textContent = stxt;
-        if (m.error) d.style.cssText = 'background:#FEF2F2;border:1px solid #FCA5A5;border-left:5px solid #DC2626;color:#7F1D1D;font-weight:600;';
+        if (m.statusKind === 'pending') d.style.cssText = 'background:#EFF6FF;border:1px solid #93C5FD;border-left:5px solid #087CF0;color:#1E3A8A;font-weight:600;';
+        else if (m.statusKind === 'insufficient') d.style.cssText = 'background:#FFF7ED;border:1px solid #FDBA74;border-left:5px solid #D97706;color:#9A3412;font-weight:600;';
+        else if (m.statusKind === 'wrong-pin' || m.statusKind === 'failed' || m.statusKind === 'cancelled' || m.error) d.style.cssText = 'background:#FEF2F2;border:1px solid #FCA5A5;border-left:5px solid #DC2626;color:#7F1D1D;font-weight:600;';
       }
     }
     else if (m.type === 'image' && m.file) d = imageBubble(m);
