@@ -924,7 +924,12 @@ async function aiReply(c) {
     const sys = aiSystem(c, pay) + `\nGLOBAL PAYMENT MODE: ${paymentMode}. Follow the payment-mode rule exactly. When the mode is stk_auto, do not send Paybill or Till details and do not initiate a prompt just because a phone number is typed. Tell the customer to review the in-chat HashPay payment card, enter their M-Pesa number there, and tap the Pay button to request the prompt. IMPORTANT for stk_auto: as soon as route, date, time, passengers, passenger names, seats and phone are all known, your reply MUST contain the [[BOOK:FROM|TO|DATE|PASSENGERS|NAME|PHONE|TOTAL|TIME|SEATS]] marker (with every field filled, using seat Option 1 if the customer let you choose) together with [[PAY:TOTAL]]. The system then creates the booking and sends the HashBack card automatically. Never ask the customer to confirm again before sending the marker.`;
     text = await geminiCall(sys, contents);
     const sm = /\[\[SEATS:([^\]]+)\]\]/i.exec(text);
-    if (sm) text = await geminiCall(sys + '\n' + await seatCheck(sm[1]), contents); // second pass with the real free seats
+    if (sm) {
+      const seatNote = await seatCheck(sm[1]);
+      text = await geminiCall(sys + '\n' + seatNote, contents); // second pass with the real free seats
+      // the model sometimes sends only another marker: force a normal written reply so the customer is never left waiting
+      if (!text.replace(/\[\[[^\]]*\]\]/g, '').trim()) text = await geminiCall(sys + '\n' + seatNote + '\nYou MUST now write a normal polite reply to the customer in words (offer the seats, or ask for the next missing detail). Do not output only a marker and do not use [[SEATS]] again.', contents);
+    }
   }
   catch (e) { return aiFail(e.message, c.name || c.phone); }
   // a human replied, or the customer wrote again, while the AI was thinking: stay quiet
@@ -964,6 +969,10 @@ async function aiReply(c) {
         ? 'Malipo ya uhifadhi wako ' + pb.ref + (amtTxt ? ' (' + amtTxt + ')' : '') + ' bado yanasubiriwa. Tafadhali tumia maelezo ya malipo yaliyo hapo juu, kisha bonyeza "I have paid".'
         : 'Your booking ' + pb.ref + ' is still waiting for payment' + (amtTxt ? ' of ' + amtTxt : '') + '. Kindly use the payment details above, then tap "I have paid".';
     }
+  }
+  if (!text && !bookM && !payNow && !handoff) { // nothing would be sent: tell the owner instead of staying silent
+    aiFail('AI produced an empty reply', c.name || c.phone);
+    return;
   }
   hist.push(Date.now());
   aiState.lastError = '';
