@@ -349,12 +349,20 @@ function issueBookingTickets(c, m) {
 
 const HASHPAY_PROMPT_TTL = 120000; // ms to wait for a webhook before treating the prompt as failed
 
-function hashPayReasonText(reason) {
+function hashPayReasonKind(reason) {
   const r = String(reason || '');
-  if (/cancel/i.test(r)) return 'it was cancelled';
-  if (/insufficient|balance|funds/i.test(r)) return 'there was insufficient M-Pesa balance';
-  if (/pin|wrong|invalid.*initiator/i.test(r)) return 'the M-Pesa PIN was incorrect';
-  if (/timeout|timed out|expire|no response/i.test(r)) return 'the prompt timed out';
+  if (/insufficient|low.*balance|balance.*low|not enough funds/i.test(r)) return 'insufficient';
+  if (/wrong.*pin|incorrect.*pin|invalid.*pin|pin.*incorrect|pin.*wrong/i.test(r)) return 'wrong-pin';
+  if (/cancel/i.test(r)) return 'cancelled';
+  if (/timeout|timed out|expire|no response/i.test(r)) return 'pending';
+  return 'failed';
+}
+function hashPayReasonText(reason) {
+  const kind = hashPayReasonKind(reason);
+  if (kind === 'insufficient') return 'there were insufficient M-Pesa funds';
+  if (kind === 'wrong-pin') return 'the M-Pesa PIN entered was incorrect';
+  if (kind === 'cancelled') return 'the payment was cancelled';
+  if (kind === 'pending') return 'the payment prompt expired without confirmation';
   return '';
 }
 
@@ -363,47 +371,70 @@ function failHashPay(c, booking, reason, isTimeout) {
   if (!c || !booking || booking.status === 'paid') return false;
   const h = booking.hashpay;
   if (!h || !['initiating', 'initiated'].includes(h.status)) return false; // already handled (duplicate webhook / timer)
+  const kind = isTimeout ? 'pending' : hashPayReasonKind(reason);
   booking.hashpay = Object.assign({}, h, { status: 'failed', failedAt: Date.now(), failReason: clip(reason || (isTimeout ? 'timeout' : 'failed'), 160) });
   saveChat(c);
   let text;
-  if (isTimeout) text = 'We have not received your M-Pesa payment confirmation yet. If you did not get the prompt or did not complete it, tap Pay on the payment card to try again. If you already paid, please wait while ENA Coach verifies it. 🙏';
-  else {
+  if (kind === 'pending') {
+    text = 'We have not received your M-Pesa payment confirmation yet. If the prompt is still on your phone, please complete it. Otherwise, tap Pay on the payment card to request a new prompt. If you already paid, please wait while ENA Coach verifies it. Your booking is not confirmed until payment is verified. 🙏';
+  } else if (kind === 'insufficient') {
+    text = 'Your M-Pesa payment was not completed because of insufficient funds. Please top up your M-Pesa account and try again. Your booking has not been confirmed yet.';
+  } else if (kind === 'wrong-pin') {
+    text = 'Your M-Pesa payment could not be completed because the PIN entered was incorrect. Please check your PIN and try again. Your booking has not been confirmed yet.';
+  } else {
     const why = hashPayReasonText(reason);
     text = 'Your M-Pesa payment was not completed' + (why ? ' because ' + why : '') + '. Please tap Pay on the payment card to try again, or wait while ENA Coach assists you. 🙏';
   }
-  pushMsg(c, { from: 'agent', type: 'status', error: true, text: '⚠️ ' + text });
+  pushMsg(c, { from: 'agent', type: 'status', statusKind: kind, error: kind !== 'pending', text: (kind === 'pending' ? 'ℹ️ ' : '⚠️ ') + text });
   io.to(c.id).emit('hashpay:result', { ref: booking.ref, success: false, message: 'Payment not completed. Tap Pay to try again.' });
   chatTelegram('⚠️ HASHPAY PAYMENT ' + (isTimeout ? 'NO CONFIRMATION (TIMEOUT)' : 'FAILED / CANCELLED') + '\nBooking: ' + booking.ref + '\n' + c.name + ' (' + c.phone + ')\nReason: ' + clip(reason || (isTimeout ? 'no webhook received' : 'unknown'), 160));
   return true;
 }
 
 async function handleHashPayFailure(payload) {
-  const providerReference = clip(payload.TransactionReference || payload.reference || payload.Reference, 40);
-  if (!/^PAY[A-F0-9]{16}$/.test(providerReference)) {
-    chatTelegram('⚠️ HASHPAY FAILED-PAYMENT WEBHOOK COULD NOT BE MATCHED\nReference: ' + providerReference + '\nEvent: ' + clip(payload.event, 60));
+  // HashBack may identify a failed request by its original reference, checkout ID,
+  // or merchant request ID. Only exact matches against identifiers saved at STK initiation are accepted.
+  const providerReference = clip(payload.TransactionReference || payload.reference || payload.Reference || payload.transactionReference, 80);
+  const checkoutId = clip(payload.CheckoutRequestID || payload.checkout_id || payload.checkoutId || payload.checkout_request_id, 120);
+  const merchantRequestId = clip(payload.MerchantRequestID || payload.merchantRequestId || payload.merchant_request_id, 120);
+  const identifiers = [];
+  if (providerReference) identifiers.push(h => h.providerReference === providerReference);
+  if (checkoutId) identifiers.push(h => h.checkoutId === checkoutId);
+  if (merchantRequestId) identifiers.push(h => h.merchantRequestId === merchantRequestId);
+  if (!identifiers.length) {
+    console.log('HashPay failed webhook missing matching identifiers:', JSON.stringify(payload).slice(0, 1200));
+    chatTelegram('⚠️ HASHPAY FAILED-PAYMENT WEBHOOK COULD NOT BE MATCHED\\nReference: ' + providerReference + '\\nCheckout ID: ' + checkoutId + '\\nMerchant request: ' + merchantRequestId + '\\nEvent: ' + clip(payload.event, 60));
     return;
   }
-  const reason = payload.ResultDesc || payload.ResponseDescription || payload.message || payload.reason || payload.event || 'failed';
+  const matches = (h) => !!(h && identifiers.some(test => test(h)));
   let found = null;
   for (const c of Object.values(chatSessions)) {
-    const m = c.msgs.find((x) => x.type === 'booking' && x.booking && x.booking.hashpay && x.booking.hashpay.providerReference === providerReference);
+    const m = c.msgs.find(x => x.type === 'booking' && x.booking && matches(x.booking.hashpay));
     if (m) { found = { c, m }; break; }
   }
   if (!found) {
     try {
-      const db = (await clientPromise).db('enacoach');
-      const doc = await db.collection('chats').findOne({ msgs: { $elemMatch: { type: 'booking', 'booking.hashpay.providerReference': providerReference } } });
+      const clauses = [];
+      if (providerReference) clauses.push({ 'booking.hashpay.providerReference': providerReference });
+      if (checkoutId) clauses.push({ 'booking.hashpay.checkoutId': checkoutId });
+      if (merchantRequestId) clauses.push({ 'booking.hashpay.merchantRequestId': merchantRequestId });
+      const doc = await (await clientPromise).db('enacoach').collection('chats').findOne({
+        msgs: { $elemMatch: { type: 'booking', $or: clauses } }
+      });
       if (doc) {
         const c = chatSessions[doc._id] || (chatSessions[doc._id] = { id: doc._id, name: doc.name, phone: doc.phone, msgs: doc.msgs || [], unread: doc.unread || 0, last: doc.last || 0 });
-        const m = c.msgs.find((x) => x.type === 'booking' && x.booking && x.booking.hashpay && x.booking.hashpay.providerReference === providerReference);
+        const m = c.msgs.find(x => x.type === 'booking' && x.booking && matches(x.booking.hashpay));
         if (m) found = { c, m };
       }
     } catch (e) { console.error('HashPay failure lookup failed:', e.message); }
   }
-  if (!found) { chatTelegram('⚠️ HASHPAY FAILED PAYMENT - BOOKING NOT FOUND\nReference: ' + providerReference); return; }
+  if (!found) {
+    chatTelegram('⚠️ HASHPAY FAILED PAYMENT - BOOKING NOT FOUND\\nReference: ' + providerReference + '\\nCheckout ID: ' + checkoutId + '\\nMerchant request: ' + merchantRequestId);
+    return;
+  }
+  const reason = payload.ResultDesc || payload.ResponseDescription || payload.resultDesc || payload.responseDescription || payload.message || payload.reason || payload.event || 'failed';
   failHashPay(found.c, found.m.booking, String(reason), false);
 }
-
 async function processHashPayWebhook(payload) {
   const expectedAccount = process.env.HASHPAY_ACCOUNT_ID || 'HP139328';
   const accountId = String(payload && payload.AccountID || '');
