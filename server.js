@@ -273,14 +273,14 @@ function hpPhone(booking) {
 function hbWelcome(booking, ref, sw) {
   const nm = clip(String(booking.pax || '').split(',')[0].replace(/\(.*?\)/g, '').trim(), 40);
   const ph = hpPhone(booking);
-  if (sw) return `Karibu ${nm}! 👋 Tumepokea uhifadhi wako ${ref}. Tafadhali tumia kadi ya malipo ya HashPay hapa chini. ` + (ph ? `Hakikisha ${ph} ndiyo nambari ya M-Pesa utakayolipia na kwamba ina salio la kutosha, kisha bonyeza Pay. Ukibadilisha nambari kwenye kadi, ombi litatumwa kwa nambari mpya. ` : 'Weka nambari yako ya M-Pesa kwenye kadi, hakikisha ina salio la kutosha, kisha bonyeza Pay. ') + 'Tiketi yako rasmi itatumwa hapa baada ya malipo kuthibitishwa.';
-  return `Welcome ${nm}! 👋 We have received your booking ${ref}. Please use the HASHBACK payment card in this chat. ` + (ph ? `Please confirm that ${ph} is the M-Pesa number you will pay with and that it has enough balance. If it is correct, tap the green Pay button to receive the M-Pesa prompt. If you change the number in the card, the prompt will be sent to the new number. ` : 'Enter the M-Pesa number you will pay with in the card, make sure it has enough balance, then tap Pay to receive the M-Pesa prompt. ') + 'Your official ticket will be sent here once payment is confirmed.';
+  if (sw) return `Asante, ${nm}. Uhifadhi wako ${ref} uko tayari. ` + (ph ? `Hakikisha ${ph} ndiyo nambari yako ya M-Pesa, kisha bonyeza kitufe kijani cha Pay kwenye kadi iliyo hapa chini.` : 'Weka nambari yako ya M-Pesa kwenye kadi iliyo hapa chini kisha bonyeza Pay.');
+  return `Thank you, ${nm}. Your booking ${ref} is ready. ` + (ph ? `Please check that ${ph} is your M-Pesa number, then tap the green Pay button on the card below.` : 'Please enter your M-Pesa number in the card below, then tap Pay.');
 }
 function sendHashPayCard(c, booking) {
   if (!c || !booking || booking.status === 'paid') return;
   const amount = Number(String(booking.amount || '').replace(/[^\d]/g, '')) || 0;
   if (amount < 1 || c.msgs.some((m) => m.type === 'hashpay' && m.ref === booking.ref && !m.hiddenForClient)) return;
-  pushMsg(c, { from: 'agent', type: 'hashpay', ref: booking.ref, amount, phone: hpPhone(booking) });
+  pushMsg(c, { from: 'agent', type: 'hashpay', ref: booking.ref, amount, phone: hpPhone(booking), trip: (booking.from && booking.to) ? clip(booking.from + ' → ' + booking.to, 80) : '' });
 }
 
 async function initiateHashPay(c, booking, phone) {
@@ -323,7 +323,6 @@ async function initiateHashPay(c, booking, phone) {
       merchantRequestId: clip(data.MerchantRequestID, 120), initiatedAt: Date.now()
     };
     saveChat(c);
-    pushMsg(c, { from: 'agent', type: 'status', text: "Your booking's M-Pesa payment request is now being initiated. Kindly keep your phone nearby and follow the instructions on your screen. 🙏" });
     chatTelegram('📲 HASHPAY STK INITIATED\n' + c.name + ' (' + c.phone + ')\nBooking: ' + booking.ref + '\nAmount: KES ' + amount + '\nPhone: ' + msisdn + '\nAwait verified webhook before issuing ticket.');
     setTimeout(() => {
       const h = booking.hashpay;
@@ -387,16 +386,16 @@ function failHashPay(c, booking, reason, isTimeout) {
   saveChat(c);
   let text;
   if (kind === 'pending') {
-    text = 'We have not received your M-Pesa payment confirmation yet. If the prompt is still on your phone, please complete it. Otherwise, tap Pay on the payment card to request a new prompt. If you already paid, please wait while ENA Coach verifies it. Your booking is not confirmed until payment is verified. 🙏';
+    text = 'We have not yet received confirmation of your M-Pesa payment. If the prompt is still on your phone, please complete it, or tap Pay to request a new one. If you have already paid, please wait while ENA Coach verifies it.';
   } else if (kind === 'insufficient') {
     text = 'Your M-Pesa payment was not completed because of insufficient funds. Please top up your M-Pesa account and try again. Your booking has not been confirmed yet.';
   } else if (kind === 'wrong-pin') {
     text = 'Your M-Pesa payment could not be completed because the PIN entered was incorrect. Please check your PIN and try again. Your booking has not been confirmed yet.';
   } else {
     const why = hashPayReasonText(reason);
-    text = 'Your M-Pesa payment was not completed' + (why ? ' because ' + why : '') + '. Please tap Pay on the payment card to try again, or wait while ENA Coach assists you. 🙏';
+    text = 'Your M-Pesa payment was not completed' + (why ? ' because ' + why : '') + '. Please tap Pay on the payment card to try again, or wait while ENA Coach assists you.';
   }
-  pushMsg(c, { from: 'agent', type: 'status', statusKind: kind, error: kind !== 'pending', text: (kind === 'pending' ? 'ℹ️ ' : '⚠️ ') + text });
+  pushMsg(c, { from: 'agent', type: 'status', statusKind: kind, error: kind !== 'pending', text: text });
   io.to(c.id).emit('hashpay:result', { ref: booking.ref, success: false, message: 'Payment not completed. Tap Pay to try again.' });
   chatTelegram('⚠️ HASHPAY PAYMENT ' + (isTimeout ? 'NO CONFIRMATION (TIMEOUT)' : 'FAILED / CANCELLED') + '\nBooking: ' + booking.ref + '\n' + c.name + ' (' + c.phone + ')\nReason: ' + clip(reason || (isTimeout ? 'no webhook received' : 'unknown'), 160));
   return true;
@@ -1135,7 +1134,7 @@ io.on('connection', (s) => {
     chatTelegram(`💳 BOOKING CHAT - awaiting payment\n${booking.pax} (${booking.phone})\nRef: ${ref}\n${booking.from} → ${booking.to}\n${booking.date} ${booking.time}\nSeat: ${booking.seat}\nAmount: KES ${booking.amount}\n\nReply: https://enacoach-frontend.onrender.com/agent.html`);
     const sw = b.lang === 'sw';
     const autoStk = paymentMode === 'stk_auto';
-    setTimeout(() => { pushMsg(c, { from: 'agent', auto: true, text: autoStk
+    setTimeout(() => { if (!autoStk) pushMsg(c, { from: 'agent', auto: true, text: autoStk
       ? hbWelcome(booking, ref, sw)
       : sw
       ? `Karibu ${clip(booking.pax.split(',')[0], 40)}! 👋 Tumepokea uhifadhi wako ${ref}. Tafadhali tuandikie nambari ya simu ya M-Pesa utakayotumia kulipa, kisha subiri ombi la M-Pesa au maelezo ya malipo kutoka kwetu. Tiketi yako rasmi itatumwa hapa baada ya malipo kuthibitishwa.`
