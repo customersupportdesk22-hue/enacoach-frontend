@@ -270,6 +270,12 @@ function hpPhone(booking) {
   const a = normPhone(booking && booking.payPhone), b = normPhone(booking && booking.phone);
   return /^0[17]\d{8}$/.test(a) ? a : (/^0[17]\d{8}$/.test(b) ? b : '');
 }
+function hbWelcome(booking, ref, sw) {
+  const nm = clip(String(booking.pax || '').split(',')[0].replace(/\(.*?\)/g, '').trim(), 40);
+  const ph = hpPhone(booking);
+  if (sw) return `Karibu ${nm}! 👋 Tumepokea uhifadhi wako ${ref}. Tafadhali tumia kadi ya malipo ya HashPay hapa chini. ` + (ph ? `Hakikisha ${ph} ndiyo nambari ya M-Pesa utakayolipia na kwamba ina salio la kutosha, kisha bonyeza Pay. Ukibadilisha nambari kwenye kadi, ombi litatumwa kwa nambari mpya. ` : 'Weka nambari yako ya M-Pesa kwenye kadi, hakikisha ina salio la kutosha, kisha bonyeza Pay. ') + 'Tiketi yako rasmi itatumwa hapa baada ya malipo kuthibitishwa.';
+  return `Welcome ${nm}! 👋 We have received your booking ${ref}. Please use the HASHBACK payment card in this chat. ` + (ph ? `Please confirm that ${ph} is the M-Pesa number you will pay with and that it has enough balance. If it is correct, tap the green Pay button to receive the M-Pesa prompt. If you change the number in the card, the prompt will be sent to the new number. ` : 'Enter the M-Pesa number you will pay with in the card, make sure it has enough balance, then tap Pay to receive the M-Pesa prompt. ') + 'Your official ticket will be sent here once payment is confirmed.';
+}
 function sendHashPayCard(c, booking) {
   if (!c || !booking || booking.status === 'paid') return;
   const amount = Number(String(booking.amount || '').replace(/[^\d]/g, '')) || 0;
@@ -979,6 +985,11 @@ async function aiReply(c) {
     aiFail('AI produced an empty reply', c.name || c.phone);
     return;
   }
+  if (newBook && paymentMode === 'stk_auto') {
+    if (!preRef) preRef = newBookingRef(c);
+    const swAi = /\b(tafadhali|asante|malipo|karibu|nambari|safari|tarehe|kwenda)\b/i.test(text);
+    text = hbWelcome({ pax: bfAll[4], phone: bfAll[5], payPhone: bfAll[5] }, preRef, swAi);
+  }
   hist.push(Date.now());
   aiState.lastError = '';
   if (paymentMode === 'stk_auto' && /payment request is now being initiated|STK Push has been initiated|PAYBUDDY/i.test(text)) {
@@ -1125,8 +1136,7 @@ io.on('connection', (s) => {
     const sw = b.lang === 'sw';
     const autoStk = paymentMode === 'stk_auto';
     setTimeout(() => { pushMsg(c, { from: 'agent', auto: true, text: autoStk
-      ? (sw ? `Karibu ${clip(booking.pax.split(',')[0], 40)}! 👋 Tumepokea uhifadhi wako ${ref}. Tafadhali tumia kadi ya malipo ya HashPay hapa chini: ${hpPhone(booking) ? 'nambari yako ya M-Pesa ' + hpPhone(booking) + ' tayari imejazwa: hakikisha ni sahihi kisha bonyeza Pay.' : 'thibitisha nambari yako ya M-Pesa kisha bonyeza Pay.'} Tiketi yako rasmi itatumwa hapa baada ya malipo kuthibitishwa.`
-        : `Welcome ${clip(booking.pax.split(',')[0], 40)}! 👋 We have received your booking ${ref}. Please use the HASHBACK payment card in this chat. ${hpPhone(booking) ? 'Your M-Pesa number ' + hpPhone(booking) + ' is already filled in. Please check it, then tap the green Pay button to receive the M-Pesa prompt.' : 'Enter the M-Pesa number you will use to pay for your booking in the card, then tap Pay to receive the M-Pesa prompt.'} Your official ticket will be sent here once payment is confirmed.`)
+      ? hbWelcome(booking, ref, sw)
       : sw
       ? `Karibu ${clip(booking.pax.split(',')[0], 40)}! 👋 Tumepokea uhifadhi wako ${ref}. Tafadhali tuandikie nambari ya simu ya M-Pesa utakayotumia kulipa, kisha subiri ombi la M-Pesa au maelezo ya malipo kutoka kwetu. Tiketi yako rasmi itatumwa hapa baada ya malipo kuthibitishwa.`
       : `Welcome ${clip(booking.pax.split(',')[0], 40)}! 👋 We have received your booking ${ref}. Please type the M-Pesa phone number you will use to pay, then wait for an M-Pesa prompt or payment details from us. Your official ticket will be sent here once payment is confirmed.` });
