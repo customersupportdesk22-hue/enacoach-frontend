@@ -1,6 +1,11 @@
 (function () {
   if (window.ENAChat) return;
   var base = document.currentScript.src.replace(/\/chat-widget\.js.*$/, '');
+  // one logo URL for everything, so the browser downloads and caches it only once
+  var LOGO = base + '/logo.png?v=20261124';
+  // start downloading right away (before the widget is built) and hint the browser to prioritise it
+  var logoPre = new Image(); logoPre.decoding = 'async'; logoPre.src = LOGO;
+  try { var pl = document.createElement('link'); pl.rel = 'preload'; pl.as = 'image'; pl.href = LOGO; document.head.appendChild(pl); } catch (e) {}
   var awaitingBooking = false; // true while a website booking is about to arrive, so no generic greeting is shown
   var css = document.createElement('style');
   css.textContent = `
@@ -99,7 +104,7 @@ body.enc-open{overflow:hidden}
   document.head.appendChild(css);
 
   var box = document.createElement('div'); box.id = 'enc-box';
-  box.innerHTML = '<header><button id="enc-back" aria-label="Back">←</button><div id="enc-av">E</div>' +
+  box.innerHTML = '<header><button id="enc-back" aria-label="Back">←</button><div id="enc-av" style="background:#fff"><img src="' + LOGO + '" alt="" width="40" height="40" style="width:100%;height:100%;border-radius:50%;object-fit:contain" onerror="this.parentNode.style.background=\'#ff5c00\';this.parentNode.textContent=\'E\'"></div>' +
     '<div id="enc-ti"><b>ENA Coach Support</b><small>● Online</small></div></header>' +
     '<div id="enc-msgs"></div>' +
     '<div id="enc-form"><input id="enc-n" placeholder="Your name"><input id="enc-p" placeholder="Phone (07xx...)" type="tel"><button class="go" id="enc-start">Start chat</button></div>' +
@@ -110,11 +115,6 @@ body.enc-open{overflow:hidden}
   var bd = document.createElement('span'); bd.id = 'enc-bd'; btn.appendChild(bd);
   var lbl = document.createElement('div'); lbl.id = 'enc-lbl'; lbl.textContent = 'Chat with us 💬';
   document.body.appendChild(box); document.body.appendChild(lbl); document.body.appendChild(btn);
-  (function () {
-    var av = document.getElementById('enc-av'), im = new Image();
-    im.onload = function () { av.textContent = ''; av.style.background = '#fff'; im.style.cssText = 'width:100%;height:100%;border-radius:50%;object-fit:contain'; av.appendChild(im); };
-    im.src = base + '/logo.png?v=20261124';
-  })();
 
   var $ = function (id) { return document.getElementById(id); };
   var msgs = $('enc-msgs'), socket, pushed = false, unread = 0, AC;
@@ -239,7 +239,7 @@ body.enc-open{overflow:hidden}
       r.appendChild(l); r.appendChild(v); return r;
     }
     var h = document.createElement('div'); h.style.cssText = 'background:#2f9e44;color:#fff;padding:10px 12px;display:flex;align-items:center;gap:10px';
-    var lg = document.createElement('img'); lg.src = base + '/logo.png?v=2'; lg.style.cssText = 'width:38px;height:38px;border-radius:50%;background:#fff;object-fit:contain';
+    var lg = document.createElement('img'); lg.src = LOGO; lg.style.cssText = 'width:38px;height:38px;border-radius:50%;background:#fff;object-fit:contain';
     var t = document.createElement('div'); t.innerHTML = '<b style="font:bold 17px Arial,sans-serif">ENA COACH</b><br><span style="font:11px Arial,sans-serif;color:#d7f5dd">OFFICIAL PAYMENT DETAILS</span>';
     h.appendChild(lg); h.appendChild(t); d.appendChild(h);
 
@@ -303,7 +303,7 @@ body.enc-open{overflow:hidden}
     var s = document.createElement('span'); s.className = 'enc-lg';
     var im = new Image();
     im.onerror = function () { s.removeChild(im); s.textContent = 'E'; s.style.background = '#ff5c00'; };
-    im.src = base + '/logo.png'; im.alt = ''; s.appendChild(im);
+    im.src = LOGO; im.alt = ''; s.appendChild(im);
     return s;
   }
   function decorate(d, m) {
@@ -350,7 +350,7 @@ body.enc-open{overflow:hidden}
         if (!document.getElementById('enc-spin-css')) { var sty = document.createElement('style'); sty.id = 'enc-spin-css'; sty.textContent = '@keyframes encSpin{to{transform:rotate(360deg)}}'; document.head.appendChild(sty); }
         ttl.style.display = 'flex'; ttl.style.alignItems = 'center';
         var spn = document.createElement('span'); spn.style.cssText = 'display:inline-block;width:14px;height:14px;flex:none;margin-right:8px;border:2.5px solid #BBF7D0;border-top-color:#1B8A3E;border-radius:50%;animation:encSpin .9s linear infinite';
-        var lgo = document.createElement('img'); lgo.src = base + '/logo.png?v=2'; lgo.alt = 'ENA Coach'; lgo.style.cssText = 'width:32px;height:32px;flex:none;margin-right:8px;border-radius:50%;background:#fff;object-fit:contain;border:1px solid #BBF7D0'; lgo.onerror = function () { lgo.style.display = 'none'; };
+        var lgo = document.createElement('img'); lgo.src = LOGO; lgo.alt = 'ENA Coach'; lgo.style.cssText = 'width:32px;height:32px;flex:none;margin-right:8px;border-radius:50%;background:#fff;object-fit:contain;border:1px solid #BBF7D0'; lgo.onerror = function () { lgo.style.display = 'none'; };
         ttl.appendChild(lgo); ttl.appendChild(spn); ttl.appendChild(document.createTextNode('M-PESA PAYMENT PROMPT SENT')); d.appendChild(ttl);
         var parts = stxt.replace(/^\S+\s*/, '').split('PAYBUDDY');
         parts.forEach(function (p, i) { if (i) { var bb = document.createElement('b'); bb.textContent = 'PAYBUDDY'; bb.style.cssText = 'background:#1B8A3E;color:#fff;padding:1px 6px;border-radius:4px'; d.appendChild(bb); } d.appendChild(document.createTextNode(p)); });
