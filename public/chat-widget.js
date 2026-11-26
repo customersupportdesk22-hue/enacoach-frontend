@@ -177,7 +177,7 @@ body.enc-open{overflow:hidden}
     var tx = document.createElement('b'); tx.textContent = 'M-PESA';
     tx.style.cssText = 'font:900 12px Arial,sans-serif;color:#43b02a;letter-spacing:.3px;white-space:nowrap';
     badge.appendChild(tx);
-    var tx2 = document.createElement('span'); tx2.textContent = 'Pay Now KES ' + amt;
+    var tx2 = document.createElement('span'); tx2.textContent = 'Pay Now · Pay KES ' + amt + ' to ENA Coach via ' + (prov === 'paybuddy' ? 'PAYBUDDY' : 'HashBack');
     tx2.style.cssText = 'text-align:left;line-height:1.25';
     btn.appendChild(badge); btn.appendChild(tx2);
   }
