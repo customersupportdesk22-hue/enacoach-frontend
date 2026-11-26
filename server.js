@@ -1246,7 +1246,7 @@ io.on('connection', (s) => {
         return;
       }
       const local = '0' + toHashPayMsisdn(phone).slice(3);
-      const MSG = 'Request received. Please keep your phone nearby. You will receive the M-Pesa prompt shortly.';
+      const MSG = '📩 Booking Payment Request Received!\n\nPlease keep your phone nearby. Your M-Pesa prompt will be sent shortly through PAYBUDDY, our official payment partner.\n\nThank you for choosing ENA COACH.';
       const prev = booking.manualReq;
       if (prev && prev.phone === local && Date.now() - (prev.at || 0) < MANUAL_REQ_TTL) {
         s.emit('hashpay:result', { ref, success: true, manual: true, message: MSG });
