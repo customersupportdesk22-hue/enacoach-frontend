@@ -656,7 +656,8 @@ async function getPay() {
 
 // ---- On duty switch + per-customer payment choice ----
 // While the agent is ON DUTY, each customer's own choice (HashBack = automatic, PayBuddy = manual) applies.
-// Off duty, or when no choice was made for that customer, the global payment mode applies exactly as before.
+// While ON DUTY the global payment mode is ignored completely: a customer with no choice made is handled manually by the agent ('admin' mode, no automatic card or STK).
+// Only when OFF DUTY does the global payment mode apply, exactly as before.
 let dutyOn = false;
 (async () => {
   try { const c = await clientPromise; const d = await c.db('enacoach').collection('settings').findOne({ _id: 'duty' }); dutyOn = !!(d && d.on); }
@@ -665,6 +666,7 @@ let dutyOn = false;
 async function getEffectiveMode(c) {
   if (dutyOn && c && c.payOverride === 'hashback') return 'stk_auto';
   if (dutyOn && c && c.payOverride === 'paybuddy') return 'stk';
+  if (dutyOn) return 'admin'; // on duty: global payment mode must not work
   return getPaymentMode();
 }
 const cardProvider = (mode) => (mode === 'stk' ? 'paybuddy' : 'hashback');
@@ -967,7 +969,7 @@ function normPhone(v) {
 }
 
 async function aiReply(c) {
-  if (!aiCfg.enabled || aiHold[c.id]) return;
+  if (!aiCfg.enabled || aiHold[c.id] || dutyOn) return; // on duty: the AI stays silent, the agent replies
   if (Date.now() - (humanAt[c.id] || 0) < (aiCfg.pauseMinutes || 10) * 60000) return;
   const now = Date.now();
   const hist = (aiCount[c.id] = (aiCount[c.id] || []).filter((t) => now - t < 3600000));
@@ -995,7 +997,7 @@ async function aiReply(c) {
   catch (e) { return aiFail(e.message, c.name || c.phone); }
   // a human replied, or the customer wrote again, while the AI was thinking: stay quiet
   const nl = c.msgs[c.msgs.length - 1];
-  if (!nl || nl.id !== last.id || !aiCfg.enabled || Date.now() - (humanAt[c.id] || 0) < (aiCfg.pauseMinutes || 10) * 60000) return;
+  if (!nl || nl.id !== last.id || !aiCfg.enabled || dutyOn || Date.now() - (humanAt[c.id] || 0) < (aiCfg.pauseMinutes || 10) * 60000) return;
   const payM = /\[\[PAY(?::\s*(\d+))?\]\]/i.exec(text), wantPay = !!payM, handoff = /\[\[(HOLD|HANDOFF)\]\]/i.test(text);
   text = text.replace(/\[\[SEATS:[^\]]*\]\]/gi, '');
   const askM = /\[\[ASK:([^\]]*)\]\]/i.exec(text);
@@ -1102,7 +1104,7 @@ async function aiReply(c) {
 }
 
 function aiSchedule(c, ms) {
-  if (!aiCfg.enabled) return;
+  if (!aiCfg.enabled || dutyOn) return;
   clearTimeout(aiTimers[c.id]);
   aiTimers[c.id] = setTimeout(() => { aiReply(c).catch((e) => aiFail(e.message)); }, ms || 2500); // wait for the customer to finish typing (a phone number is answered almost at once)
 }
