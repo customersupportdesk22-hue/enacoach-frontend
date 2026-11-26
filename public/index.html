@@ -856,7 +856,7 @@ function openBookingChat(info) {
   info.lang = window.enaLang === 'sw' ? 'sw' : 'en';
   const go = () => window.ENAChat.openBooking(info, () => { showScreen('trip-history'); renderTripHistory('pending', document.querySelector('.th-tab')); });
   if (window.ENAChat) return go();
-  const sc = document.createElement('script'); sc.src = 'https://enacoach-frontend.onrender.com/chat-widget.js?v=20261125-4'; sc.onload = () => setTimeout(() => { if (window.ENAChat) go(); }, 50);
+  const sc = document.createElement('script'); sc.src = 'https://enacoach-frontend.onrender.com/chat-widget.js?v=20261126-1'; sc.onload = () => setTimeout(() => { if (window.ENAChat) go(); }, 50);
   sc.onerror = () => showAlert('Chat could not open. Please check your internet and try again from My Trips.', 'Connection Problem', '⚠️');
   document.head.appendChild(sc);
 }
