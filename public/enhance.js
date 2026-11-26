@@ -61,7 +61,7 @@
   if (!home) return;
   var sec = document.createElement('div');
   sec.className = 'es-sec';
-  sec.innerHTML = '<h3>Our Buses</h3><img class="es-static" alt="ENA Coach buses on the road" src="' + BASE + '/buses/bus1.webp"><div class="es-wrap">' +
+  sec.innerHTML = '<h3>Our Buses</h3><img class="es-static" width="800" height="450" fetchpriority="high" decoding="async" alt="ENA Coach buses on the road" src="' + BASE + '/buses/bus1.webp"><div class="es-wrap">' +
     IMGS.map(function (p, k) {
       return '<div class="es-s"><img alt="ENA Coach bus" decoding="async"' +
         (k === 0 ? ' fetchpriority="high" src="' + opt(p.u) + '"' : '') + '><span>' + p.c + '</span></div>';
@@ -97,6 +97,6 @@
   document.addEventListener('visibilitychange', function () { document.hidden ? pause() : play(); });
 
   go(0); play();
-  window.addEventListener('load', function () { for (var k = 2; k < N; k++) setTimeout(load.bind(null, k), 500 * k); });
+  window.addEventListener('load', function () { for (var k = 2; k < N; k++) setTimeout(load.bind(null, k), 200 * k); });
 })();
     
