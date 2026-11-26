@@ -40,7 +40,7 @@
 
   var st = document.createElement('style');
   st.textContent =
-    '.es-sec{padding:0 16px 28px}.es-static{width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:18px;display:block;margin-bottom:14px;box-shadow:0 8px 25px rgba(0,0,0,.15)}' +
+    '.es-sec{padding:0 16px 28px}.es-static{width:100%;height:auto;aspect-ratio:16/9;object-fit:cover;border-radius:18px;display:block;margin-bottom:14px;box-shadow:0 8px 25px rgba(0,0,0,.15)}' +
     '.es-sec h3{font-size:26px;font-weight:800;margin-bottom:12px}' +
     '.es-wrap{position:relative;overflow:hidden;border-radius:18px;aspect-ratio:16/9;background:linear-gradient(135deg,#FF5E00,#FF8C42);box-shadow:0 8px 25px rgba(0,0,0,.15);touch-action:pan-y}' +
     '.es-s{position:absolute;inset:0;opacity:0;transition:opacity .8s ease}' +
@@ -99,4 +99,3 @@
   go(0); play();
   window.addEventListener('load', function () { for (var k = 2; k < N; k++) setTimeout(load.bind(null, k), 200 * k); });
 })();
-    
