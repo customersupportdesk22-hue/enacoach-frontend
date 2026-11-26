@@ -33,7 +33,7 @@ button.go{background:#ff5c00;color:#fff;border:0;border-radius:10px;padding:11px
 @media(max-width:700px){#list{width:100%}#chat{display:none}main.open #list{display:none}main.open #chat{display:flex}#back{display:block}}
 </style><meta name="robots" content="noindex,nofollow">
 </head><body>
-<header><button id="back">←</button><span id="title">ENA Chat – Agent</span></header>
+<header><button id="back">←</button><span id="title">ENA Chat – Agent</span><button id="duty" type="button" style="margin-left:auto;border:0;border-radius:999px;padding:7px 14px;font-weight:700;font-size:13px;background:#fff;color:#6b7280">On duty: OFF</button></header>
 <div id="login"><input id="pw" type="password" placeholder="Agent password"><button class="go" id="in">Login</button></div>
 <main id="main" style="display:none">
   <div id="list"></div>
@@ -48,11 +48,12 @@ button.go{background:#ff5c00;color:#fff;border:0;border-radius:10px;padding:11px
       <input id="p_number" placeholder="Paybill / Till / number"><input id="p_account" placeholder="Account no.">
       <input id="p_name" placeholder="Account name"><input id="p_amount" type="number" placeholder="Amount KES">
       <input id="p_note" placeholder="Note (optional)"><button class="go" id="pk">Send payment details</button></div>
+    <div id="pm" style="display:none;align-items:center;gap:6px;padding:8px 10px;background:#fff;border-top:1px solid #eee;font-size:13px;flex-wrap:wrap"><b>Pay method:</b><button type="button" class="go" id="pm_hb" style="padding:7px 12px">HashBack (auto)</button><button type="button" class="go" id="pm_pb" style="padding:7px 12px">PayBuddy (manual)</button><small id="pm_note" style="color:#6b7280"></small></div>
     <div id="bar"><button class="go" id="tk">🎫</button><button class="go" id="pay">💳</button><button class="go" id="clr" style="background:#6b7280">🧹</button><textarea id="t" rows="1" placeholder="Reply..."></textarea><button class="go" id="send">Send</button></div></div>
 </main>
 <script src="/socket.io/socket.io.js"></script>
 <script>
-var $=function(i){return document.getElementById(i)},S={},cur=null,sock;
+var $=function(i){return document.getElementById(i)},S={},cur=null,sock,DUTY=false;
 $('in').onclick=function(){
   unlock();
   try{if('Notification' in window&&Notification.permission==='default')Notification.requestPermission()}catch(e){}
@@ -62,6 +63,8 @@ $('in').onclick=function(){
   sock.on('connect',function(){$('login').style.display='none';$('main').style.display='flex'});
   sock.on('sessions',function(a){a.forEach(function(c){S[c.id]=c});render();if(cur&&S[cur])show(false)});
   sock.on('paidClaim',function(p){flash('💰 '+(p.name||'Customer')+' says they have paid · '+p.ref+' · KES '+p.amount+'. Check M-Pesa, then send the ticket. Tap to open.',p.id)});
+  sock.on('duty',function(d){DUTY=!!(d&&d.on);paintDuty()});
+  sock.on('paybuddyRequest',function(p){beep();flash('💳 PAYBUDDY · '+(p.name||'Customer')+' tapped Pay · '+p.phone+' · KES '+p.amount+' · '+p.ref+'. Send the M-Pesa prompt from PayBuddy now. Tap to open.',p.id,'#b45309')});
   sock.on('payDup',function(p){flash('ℹ️ Payment details were already sent for '+(p.ref||'this booking')+'. A second card was not sent.',p.id,'#2563eb')});
   sock.on('update',function(c){var o=S[c.id],ol=o?o.msgs.length:0,lm=c.msgs[c.msgs.length-1];if(c.msgs.length>ol&&lm&&lm.from==='client'){beep();notify(c)}S[c.id]=c;render();if(cur===c.id&&!document.hidden&&$('main').classList.contains('open')){show(false);if(c.unread)sock.emit('read',cur)}});
 };
@@ -105,11 +108,11 @@ var shown={id:null,n:0};
 function atBottom(m){return m.scrollHeight-m.scrollTop-m.clientHeight<80}
 function show(force){
   var m=$('msgs'),stick=force||shown.id!==cur||atBottom(m),prev=m.scrollTop,list=S[cur].msgs;
-  m.innerHTML='';
-  list.forEach(function(x){var d=document.createElement('div');d.className='m '+x.from+(x.unsent?' unsent':'')+(x.likes&&x.likes.client?' liked':'');d.textContent=x.type==='payment'?'💳 Payment sent · '+x.payment.accountLabel+' '+x.payment.number+' · KES '+x.payment.amount:x.type==='ticket'?'🎫 '+x.ticket.no+' · '+x.ticket.from+' → '+x.ticket.to+' · seat '+x.ticket.seat+' · KES '+x.ticket.price:x.text;
+  m.innerHTML='';paintPm();
+  list.forEach(function(x){var d=document.createElement('div');d.className='m '+x.from+(x.unsent?' unsent':'')+(x.likes&&x.likes.client?' liked':'');d.textContent=x.type==='hashpay'?'💳 '+(x.provider==='paybuddy'?'PayBuddy':'HashBack')+' card sent · '+x.ref+' · KES '+x.amount:x.type==='payment'?'💳 Payment sent · '+x.payment.accountLabel+' '+x.payment.number+' · KES '+x.payment.amount:x.type==='ticket'?'🎫 '+x.ticket.no+' · '+x.ticket.from+' → '+x.ticket.to+' · seat '+x.ticket.seat+' · KES '+x.ticket.price:x.text;
     if(x.type==='image'&&x.file){d.textContent='';var im=document.createElement('img');im.src='/chatfile/'+encodeURIComponent(x.file);im.style.cssText='display:block;width:240px;max-width:100%;min-height:60px;border-radius:10px;cursor:pointer;background:#eee';im.onclick=function(){window.open(im.src,'_blank')};im.onload=function(){if(stick)m.scrollTop=m.scrollHeight};d.appendChild(im);if(x.caption){var cp=document.createElement('div');cp.textContent=x.caption;cp.style.marginTop='6px';d.appendChild(cp)}}
     if(x.type==='booking'&&x.booking){var bk=x.booking;d.textContent='';
-      var bt=document.createElement('div');bt.textContent='🎫 BOOKING '+bk.ref+' · '+(bk.status==='paid'?'✅ PAID':(bk.paidClaimed?'🔎 CUSTOMER SAYS PAID - VERIFY':'⏳ UNPAID'))+'\n'+bk.pax+' · '+bk.phone+'\n'+bk.from+' → '+bk.to+'\n'+bk.date+' '+bk.time+' · seat '+bk.seat+'\nKES '+bk.amount;d.appendChild(bt);
+      var bt=document.createElement('div');bt.textContent='🎫 BOOKING '+bk.ref+' · '+(bk.status==='paid'?'✅ PAID':(bk.paidClaimed?'🔎 CUSTOMER SAYS PAID - VERIFY':'⏳ UNPAID'))+'\n'+bk.pax+' · '+bk.phone+'\n'+bk.from+' → '+bk.to+'\n'+bk.date+' '+bk.time+' · seat '+bk.seat+'\nKES '+bk.amount+(bk.manualReq&&bk.status!=='paid'?'\n\n💳 PAYBUDDY: customer tapped Pay. Send the M-Pesa prompt to '+bk.manualReq.phone+', then tap "STK Push Initiated".':'');d.appendChild(bt);
       if(bk.status!=='paid'){var rw=document.createElement('div');rw.style.cssText='display:flex;gap:6px;margin-top:8px;flex-wrap:wrap';
         var b1=document.createElement('button');b1.className='go';b1.textContent='💳 Send payment';
         b1.onclick=function(){$('tf').style.display='none';$('pf').style.display='grid';fillPay();$('p_amount').value=String(bk.amount).replace(/[^0-9]/g,'');$('p_note').value='Booking '+bk.ref+'. Pay, then reply with the M-Pesa message.'};
@@ -148,6 +151,13 @@ $('pk').onclick=function(){
   p.accountLabel=p.label;delete p.label;
   sock.emit('payment',{id:cur,p:p});tone('out');$('pf').style.display='none';$('p_amount').value='';$('p_note').value=''};
 $('clr').onclick=function(){if(!cur)return;if(confirm('Clear this chat from the customer\'s side? Their screen will go empty, but you keep the full record here.')){sock.emit('clearChat',{id:cur});tone('out')}};
+function paintDuty(){var b=$('duty');b.textContent='On duty: '+(DUTY?'ON':'OFF');b.style.background=DUTY?'#16a34a':'#fff';b.style.color=DUTY?'#fff':'#6b7280';paintPm()}
+function paintPm(){var bar=$('pm');if(!cur||!S[cur]){bar.style.display='none';return}bar.style.display='flex';var o=S[cur].payOverride||'';
+  var on='#16a34a',off='#9ca3af',hb=$('pm_hb'),pb=$('pm_pb');hb.style.background=o==='hashback'?on:off;pb.style.background=o==='paybuddy'?on:off;
+  $('pm_note').textContent=!DUTY?'Off duty: the global payment mode is used.':(o?'This customer: '+(o==='hashback'?'HashBack':'PayBuddy')+' (tap again to clear)':'Not chosen: global payment mode is used.')}
+$('duty').onclick=function(){if(!sock)return;sock.emit('setDuty',{on:!DUTY})};
+function setPm(m){if(!cur||!S[cur])return;var o=S[cur].payOverride||'';sock.emit('setPayMode',{id:cur,mode:o===m?'':m})}
+$('pm_hb').onclick=function(){setPm('hashback')};$('pm_pb').onclick=function(){setPm('paybuddy')};
 $('send').onclick=send;$('t').oninput=function(){this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px'};
 $('t').onkeydown=function(e){if(e.key==='Enter'&&!e.shiftKey&&window.matchMedia('(pointer:fine)').matches){e.preventDefault();send()}};
 $('back').onclick=function(){$('main').classList.remove('open');$('title').textContent='ENA Chat – Agent'};

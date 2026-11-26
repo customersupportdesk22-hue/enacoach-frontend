@@ -169,7 +169,7 @@ body.enc-open{overflow:hidden}
     return d;
   }
   // green Pay button label: M-PESA logo badge + wording (drop an official mpesa-logo.png in /public to replace the text badge)
-  function hpLabel(btn, amt) {
+  function hpLabel(btn, amt, prov) {
     btn.textContent = '';
     var badge = document.createElement('span');
     badge.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;background:#fff;border-radius:6px;padding:3px 7px;flex:none';
@@ -181,7 +181,7 @@ body.enc-open{overflow:hidden}
     };
     img.src = base + '/mpesa-logo.png';
     badge.appendChild(img);
-    var tx2 = document.createElement('span'); tx2.textContent = 'Pay KES ' + amt + ' to ENA Coach via HashBack';
+    var tx2 = document.createElement('span'); tx2.textContent = 'Pay KES ' + amt + ' to ENA Coach via ' + (prov === 'paybuddy' ? 'PAYBUDDY' : 'HashBack');
     tx2.style.cssText = 'text-align:left;line-height:1.25';
     btn.appendChild(badge); btn.appendChild(tx2);
   }
@@ -201,14 +201,15 @@ body.enc-open{overflow:hidden}
     var input = document.createElement('input'); input.type = 'tel'; input.inputMode = 'tel'; input.autocomplete = 'tel';
     input.placeholder = 'Enter M-Pesa number you will pay with, e.g. 0712345678'; input.value = m.phone ? String(m.phone) : '';
     input.style.cssText = 'box-sizing:border-box;width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:8px;font:16px Arial,sans-serif;color:#111;background:#fff'; body.appendChild(input);
-    var pay = document.createElement('button'); pay.type = 'button'; hpLabel(pay, fmt(m.amount));
+    var prov = m.provider === 'paybuddy' ? 'paybuddy' : 'hashback';
+    var pay = document.createElement('button'); pay.type = 'button'; hpLabel(pay, fmt(m.amount), prov);
     pay.style.cssText = 'width:100%;margin-top:12px;padding:11px 12px;border:0;border-radius:28px;background:#087c45;color:#fff;font:bold 14px Arial,sans-serif;display:flex;align-items:center;justify-content:center;gap:10px';
     if (!document.getElementById('enc-hp-style')) {
       var st = document.createElement('style'); st.id = 'enc-hp-style';
       st.textContent = '@keyframes enc-hp-pulse{0%{box-shadow:0 0 0 0 rgba(8,124,69,.65);transform:scale(1)}70%{box-shadow:0 0 0 14px rgba(8,124,69,0);transform:scale(1.04)}100%{box-shadow:0 0 0 0 rgba(8,124,69,0);transform:scale(1)}}.enc-hp-go{animation:enc-hp-pulse 1.3s ease-in-out infinite}@media (prefers-reduced-motion:reduce){.enc-hp-go{animation:none}}';
       document.head.appendChild(st);
     }
-    pay.setAttribute('data-hp-ref', String(m.ref || '')); pay.setAttribute('data-hp-amt', fmt(m.amount));
+    pay.setAttribute('data-hp-ref', String(m.ref || '')); pay.setAttribute('data-hp-amt', fmt(m.amount)); pay.setAttribute('data-hp-prov', prov);
     pay.onclick = function () {
       if (pay.disabled) return;
       var phone = input.value.trim();
@@ -216,14 +217,14 @@ body.enc-open{overflow:hidden}
         toast('Enter a valid M-Pesa number, for example 0712345678.'); input.focus(); return;
       }
       if (!socket || !socket.connected) return toast('Not connected. Please try again.');
-      pay.disabled = true; pay.classList.remove('enc-hp-go'); pay.textContent = 'Requesting M-Pesa prompt…'; pay.style.opacity = '.7';
+      pay.disabled = true; pay.classList.remove('enc-hp-go'); pay.textContent = prov === 'paybuddy' ? 'Sending request…' : 'Requesting M-Pesa prompt…'; pay.style.opacity = '.7';
       pay.setAttribute('data-hp-phone', phone.replace(/[\s-]/g, '')); socket.emit('hashpay:request', { ref: String(m.ref || ''), phone: phone }); tone('out');
     };
     body.appendChild(pay);
     if (m.hpState !== 'paid' && m.hpState !== 'pending') pay.classList.add('enc-hp-go');
     if (m.hpState === 'paid') { pay.disabled = true; pay.textContent = '✅ Payment confirmed'; pay.style.opacity = '.7'; input.disabled = true; }
-    else if (m.hpState === 'pending') { pay.disabled = true; pay.textContent = 'M-Pesa prompt requested. Check your phone'; pay.style.opacity = '.7'; }
-    var note = document.createElement('div'); note.textContent = 'Payments are processed securely by HashBack. Check your M-Pesa balance first, and never share your PIN with anyone.';
+    else if (m.hpState === 'pending') { pay.disabled = true; pay.textContent = prov === 'paybuddy' ? 'Request received. Keep your phone nearby' : 'M-Pesa prompt requested. Check your phone'; pay.style.opacity = '.7'; }
+    var note = document.createElement('div'); note.textContent = 'Payments are processed securely by ' + (prov === 'paybuddy' ? 'PayBuddy' : 'HashBack') + '. Check your M-Pesa balance first, and never share your PIN with anyone.';
     note.style.cssText = 'margin-top:10px;font:11px/1.45 Arial,sans-serif;color:#64748b'; body.appendChild(note);
     d.appendChild(body); return d;
   }
@@ -597,8 +598,9 @@ body.enc-open{overflow:hidden}
         var cards = msgs.querySelectorAll('button[data-hp-ref]');
         Array.prototype.forEach.call(cards, function (b) {
           if (b.getAttribute('data-hp-ref') !== String(r.ref)) return;
-          if (r.success) { b.classList.remove('enc-hp-go'); var up = b.getAttribute('data-hp-phone') || ''; if (/^\+?254/.test(up)) up = '0' + up.replace(/^\+?254/, ''); b.textContent = 'M-Pesa prompt sent' + (up ? ' to ' + up.replace(/^(\d{4})(\d{3})(\d{3})$/, '$1 $2 $3') : '') + '. Enter your PIN'; b.disabled = true; }
-          else { b.disabled = false; b.classList.add('enc-hp-go'); hpLabel(b, b.getAttribute('data-hp-amt') || ''); b.style.opacity = '1'; if (r.message) toast(r.message); }
+          if (r.success && r.manual) { b.classList.remove('enc-hp-go'); b.textContent = 'Request received. Keep your phone nearby'; b.disabled = true; }
+          else if (r.success) { b.classList.remove('enc-hp-go'); var up = b.getAttribute('data-hp-phone') || ''; if (/^\+?254/.test(up)) up = '0' + up.replace(/^\+?254/, ''); b.textContent = 'M-Pesa prompt sent' + (up ? ' to ' + up.replace(/^(\d{4})(\d{3})(\d{3})$/, '$1 $2 $3') : '') + '. Enter your PIN'; b.disabled = true; }
+          else { b.disabled = false; b.classList.add('enc-hp-go'); hpLabel(b, b.getAttribute('data-hp-amt') || '', b.getAttribute('data-hp-prov') || ''); b.style.opacity = '1'; if (r.message) toast(r.message); }
         });
       });
       socket.on('fileError', function (t) { toast(t); });
