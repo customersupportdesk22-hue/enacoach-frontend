@@ -30,7 +30,7 @@ app.post('/api/hashpay/webhook', express.raw({ type: 'application/json', limit: 
   }
 });
 app.use(express.json());
-app.use(express.static('public')); // serves chat-widget.js and agent.html
+app.use(express.static('public', { setHeaders: function (res, p) { if (/\.(webp|png|jpe?g)$/i.test(p)) res.setHeader('Cache-Control', 'public, max-age=604800, immutable'); } })); // serves chat-widget.js and agent.html
 
 // Global error handlers to prevent crashes
 process.on('unhandledRejection', (reason, promise) => {
