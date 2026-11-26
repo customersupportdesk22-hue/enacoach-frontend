@@ -369,7 +369,7 @@
       <div class="input-group">
         <label>TRAVEL DATES</label>
         <div class="date-container">
-          <div class="date-box"><div class="date-label"><span style="color:var(--primary);">📅</span> Departure</div><div class="date-value empty" id="displayDepartureDate"></div><input type="date" id="searchDate" style="position:absolute;top:0;left:0;width:100%;height:100%;opacity:0;cursor:pointer;" onchange="updateDisplayDate(this, 'displayDepartureDate')"></div>
+          <div class="date-box"><div class="date-label"><span style="color:var(--primary);">📅</span> Departure</div><div class="date-value" id="displayDepartureDate">Wed, May 13</div><input type="date" id="searchDate" style="position:absolute;top:0;left:0;width:100%;height:100%;opacity:0;cursor:pointer;" onchange="updateDisplayDate(this, 'displayDepartureDate')"></div>
         </div>
         <div class="date-pills"><button type="button" class="date-pill active" onclick="setQuickDate(0, this)">Today</button><button type="button" class="date-pill" onclick="setQuickDate(1, this)">Tomorrow</button><button type="button" class="date-pill" onclick="setQuickDate('friday', this)">Friday</button><button type="button" class="date-pill" onclick="setQuickDate('saturday', this)">Saturday</button></div>
       </div>
