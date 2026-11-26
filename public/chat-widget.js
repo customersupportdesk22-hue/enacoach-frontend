@@ -173,14 +173,10 @@ body.enc-open{overflow:hidden}
     btn.textContent = '';
     var badge = document.createElement('span');
     badge.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;background:#fff;border-radius:6px;padding:3px 7px;flex:none';
-    var img = new Image(); img.alt = 'M-PESA'; img.style.cssText = 'height:16px;width:auto;display:block';
-    img.onerror = function () {
-      var tx = document.createElement('b'); tx.textContent = 'M-PESA';
-      tx.style.cssText = 'font:900 12px Arial,sans-serif;color:#43b02a;letter-spacing:.3px';
-      if (img.parentNode) img.parentNode.replaceChild(tx, img);
-    };
-    img.src = base + '/mpesa-logo.png';
-    badge.appendChild(img);
+    // text badge drawn straight away (no image download), so the button never shifts or flickers when the card is shown or updated
+    var tx = document.createElement('b'); tx.textContent = 'M-PESA';
+    tx.style.cssText = 'font:900 12px Arial,sans-serif;color:#43b02a;letter-spacing:.3px;white-space:nowrap';
+    badge.appendChild(tx);
     var tx2 = document.createElement('span'); tx2.textContent = 'Pay KES ' + amt + ' to ENA Coach via ' + (prov === 'paybuddy' ? 'PAYBUDDY' : 'HashBack');
     tx2.style.cssText = 'text-align:left;line-height:1.25';
     btn.appendChild(badge); btn.appendChild(tx2);
