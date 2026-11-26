@@ -166,7 +166,7 @@ const { randomBytes } = require('crypto');
     chatCol = c.db('enacoach').collection('chats');
     chatFileCol = c.db('enacoach').collection('chatFiles');
     (await chatCol.find().toArray()).forEach((d) => {
-      chatSessions[d._id] = { id: d._id, name: d.name, phone: d.phone, msgs: d.msgs || [], unread: d.unread || 0, last: d.last || 0 };
+      chatSessions[d._id] = { id: d._id, name: d.name, phone: d.phone, msgs: d.msgs || [], unread: d.unread || 0, last: d.last || 0, payOverride: ['hashback','paybuddy'].includes(d.payOverride) ? d.payOverride : '' };
       ensureIds(chatSessions[d._id]);
     });
     console.log('Chat history loaded');
@@ -178,20 +178,23 @@ const { randomBytes } = require('crypto');
 function saveChat(c) {
   if (!chatCol) return;
   chatCol.updateOne({ _id: c.id },
-    { $set: { name: c.name, phone: c.phone, msgs: c.msgs, unread: c.unread, last: c.last } },
+    { $set: { name: c.name, phone: c.phone, msgs: c.msgs, unread: c.unread, last: c.last, payOverride: c.payOverride || '' } },
     { upsert: true }).catch(console.error);
 }
 const clip = (v, n) => String(v || '').slice(0, n);
 const newId = () => 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const ensureIds = (c) => c.msgs.forEach((m) => { if (!m.id) m.id = newId(); });
-const clientView = (c) => c.msgs.filter((m) => !m.hiddenForClient).map((m) => {
+const hpView = (c, m) => {
   if (m.type !== 'hashpay') return m;
   const bm = c.msgs.find((x) => x.type === 'booking' && x.booking && x.booking.ref === m.ref);
   const h = bm && bm.booking && bm.booking.hashpay;
   const paid = !!(bm && bm.booking && bm.booking.status === 'paid');
-  const pending = !!(h && ['initiating', 'initiated'].includes(h.status) && Date.now() - (h.initiatedAt || h.startedAt || 0) < HASHPAY_PROMPT_TTL + 30000);
+  const mr = bm && bm.booking && bm.booking.manualReq;
+  const pending = !!(h && ['initiating', 'initiated'].includes(h.status) && Date.now() - (h.initiatedAt || h.startedAt || 0) < HASHPAY_PROMPT_TTL + 30000)
+    || !!(mr && Date.now() - (mr.at || 0) < MANUAL_REQ_TTL);
   return Object.assign({}, m, { hpState: paid ? 'paid' : pending ? 'pending' : 'idle' });
-});
+};
+const clientView = (c) => c.msgs.filter((m) => !m.hiddenForClient).map((m) => hpView(c, m));
 
 // ---- customer photo / screenshot storage ----
 async function putFile(id, type, buf) {
@@ -276,11 +279,12 @@ function hbWelcome(booking, ref, sw) {
   if (sw) return `Asante, ${nm}. Uhifadhi wako ${ref} uko tayari. ` + (ph ? `Hakikisha ${ph} ndiyo nambari yako ya M-Pesa, kisha bonyeza kitufe kijani cha Pay kwenye kadi iliyo hapa chini.` : 'Weka nambari yako ya M-Pesa kwenye kadi iliyo hapa chini kisha bonyeza Pay.');
   return `Thank you, ${nm}. Your booking ${ref} is ready. ` + (ph ? `Please check that ${ph} is your M-Pesa number, then tap the green Pay button on the card below.` : 'Please enter your M-Pesa number in the card below, then tap Pay.');
 }
-function sendHashPayCard(c, booking) {
+const MANUAL_REQ_TTL = 120000; // ms a manual (PayBuddy) request shows as pending before the customer may tap Pay again
+function sendHashPayCard(c, booking, provider) {
   if (!c || !booking || booking.status === 'paid') return;
   const amount = Number(String(booking.amount || '').replace(/[^\d]/g, '')) || 0;
   if (amount < 1 || c.msgs.some((m) => m.type === 'hashpay' && m.ref === booking.ref && !m.hiddenForClient)) return;
-  pushMsg(c, { from: 'agent', type: 'hashpay', ref: booking.ref, amount, phone: hpPhone(booking), trip: (booking.from && booking.to) ? clip(booking.from + ' → ' + booking.to, 80) : '' });
+  pushMsg(c, { from: 'agent', type: 'hashpay', provider: provider === 'paybuddy' ? 'paybuddy' : 'hashback', ref: booking.ref, amount, phone: hpPhone(booking), trip: (booking.from && booking.to) ? clip(booking.from + ' → ' + booking.to, 80) : '' });
 }
 
 async function initiateHashPay(c, booking, phone) {
@@ -518,6 +522,21 @@ async function processHashPayWebhook(payload) {
 
 agents.on('connection', (s) => {
   s.emit('sessions', Object.values(chatSessions));
+  s.emit('duty', { on: dutyOn });
+  s.on('setDuty', async (p) => {
+    dutyOn = !!(p && p.on);
+    try { const cl = await clientPromise; await cl.db('enacoach').collection('settings').updateOne({ _id: 'duty' }, { $set: { on: dutyOn, at: Date.now() } }, { upsert: true }); } catch (e) { console.error('Duty save failed:', e.message); }
+    agents.emit('duty', { on: dutyOn });
+    if (dutyOn) Object.values(chatSessions).forEach(syncPayCard);
+  });
+  s.on('setPayMode', ({ id, mode }) => {
+    const c = chatSessions[id];
+    if (!c) return;
+    c.payOverride = ['hashback', 'paybuddy'].includes(mode) ? mode : '';
+    saveChat(c);
+    agents.emit('update', c);
+    syncPayCard(c);
+  });
   s.on('reply', ({ id, text }) => {
     const c = chatSessions[id];
     if (!c || !text) return;
@@ -565,6 +584,7 @@ agents.on('connection', (s) => {
       || c.msgs.slice().reverse().find((m) => m.type === 'booking' && m.booking)
       || { booking: { ref: ref || 'N/A', amount: '' } };
     humanAt[c.id] = Date.now(); delete aiHold[c.id];
+    if (bmsg.booking && bmsg.booking.manualReq) { delete bmsg.booking.manualReq; agents.emit('update', c); }
     const stkAmt = Number(String((bmsg.booking && bmsg.booking.amount) || '').replace(/\D/g, '')) || 0;
     pushMsg(c, { from: 'agent', type: 'status', text: '📲 Your M-Pesa STK Push has been initiated. Please check your phone: the prompt will show PAYBUDDY, our official payment partner from ENA COACH.\n\n'
       + 'Please follow these steps:\n1. Confirm that the booking amount shown is correct' + (stkAmt ? ': KES ' + stkAmt.toLocaleString('en-US') : '') + '.\n\n2. Enter your M-Pesa PIN to complete the booking payment.\n\n'
@@ -632,6 +652,35 @@ async function getPay() {
     if (s && s.number) return s;
   } catch (e) {}
   return { type: 'paybill', number: '756756', account: '1769003' };
+}
+
+// ---- On duty switch + per-customer payment choice ----
+// While the agent is ON DUTY, each customer's own choice (HashBack = automatic, PayBuddy = manual) applies.
+// Off duty, or when no choice was made for that customer, the global payment mode applies exactly as before.
+let dutyOn = false;
+(async () => {
+  try { const c = await clientPromise; const d = await c.db('enacoach').collection('settings').findOne({ _id: 'duty' }); dutyOn = !!(d && d.on); }
+  catch (e) { console.error('Duty load failed:', e.message); }
+})();
+async function getEffectiveMode(c) {
+  if (dutyOn && c && c.payOverride === 'hashback') return 'stk_auto';
+  if (dutyOn && c && c.payOverride === 'paybuddy') return 'stk';
+  return getPaymentMode();
+}
+const cardProvider = (mode) => (mode === 'stk' ? 'paybuddy' : 'hashback');
+// after the agent changes a customer's choice: update the card the customer already has (or send it) so the switch shows at once
+function syncPayCard(c) {
+  if (!dutyOn || !c || !c.payOverride) return;
+  const pb = pendingBooking(c);
+  if (!pb) return;
+  const card = c.msgs.slice().reverse().find((m) => m.type === 'hashpay' && m.ref === pb.ref && !m.hiddenForClient);
+  if (!card) { sendHashPayCard(c, pb, c.payOverride); return; }
+  if (card.provider === c.payOverride || (!card.provider && c.payOverride === 'hashback')) return;
+  const h = pb.hashpay;
+  if (h && ['initiating', 'initiated'].includes(h.status) && Date.now() - (h.initiatedAt || h.startedAt || 0) < HASHPAY_PROMPT_TTL + 30000) return; // a prompt is in flight: do not change the card underneath it
+  card.provider = c.payOverride;
+  io.to(c.id).emit('msgUpdate', hpView(c, card));
+  saveChat(c);
 }
 
 async function getPaymentMode() {
@@ -928,10 +977,12 @@ async function aiReply(c) {
   const contents = aiContents(c);
   if (!contents.length) return;
   let text;
-  const paymentMode = await getPaymentMode();
+  const paymentMode = await getEffectiveMode(c);
+  const cardMode = paymentMode === 'stk_auto' || paymentMode === 'stk';
   try {
     const pay = await getPay();
-    const sys = aiSystem(c, pay) + `\nGLOBAL PAYMENT MODE: ${paymentMode}. Follow the payment-mode rule exactly. When the mode is stk_auto, do not send Paybill or Till details and do not initiate a prompt just because a phone number is typed. Tell the customer to review the in-chat HashPay payment card, enter their M-Pesa number there, and tap the Pay button to request the prompt. IMPORTANT for stk_auto: as soon as route, date, time, passengers, passenger names, seats and phone are all known, your reply MUST contain the [[BOOK:FROM|TO|DATE|PASSENGERS|NAME|PHONE|TOTAL|TIME|SEATS]] marker (with every field filled, using seat Option 1 if the customer let you choose) together with [[PAY:TOTAL]]. The system then creates the booking and sends the HashBack card automatically. Never ask the customer to confirm again before sending the marker.`;
+    const sys = aiSystem(c, pay) + `\nGLOBAL PAYMENT MODE: ${paymentMode}. Follow the payment-mode rule exactly. When the mode is stk_auto, do not send Paybill or Till details and do not initiate a prompt just because a phone number is typed. Tell the customer to review the in-chat HashPay payment card, enter their M-Pesa number there, and tap the Pay button to request the prompt. IMPORTANT for stk_auto: as soon as route, date, time, passengers, passenger names, seats and phone are all known, your reply MUST contain the [[BOOK:FROM|TO|DATE|PASSENGERS|NAME|PHONE|TOTAL|TIME|SEATS]] marker (with every field filled, using seat Option 1 if the customer let you choose) together with [[PAY:TOTAL]]. The system then creates the booking and sends the HashBack card automatically. Never ask the customer to confirm again before sending the marker.`
+      + (paymentMode === 'stk' ? `\nIMPORTANT for stk (PayBuddy manual): the customer pays with the in-chat PayBuddy payment card. Do NOT say a prompt was sent or is being initiated, do NOT send Paybill or Till details and do NOT use [[HOLD]] for payment. Tell the customer to confirm their M-Pesa number on the card and tap Pay. As soon as route, date, time, passengers, passenger names, seats and phone are all known, your reply MUST contain the [[BOOK:...]] marker (every field filled) together with [[PAY:TOTAL]]. The system then creates the booking and sends the card automatically.` : '');
     text = await geminiCall(sys, contents);
     const sm = /\[\[SEATS:([^\]]+)\]\]/i.exec(text);
     if (sm) {
@@ -984,7 +1035,7 @@ async function aiReply(c) {
     aiFail('AI produced an empty reply', c.name || c.phone);
     return;
   }
-  if (newBook && paymentMode === 'stk_auto') {
+  if (newBook && cardMode) {
     if (!preRef) preRef = newBookingRef(c);
     const swAi = /\b(tafadhali|asante|malipo|karibu|nambari|safari|tarehe|kwenda)\b/i.test(text);
     text = hbWelcome({ pax: bfAll[4], phone: bfAll[5], payPhone: bfAll[5] }, preRef, swAi);
@@ -993,6 +1044,9 @@ async function aiReply(c) {
   aiState.lastError = '';
   if (paymentMode === 'stk_auto' && /payment request is now being initiated|STK Push has been initiated|PAYBUDDY/i.test(text)) {
     text = 'Please use the HashBack payment card above: confirm your M-Pesa number, then tap Pay. The M-Pesa prompt will be sent to your phone only after you tap Pay. 🙏';
+  }
+  if (paymentMode === 'stk' && /payment request is now being initiated|STK Push has been initiated/i.test(text)) {
+    text = 'Please use the payment card above: confirm your M-Pesa number, then tap Pay. The M-Pesa prompt will be sent to your phone shortly after you tap Pay. 🙏';
   }
   if (text) pushMsg(c, { from: 'agent', ai: true, text });
   if (askM) chatTelegram(`❓ Customer question (AI is still helping, please reply when you can)\n${c.name} (${c.phone}):\n"${clip(askM[1] || last.text, 200)}"\n\nReply: https://enacoach-frontend.onrender.com/agent.html`);
@@ -1012,9 +1066,10 @@ async function aiReply(c) {
       pushMsg(c, { from: 'client', type: 'booking', booking,
         text: `🎫 Booking ${ref}: ${booking.from} → ${booking.to}, ${booking.date}, KES ${booking.amount} (made by AI assistant)` });
       chatTelegram(`💳 AI BOOKING - awaiting payment${/^0[17]\d{8}$/.test(booking.phone) ? '' : '\n⚠️ PHONE NUMBER LOOKS INVALID - confirm with customer'}\n${booking.pax} (${booking.phone})\nRef: ${ref}\n${booking.from} → ${booking.to}\n${booking.date}\nAmount: KES ${booking.amount}\n\nReply: https://enacoach-frontend.onrender.com/agent.html`);
-      if (paymentMode === 'stk_auto') sendHashPayCard(c, booking);
+      if (cardMode) sendHashPayCard(c, booking, cardProvider(paymentMode));
     }
   }
+  if (paymentMode === 'stk' && payNow && !newBook) { const pbS = pendingBooking(c); if (pbS) sendHashPayCard(c, pbS, 'paybuddy'); }
   if (wantPay && paymentMode === 'automatic') {
     const b = pendingBooking(c);
     const amt = b ? b.amount : (payM[1] || '');
@@ -1037,7 +1092,7 @@ async function aiReply(c) {
       }
       }
     }
-  if (payNow && paymentMode !== 'automatic' && paymentMode !== 'stk_auto') {
+  if (payNow && paymentMode === 'admin') {
     aiHold[c.id] = true;
     const b = pendingBooking(c);
     chatTelegram(`💳 PAYMENT ACTION REQUIRED (${paymentMode === 'stk' ? 'MANUAL STK PUSH' : 'ADMIN PAYMENT DETAILS'})\n${c.name} (${c.phone})\nBooking: ${b ? b.ref : 'Not yet assigned'}\nAmount: KES ${b ? b.amount : ((payM && payM[1]) || 'To confirm')}\nPlease take action in Agent Chat: https://enacoach-frontend.onrender.com/agent.html`);
@@ -1117,7 +1172,7 @@ io.on('connection', (s) => {
     if (!/^ENA\d{6}$/.test(ref)) return;
     const existingBookingMsg = c.msgs.find((m) => m.type === 'booking' && m.booking && m.booking.ref === ref);
     if (existingBookingMsg) {
-      if (await getPaymentMode() === 'stk_auto') sendHashPayCard(c, existingBookingMsg.booking);
+      { const em = await getEffectiveMode(c); if (em === 'stk_auto' || em === 'stk') sendHashPayCard(c, existingBookingMsg.booking, cardProvider(em)); }
       return;
     }
     const now = Date.now();
@@ -1130,16 +1185,16 @@ io.on('connection', (s) => {
     };
     pushMsg(c, { from: 'client', type: 'booking', booking,
       text: `🎫 Booking ${ref}: ${booking.from} → ${booking.to}, ${booking.date} ${booking.time}, seat ${booking.seat}, KES ${booking.amount}` });
-    const paymentMode = await getPaymentMode();
+    const paymentMode = await getEffectiveMode(c);
     chatTelegram(`💳 BOOKING CHAT - awaiting payment\n${booking.pax} (${booking.phone})\nRef: ${ref}\n${booking.from} → ${booking.to}\n${booking.date} ${booking.time}\nSeat: ${booking.seat}\nAmount: KES ${booking.amount}\n\nReply: https://enacoach-frontend.onrender.com/agent.html`);
     const sw = b.lang === 'sw';
-    const autoStk = paymentMode === 'stk_auto';
+    const autoStk = paymentMode === 'stk_auto' || paymentMode === 'stk';
     setTimeout(() => { if (!autoStk) pushMsg(c, { from: 'agent', auto: true, text: autoStk
       ? hbWelcome(booking, ref, sw)
       : sw
       ? `Karibu ${clip(booking.pax.split(',')[0], 40)}! 👋 Tumepokea uhifadhi wako ${ref}. Tafadhali tuandikie nambari ya simu ya M-Pesa utakayotumia kulipa, kisha subiri ombi la M-Pesa au maelezo ya malipo kutoka kwetu. Tiketi yako rasmi itatumwa hapa baada ya malipo kuthibitishwa.`
       : `Welcome ${clip(booking.pax.split(',')[0], 40)}! 👋 We have received your booking ${ref}. Please type the M-Pesa phone number you will use to pay, then wait for an M-Pesa prompt or payment details from us. Your official ticket will be sent here once payment is confirmed.` });
-      if (paymentMode === 'stk_auto') sendHashPayCard(c, booking); // card always AFTER the welcome message
+      if (autoStk) sendHashPayCard(c, booking, cardProvider(paymentMode)); // card always AFTER the welcome message
     }, 600);
     // if the customer is slow to send the M-Pesa number, follow up politely (2 min, then 5 min)
     clearFollow(c.id);
@@ -1167,7 +1222,11 @@ io.on('connection', (s) => {
       s.emit('hashpay:result', { ref: ref || 'unknown', success: false, message: 'Your chat session expired. Please refresh the page and try again.' });
       return;
     }
-    if (await getPaymentMode() !== 'stk_auto') {
+    // the card the customer is looking at decides the route: PayBuddy card = manual (agent sends the prompt), HashBack card = automatic (unchanged)
+    const effMode = await getEffectiveMode(c);
+    const cardMsg = c.msgs.slice().reverse().find((m) => m.type === 'hashpay' && m.ref === ref && !m.hiddenForClient);
+    const provider = cardMsg && cardMsg.provider ? cardMsg.provider : cardProvider(effMode);
+    if (provider !== 'paybuddy' && effMode !== 'stk_auto') {
       s.emit('hashpay:result', { ref, success: false, message: 'Automatic STK Push is not currently enabled.' });
       return;
     }
@@ -1175,6 +1234,30 @@ io.on('connection', (s) => {
     const booking = msg && msg.booking;
     if (!booking || booking.status === 'paid' || booking.paidClaimed) {
       s.emit('hashpay:result', { ref, success: false, message: 'This booking is not currently available for payment.' });
+      return;
+    }
+    if (provider === 'paybuddy') {
+      // ---- PayBuddy (manual): tell the agent, the agent sends the M-Pesa prompt from PayBuddy ----
+      const amt = Number(String(booking.amount || '').replace(/[^\d]/g, '')) || 0;
+      if (amt < 1 || !toHashPayMsisdn(phone)) {
+        s.emit('hashpay:result', { ref, success: false, message: 'Enter a valid M-Pesa number and try again.' });
+        return;
+      }
+      const local = '0' + toHashPayMsisdn(phone).slice(3);
+      const MSG = 'Request received. Please keep your phone nearby. You will receive the M-Pesa prompt shortly.';
+      const prev = booking.manualReq;
+      if (prev && prev.phone === local && Date.now() - (prev.at || 0) < MANUAL_REQ_TTL) {
+        s.emit('hashpay:result', { ref, success: true, manual: true, message: MSG });
+        return;
+      }
+      booking.manualReq = { phone: local, at: Date.now() };
+      humanAt[c.id] = Date.now(); aiHold[c.id] = true;
+      saveChat(c);
+      pushMsg(c, { from: 'agent', type: 'status', statusKind: 'pending', text: MSG });
+      agents.emit('update', c);
+      agents.emit('paybuddyRequest', { id: c.id, ref: booking.ref, name: booking.pax ? String(booking.pax).split(',')[0].replace(/\(.*?\)/g, '').trim() : c.name, phone: local, amount: amt });
+      chatTelegram('💳 PAYBUDDY - CUSTOMER TAPPED PAY\nSend the M-Pesa prompt from PayBuddy now.\n' + (String(booking.pax || c.name || '').replace(/\(.*?\)/g, '').trim()) + '\nM-Pesa number: ' + local + '\nAmount: KES ' + amt + '\nBooking: ' + booking.ref + '\n' + (booking.from || '') + ' → ' + (booking.to || '') + '\n\nAgent Chat: https://enacoach-frontend.onrender.com/agent.html');
+      s.emit('hashpay:result', { ref, success: true, manual: true, message: MSG });
       return;
     }
     if (booking.hashpay && ['initiating', 'initiated'].includes(booking.hashpay.status) && Date.now() - (booking.hashpay.initiatedAt || booking.hashpay.startedAt || 0) < HASHPAY_PROMPT_TTL + 30000) {
