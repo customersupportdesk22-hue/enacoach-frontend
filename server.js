@@ -584,12 +584,10 @@ agents.on('connection', (s) => {
       || c.msgs.slice().reverse().find((m) => m.type === 'booking' && m.booking)
       || { booking: { ref: ref || 'N/A', amount: '' } };
     humanAt[c.id] = Date.now(); delete aiHold[c.id];
+    const stkPhone = (bmsg.booking && bmsg.booking.manualReq && bmsg.booking.manualReq.phone)
+      || (() => { const msisdn = toHashPayMsisdn(c.phone); return msisdn ? '0' + msisdn.slice(3) : '07XXXXXXXX'; })();
     if (bmsg.booking && bmsg.booking.manualReq) { delete bmsg.booking.manualReq; agents.emit('update', c); }
-    const stkAmt = Number(String((bmsg.booking && bmsg.booking.amount) || '').replace(/\D/g, '')) || 0;
-    pushMsg(c, { from: 'agent', type: 'status', text: '📲 Your M-Pesa STK Push has been initiated. Please check your phone: the prompt will show PAYBUDDY, our official payment partner from ENA COACH.\n\n'
-      + 'Please follow these steps:\n1. Confirm that the booking amount shown is correct' + (stkAmt ? ': KES ' + stkAmt.toLocaleString('en-US') : '') + '.\n\n2. Enter your M-Pesa PIN to complete the booking payment.\n\n'
-      + 'After payment, you will receive an M-Pesa confirmation message from ENA COACH, and your booking ticket will be sent here in this chat so you can print it.\n\n'
-      + 'For your security, never share your M-Pesa PIN with anyone, including ENA Coach staff.' });
+    pushMsg(c, { from: 'agent', type: 'status', text: 'M-Pesa prompt sent through PAYBUDDY to ' + stkPhone + '. Check your phone and reply with your M-Pesa PIN.\n\nThank you for choosing ENA COACH.' });
     chatTelegram(`📲 STK PUSH INITIATED\n${c.name} (${c.phone})\nBooking: ${bmsg.booking.ref}\nAmount: KES ${bmsg.booking.amount}\nVerify payment before issuing ticket.`);
   });
   s.on('confirmPaid', ({ id, ref }) => {
