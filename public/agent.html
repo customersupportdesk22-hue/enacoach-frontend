@@ -154,7 +154,7 @@ $('clr').onclick=function(){if(!cur)return;if(confirm('Clear this chat from the 
 function paintDuty(){var b=$('duty');b.textContent='On duty: '+(DUTY?'ON':'OFF');b.style.background=DUTY?'#16a34a':'#fff';b.style.color=DUTY?'#fff':'#6b7280';paintPm()}
 function paintPm(){var bar=$('pm');if(!cur||!S[cur]){bar.style.display='none';return}bar.style.display='flex';var o=S[cur].payOverride||'';
   var on='#16a34a',off='#9ca3af',hb=$('pm_hb'),pb=$('pm_pb');hb.style.background=o==='hashback'?on:off;pb.style.background=o==='paybuddy'?on:off;
-  $('pm_note').textContent=!DUTY?'Off duty: the global payment mode is used.':(o?'This customer: '+(o==='hashback'?'HashBack':'PayBuddy')+' (tap again to clear)':'Not chosen: global payment mode is used.')}
+  $('pm_note').textContent=!DUTY?'Off duty: the global payment mode is used.':(o?'This customer: '+(o==='hashback'?'HashBack':'PayBuddy')+' (tap again to clear)':'Not chosen: no automatic payment while on duty (you handle it manually).')}
 $('duty').onclick=function(){if(!sock)return;sock.emit('setDuty',{on:!DUTY})};
 function setPm(m){if(!cur||!S[cur])return;var o=S[cur].payOverride||'';sock.emit('setPayMode',{id:cur,mode:o===m?'':m})}
 $('pm_hb').onclick=function(){setPm('hashback')};$('pm_pb').onclick=function(){setPm('paybuddy')};
