@@ -73,6 +73,13 @@
     <small style="display:block;color:#6B7280;margin-top:6px">Manual STK remains agent-initiated. Automatic STK uses the HashPay payment card: the customer enters their M-Pesa number in the card and taps Pay. A ticket is issued only after HashPay confirms payment through the secure webhook.</small>
   </div>
 
+  <div class="form-group" id="hashpayBox">
+    <label>Active HashPay account (used for new automatic STK payments)</label>
+    <select id="hashpayActive"><option value="1">HashPay Account 1</option><option value="2">HashPay Account 2</option></select>
+    <small id="hashpayStatus" style="display:block;color:#6B7280;margin-top:6px">Checking account setup...</small>
+    <small style="display:block;color:#6B7280;margin-top:6px">Switching only affects NEW payment prompts. A booking whose prompt was already sent stays tied to the account that sent it. API keys are set in Render, never here.</small>
+  </div>
+
   <h3>3. Telegram Notifications (Set in Render)</h3>
   <p style="text-align: left; font-size: 12px; margin-bottom: 10px;">Telegram Token and Chat ID are stored in Render Environment Variables.</p>
 
@@ -121,6 +128,8 @@
       document.getElementById('showPaymentDetails').checked = data.showPaymentDetails !== false;
       document.getElementById('fareOverride').value = data.override || 0;
       document.getElementById('paymentMode').value = data.paymentMode || 'automatic';
+      document.getElementById('hashpayActive').value = data.hashpayActive === '2' ? '2' : '1';
+      loadHashPayStatus();
       
       toggleAccountField();
     } catch (error) {
@@ -194,6 +203,20 @@
     }
   }
 
+  async function loadHashPayStatus() {
+    const el = document.getElementById('hashpayStatus');
+    try {
+      const r = await adminFetch('/api/hashpay-accounts');
+      const d = await r.json();
+      const sel = document.getElementById('hashpayActive');
+      d.accounts.forEach(a => {
+        const o = sel.querySelector('option[value="' + a.key + '"]');
+        if (o) o.textContent = 'HashPay Account ' + a.key + ' (' + a.accountId + ')' + (a.apiKeySet ? '' : ' - API key missing');
+      });
+      el.innerHTML = d.accounts.map(a => 'Account ' + a.key + ' (' + a.accountId + '): ' + (a.apiKeySet ? '✅ API key set' : '❌ API key missing in Render') + ' · ' + (a.webhookSecretSet ? '✅ webhook secret set' : '❌ webhook secret missing')).join('<br>');
+    } catch (e) { el.textContent = 'Enter the admin password to see account setup status.'; }
+  }
+
   async function saveSettings() {
     const type = document.getElementById('payType').value;
     const number = document.getElementById('payNumber').value.trim();
@@ -214,7 +237,8 @@
           showAccountName: document.getElementById('showAccountName').checked,
           showPaymentNotice: document.getElementById('showPaymentNotice').checked,
           showPaymentDetails: document.getElementById('showPaymentDetails').checked,
-          paymentMode: document.getElementById('paymentMode').value
+          paymentMode: document.getElementById('paymentMode').value,
+          hashpayActive: document.getElementById('hashpayActive').value
         })
       });
       const ai = await adminFetch('/api/ai-settings', { method: 'POST', body: JSON.stringify(aiPayload()) });
