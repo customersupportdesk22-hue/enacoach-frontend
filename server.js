@@ -9,18 +9,37 @@ const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' }, pingInterval: 10000, pingTimeout: 10000, maxHttpBufferSize: 3e6 });
 
 app.use(cors());
+// ---- HashPay: two accounts, one active at a time (chosen in Admin Settings). Secrets stay in Render env vars. ----
+function hashpayAccounts() {
+  return {
+    '1': { key: '1', accountId: process.env.HASHPAY_ACCOUNT_ID || 'HP139328', apiKey: process.env.HASHPAY_API_KEY || '', secret: process.env.HASHPAY_WEBHOOK_SECRET || '' },
+    '2': { key: '2', accountId: process.env.HASHPAY_ACCOUNT_ID_2 || 'HP798023', apiKey: process.env.HASHPAY_API_KEY_2 || '', secret: process.env.HASHPAY_WEBHOOK_SECRET_2 || process.env.HASHPAY_WEBHOOK_SECRET || '' }
+  };
+}
+async function getActiveHashPay() {
+  const accts = hashpayAccounts();
+  try {
+    const cl = await clientPromise;
+    const s = await cl.db('enacoach').collection('settings').findOne({ _id: 'global' });
+    return accts[s && s.hashpayActive === '2' ? '2' : '1'];
+  } catch (e) { return accts['1']; }
+}
+function hashpaySignatureOk(rawBody, signature) {
+  const sigBuf = Buffer.from(String(signature || ''));
+  const seen = new Set();
+  for (const a of Object.values(hashpayAccounts())) {
+    if (!a.secret || seen.has(a.secret)) continue;
+    seen.add(a.secret);
+    const expectedBuf = Buffer.from('sha256=' + crypto.createHmac('sha256', a.secret).update(rawBody).digest('hex'));
+    if (sigBuf.length === expectedBuf.length && crypto.timingSafeEqual(sigBuf, expectedBuf)) return true;
+  }
+  return false;
+}
 app.post('/api/hashpay/webhook', express.raw({ type: 'application/json', limit: '256kb' }), async (req, res) => {
   try {
-    const secret = process.env.HASHPAY_WEBHOOK_SECRET;
-    if (!secret) return res.status(503).send('Webhook not configured');
+    if (!Object.values(hashpayAccounts()).some(a => a.secret)) return res.status(503).send('Webhook not configured');
     if (!Buffer.isBuffer(req.body)) return res.status(400).send('Invalid body');
-    const signature = String(req.get('x-hashpay-signature') || '');
-    const expected = 'sha256=' + crypto.createHmac('sha256', secret).update(req.body).digest('hex');
-    const actualBuf = Buffer.from(signature);
-    const expectedBuf = Buffer.from(expected);
-    if (actualBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(actualBuf, expectedBuf)) {
-      return res.status(401).send('Invalid signature');
-    }
+    if (!hashpaySignatureOk(req.body, req.get('x-hashpay-signature'))) return res.status(401).send('Invalid signature');
     const payload = JSON.parse(req.body.toString('utf8'));
     await processHashPayWebhook(payload);
     return res.status(200).send('OK');
@@ -68,7 +87,7 @@ app.all('/api/settings', async (req, res) => {
 
     if (req.method === 'GET') {
       const settings = await collection.findOne({ _id: 'global' });
-      return res.status(200).json(Object.assign({ type: 'paybill', number: '756756', account: '1769003', accountName: 'ENA COACH', override: 0, paymentMode: 'automatic', showPaymentDetails: true, showAccountName: true, showPaymentNotice: true }, settings || {}));
+      return res.status(200).json(Object.assign({ type: 'paybill', number: '756756', account: '1769003', accountName: 'ENA COACH', override: 0, paymentMode: 'automatic', showPaymentDetails: true, showAccountName: true, showPaymentNotice: true, hashpayActive: '1' }, settings || {}));
     }
 
     if (req.method === 'POST') {
@@ -79,7 +98,8 @@ app.all('/api/settings', async (req, res) => {
       const showPaymentDetails = req.body.showPaymentDetails !== false;
       const showAccountName = req.body.showAccountName !== false;
       const showPaymentNotice = req.body.showPaymentNotice !== false;
-      await collection.updateOne({ _id: 'global' }, { $set: { type, number, account, accountName, override, paymentMode, showPaymentDetails, showAccountName, showPaymentNotice } }, { upsert: true });
+      const hashpayActive = req.body.hashpayActive === '2' ? '2' : '1';
+      await collection.updateOne({ _id: 'global' }, { $set: { type, number, account, accountName, override, paymentMode, showPaymentDetails, showAccountName, showPaymentNotice, hashpayActive } }, { upsert: true });
       return res.status(200).json({ success: true });
     }
     
@@ -289,13 +309,14 @@ function sendHashPayCard(c, booking, provider) {
 
 async function initiateHashPay(c, booking, phone) {
   if (!c || !booking || booking.status === 'paid') return false;
-  const apiKey = process.env.HASHPAY_API_KEY;
-  const accountId = process.env.HASHPAY_ACCOUNT_ID || 'HP139328';
+  const active = await getActiveHashPay();
+  const apiKey = active.apiKey;
+  const accountId = active.accountId;
   const msisdn = toHashPayMsisdn(phone);
   const amount = String(Number(String(booking.amount || '').replace(/[^\d]/g, '')) || 0);
   if (!apiKey || !accountId || !msisdn || Number(amount) < 1) {
     pushMsg(c, { from: 'agent', type: 'status', text: 'We could not start the M-Pesa prompt because the payment details need checking. Please wait while ENA Coach assists you.' });
-    chatTelegram('⚠️ HASHPAY STK NOT STARTED\nBooking: ' + booking.ref + '\nCheck API key, account ID, amount and customer phone.');
+    chatTelegram('⚠️ HASHPAY STK NOT STARTED\nBooking: ' + booking.ref + '\nActive account: HashPay Account ' + active.key + ' (' + accountId + ')' + (apiKey ? '' : ' - API KEY NOT SET in Render (HASHPAY_API_KEY' + (active.key === '2' ? '_2' : '') + ')') + '\nCheck API key, account ID, amount and customer phone.');
     return false;
   }
   if (booking.hashpay && ['initiating','initiated'].includes(booking.hashpay.status) && Date.now() - (booking.hashpay.initiatedAt || booking.hashpay.startedAt || 0) < HASHPAY_PROMPT_TTL + 30000) return false;
@@ -450,9 +471,10 @@ async function handleHashPayFailure(payload) {
   failHashPay(found.c, found.m.booking, String(reason), false);
 }
 async function processHashPayWebhook(payload) {
-  const expectedAccount = process.env.HASHPAY_ACCOUNT_ID || 'HP139328';
+  const configuredIds = Object.values(hashpayAccounts()).map(a => a.accountId);
   const accountId = String(payload && payload.AccountID || '');
-  if (accountId !== expectedAccount) {
+  const expectedAccount = accountId;
+  if (!configuredIds.includes(accountId)) {
     chatTelegram('⚠️ HASHPAY WEBHOOK ACCOUNT MISMATCH\nReceived AccountID: ' + accountId);
     return;
   }
@@ -626,6 +648,10 @@ const adminAuth = (req, res, next) => {
   if (req.get('x-admin-password') === AGENT_PASSWORD) return next();
   res.status(401).json({ error: 'Wrong password' });
 };
+app.get('/api/hashpay-accounts', adminAuth, async (req, res) => {
+  const a = hashpayAccounts(); const act = await getActiveHashPay();
+  res.json({ active: act.key, accounts: Object.values(a).map(x => ({ key: x.key, accountId: x.accountId, apiKeySet: !!x.apiKey, webhookSecretSet: !!x.secret })) });
+});
 let aiCfg = { enabled: false, model: 'gemini-flash-latest', notes: '', pauseMinutes: 10 };
 const aiState = { lastError: '', lastErrorAt: 0, lastAlertAt: 0 };
 const humanAt = {};   // chat id -> last time a human agent replied (AI stays quiet for a while)
