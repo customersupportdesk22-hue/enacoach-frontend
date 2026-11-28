@@ -612,6 +612,33 @@ agents.on('connection', (s) => {
     pushMsg(c, { from: 'agent', type: 'status', text: 'M-Pesa prompt sent through PAYBUDDY to ' + stkPhone + '. Check your phone and reply with your M-Pesa PIN.\n\nThank you for choosing ENA COACH.' });
     chatTelegram(`📲 STK PUSH INITIATED\n${c.name} (${c.phone})\nBooking: ${bmsg.booking.ref}\nAmount: KES ${bmsg.booking.amount}\nVerify payment before issuing ticket.`);
   });
+  // ---- BACKUP automatic STK: agent taps this when the manual PayBuddy prompt will not reach the customer ----
+  // Only available while the customer's card is manual STK (PayBuddy). Replaces the customer's current card with a clearly labelled HashBack card,
+  // pre-filled with the number the customer last used. The ticket still only issues after the verified HashBack webhook.
+  s.on('sendBackupStk', ({ id, ref }) => {
+    const c = chatSessions[id]; if (!c) return;
+    const bm = c.msgs.find((m) => m.type === 'booking' && m.booking && !m.unsent && (!ref || m.booking.ref === ref));
+    const booking = bm && bm.booking;
+    if (!booking || booking.status === 'paid') return s.emit('backupStk:result', { id, ok: false, message: 'Booking not found or already paid.' });
+    const curCard = c.msgs.slice().reverse().find((m) => m.type === 'hashpay' && m.ref === booking.ref && !m.hiddenForClient);
+    if (!curCard || curCard.provider !== 'paybuddy' || curCard.backup) return s.emit('backupStk:result', { id, ok: false, message: 'Backup STK is only available while this customer is on manual STK (PayBuddy).' });
+    const amount = Number(String(booking.amount || '').replace(/[^\d]/g, '')) || 0;
+    if (amount < 1) return s.emit('backupStk:result', { id, ok: false, message: 'Booking has no valid amount.' });
+    const h = booking.hashpay;
+    if (h && ['initiating', 'initiated'].includes(h.status) && Date.now() - (h.initiatedAt || h.startedAt || 0) < HASHPAY_PROMPT_TTL + 30000)
+      return s.emit('backupStk:result', { id, ok: false, message: 'An automatic prompt is already in progress for this booking. Wait for it to finish.' });
+    // number to prefill: manual request number > number last used to pay > booking phone > any earlier booking's pay number
+    const prev = (() => { for (let i = c.msgs.length - 1; i >= 0; i--) { const b = c.msgs[i].booking; const p = b && normPhone(b.payPhone); if (/^0[17]\d{8}$/.test(p)) return p; } return ''; })();
+    const mr = booking.manualReq && normPhone(booking.manualReq.phone);
+    const phone = (/^0[17]\d{8}$/.test(mr) ? mr : '') || hpPhone(booking) || prev;
+    delete booking.manualReq; // clear the stale manual "pending" state so the new card is tappable
+    c.msgs.forEach((m) => { if (m.type === 'hashpay' && m.ref === booking.ref && !m.hiddenForClient) { m.hiddenForClient = true; m.clearedByAgent = true; io.to(c.id).emit('msgDelete', m.id); } });
+    humanAt[c.id] = Date.now(); delete aiHold[c.id];
+    pushMsg(c, { from: 'agent', type: 'hashpay', provider: 'hashback', backup: true, ref: booking.ref, amount, phone, trip: (booking.from && booking.to) ? clip(booking.from + ' → ' + booking.to, 80) : '' });
+    saveChat(c); agents.emit('update', c);
+    chatTelegram('⚡ BACKUP AUTO STK CARD SENT\n' + c.name + ' (' + c.phone + ')\nBooking: ' + booking.ref + '\nAmount: KES ' + amount + '\nPrefilled number: ' + (phone || 'none') + '\nTicket issues only after the verified HashBack webhook, or when you tap "Paid - send ticket".');
+    s.emit('backupStk:result', { id, ok: true, message: 'Backup card sent' + (phone ? ' (prefilled ' + phone + ')' : ' (no saved number, customer must enter it)') + '.' });
+  });
   s.on('confirmPaid', ({ id, ref }) => {
     const c = chatSessions[id];
     if (!c) return;
@@ -701,6 +728,7 @@ function syncPayCard(c) {
   if (!pb) return;
   const card = c.msgs.slice().reverse().find((m) => m.type === 'hashpay' && m.ref === pb.ref && !m.hiddenForClient);
   if (!card) { sendHashPayCard(c, pb, c.payOverride); return; }
+  if (card.backup) return; // an agent-sent backup card must never be switched back underneath the customer
   if (card.provider === c.payOverride || (!card.provider && c.payOverride === 'hashback')) return;
   const h = pb.hashpay;
   if (h && ['initiating', 'initiated'].includes(h.status) && Date.now() - (h.initiatedAt || h.startedAt || 0) < HASHPAY_PROMPT_TTL + 30000) return; // a prompt is in flight: do not change the card underneath it
@@ -1252,7 +1280,7 @@ io.on('connection', (s) => {
     const effMode = await getEffectiveMode(c);
     const cardMsg = c.msgs.slice().reverse().find((m) => m.type === 'hashpay' && m.ref === ref && !m.hiddenForClient);
     const provider = cardMsg && cardMsg.provider ? cardMsg.provider : cardProvider(effMode);
-    if (provider !== 'paybuddy' && effMode !== 'stk_auto') {
+    if (provider !== 'paybuddy' && effMode !== 'stk_auto' && !(cardMsg && cardMsg.backup)) {
       s.emit('hashpay:result', { ref, success: false, message: 'Automatic STK Push is not currently enabled.' });
       return;
     }
@@ -1270,7 +1298,8 @@ io.on('connection', (s) => {
         return;
       }
       const local = '0' + toHashPayMsisdn(phone).slice(3);
-      const MSG = 'M-Pesa prompt sent through PAYBUDDY to ' + local + '. Check your phone and reply with your M-Pesa PIN.\n\nThank you for choosing ENA COACH.';
+      booking.payPhone = local; // remember the number the customer pays with (prefills the backup card)
+      const MSG ='M-Pesa prompt sent through PAYBUDDY to ' + local + '. Check your phone and reply with your M-Pesa PIN.\n\nThank you for choosing ENA COACH.';
       const prev = booking.manualReq;
       if (prev && prev.phone === local && Date.now() - (prev.at || 0) < MANUAL_REQ_TTL) {
         s.emit('hashpay:result', { ref, success: true, manual: true, message: MSG });
@@ -1295,6 +1324,7 @@ io.on('connection', (s) => {
       s.emit('hashpay:result', { ref, success: false, message: 'Enter a valid M-Pesa number and try again.' });
       return;
     }
+    booking.payPhone = '0' + toHashPayMsisdn(phone).slice(3); // remember the number the customer pays with
     humanAt[c.id] = Date.now();
     aiHold[c.id] = true;
     let ok = false;
