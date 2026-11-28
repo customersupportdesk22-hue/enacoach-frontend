@@ -187,6 +187,12 @@ body.enc-open{overflow:hidden}
     var head = document.createElement('div'); head.textContent = 'ENA COACH · SECURE M-PESA PAYMENT';
     head.style.cssText = 'background:#087c45;color:#fff;padding:12px 14px;font:bold 12px Arial,sans-serif;letter-spacing:.35px'; d.appendChild(head);
     var body = document.createElement('div'); body.style.cssText = 'padding:14px';
+    if (m.backup) {
+      var bn = document.createElement('div');
+      bn.textContent = 'We are experiencing a temporary delay on our main payment channel. Please use this secure alternative to complete your booking.';
+      bn.style.cssText = 'background:#fff7ed;border:1px solid #fdba74;color:#9a3412;border-radius:8px;padding:8px 10px;margin-bottom:10px;font:12px/1.45 Arial,sans-serif';
+      body.appendChild(bn);
+    }
     var ref = document.createElement('div'); ref.textContent = 'BOOKING REFERENCE · ' + String(m.ref || '');
     ref.style.cssText = 'font:700 10px Arial,sans-serif;color:#6b7280;margin-bottom:4px'; body.appendChild(ref);
     if (m.trip) { var trip = document.createElement('div'); trip.textContent = String(m.trip); trip.style.cssText = 'font:600 13px Arial,sans-serif;color:#374151;margin-bottom:8px'; body.appendChild(trip); }

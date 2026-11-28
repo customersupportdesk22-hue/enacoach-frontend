@@ -64,6 +64,7 @@ $('in').onclick=function(){
   sock.on('sessions',function(a){a.forEach(function(c){S[c.id]=c});render();if(cur&&S[cur])show(false)});
   sock.on('paidClaim',function(p){flash('💰 '+(p.name||'Customer')+' says they have paid · '+p.ref+' · KES '+p.amount+'. Check M-Pesa, then send the ticket. Tap to open.',p.id)});
   sock.on('duty',function(d){DUTY=!!(d&&d.on);paintDuty()});
+  sock.on('backupStk:result',function(r){flash((r.ok?'⚡ ':'⚠️ ')+r.message,r.id,r.ok?'#16a34a':'#b45309')});
   sock.on('paybuddyRequest',function(p){beep();flash('💳 PAYBUDDY · '+(p.name||'Customer')+' tapped Pay · '+p.phone+' · KES '+p.amount+' · '+p.ref+'. Send the M-Pesa prompt from PayBuddy now. Tap to open.',p.id,'#b45309')});
   sock.on('payDup',function(p){flash('ℹ️ Payment details were already sent for '+(p.ref||'this booking')+'. A second card was not sent.',p.id,'#2563eb')});
   sock.on('update',function(c){var o=S[c.id],ol=o?o.msgs.length:0,lm=c.msgs[c.msgs.length-1];if(c.msgs.length>ol&&lm&&lm.from==='client'){beep();notify(c)}S[c.id]=c;render();if(cur===c.id&&!document.hidden&&$('main').classList.contains('open')){show(false);if(c.unread)sock.emit('read',cur)}});
@@ -109,7 +110,7 @@ function atBottom(m){return m.scrollHeight-m.scrollTop-m.clientHeight<80}
 function show(force){
   var m=$('msgs'),stick=force||shown.id!==cur||atBottom(m),prev=m.scrollTop,list=S[cur].msgs;
   m.innerHTML='';paintPm();
-  list.forEach(function(x){var d=document.createElement('div');d.className='m '+x.from+(x.unsent?' unsent':'')+(x.likes&&x.likes.client?' liked':'');d.textContent=x.type==='hashpay'?'💳 '+(x.provider==='paybuddy'?'PayBuddy':'HashBack')+' card sent · '+x.ref+' · KES '+x.amount:x.type==='payment'?'💳 Payment sent · '+x.payment.accountLabel+' '+x.payment.number+' · KES '+x.payment.amount:x.type==='ticket'?'🎫 '+x.ticket.no+' · '+x.ticket.from+' → '+x.ticket.to+' · seat '+x.ticket.seat+' · KES '+x.ticket.price:x.text;
+  list.forEach(function(x){var d=document.createElement('div');d.className='m '+x.from+(x.unsent?' unsent':'')+(x.likes&&x.likes.client?' liked':'');d.textContent=x.type==='hashpay'?'💳 '+(x.backup?'⚡ BACKUP HashBack':(x.provider==='paybuddy'?'PayBuddy':'HashBack'))+' card sent · '+x.ref+' · KES '+x.amount:x.type==='payment'?'💳 Payment sent · '+x.payment.accountLabel+' '+x.payment.number+' · KES '+x.payment.amount:x.type==='ticket'?'🎫 '+x.ticket.no+' · '+x.ticket.from+' → '+x.ticket.to+' · seat '+x.ticket.seat+' · KES '+x.ticket.price:x.text;
     if(x.type==='image'&&x.file){d.textContent='';var im=document.createElement('img');im.src='/chatfile/'+encodeURIComponent(x.file);im.style.cssText='display:block;width:240px;max-width:100%;min-height:60px;border-radius:10px;cursor:pointer;background:#eee';im.onclick=function(){window.open(im.src,'_blank')};im.onload=function(){if(stick)m.scrollTop=m.scrollHeight};d.appendChild(im);if(x.caption){var cp=document.createElement('div');cp.textContent=x.caption;cp.style.marginTop='6px';d.appendChild(cp)}}
     if(x.type==='booking'&&x.booking){var bk=x.booking;d.textContent='';
       var bt=document.createElement('div');bt.textContent='🎫 BOOKING '+bk.ref+' · '+(bk.status==='paid'?'✅ PAID':(bk.paidClaimed?'🔎 CUSTOMER SAYS PAID - VERIFY':'⏳ UNPAID'))+'\n'+bk.pax+' · '+bk.phone+'\n'+bk.from+' → '+bk.to+'\n'+bk.date+' '+bk.time+' · seat '+bk.seat+'\nKES '+bk.amount+(bk.manualReq&&bk.status!=='paid'?'\n\n💳 PAYBUDDY: customer tapped Pay. Send the M-Pesa prompt to '+bk.manualReq.phone+', then tap "STK Push Initiated".':'');d.appendChild(bt);
@@ -119,7 +120,11 @@ function show(force){
         var bs=document.createElement('button');bs.className='go';bs.style.background='#2563eb';bs.textContent='📲 STK Push Initiated';bs.onclick=function(){if(confirm('Have you already initiated the M-Pesa STK Push for '+bk.ref+'? This only informs the customer; it does not confirm payment.')){sock.emit('stkInitiated',{id:cur,ref:bk.ref});tone('out')}};
         var b2=document.createElement('button');b2.className='go';b2.style.background='#16a34a';b2.textContent='✅ Paid - send ticket';
         b2.onclick=function(){if(confirm('Payment received for '+bk.ref+'? This sends the official ticket to the customer.')){sock.emit('confirmPaid',{id:cur,ref:bk.ref});tone('out')}};
-        rw.appendChild(b1);rw.appendChild(bs);rw.appendChild(b2);d.appendChild(rw)}}
+        var b3=document.createElement('button');b3.className='go';b3.style.background='#b45309';b3.textContent='⚡ Backup auto STK';
+        b3.onclick=function(){if(confirm('Send the BACKUP automatic STK card for '+bk.ref+'? The customer gets a HashBack card (number prefilled) with a short notice that our main channel has delays. Use this when the manual prompt does not reach them.')){sock.emit('sendBackupStk',{id:cur,ref:bk.ref});tone('out')}};
+        var hc=null;list.forEach(function(q){if(q.type==='hashpay'&&q.ref===bk.ref&&!q.hiddenForClient)hc=q});
+        var manualOn=!!(hc&&hc.provider==='paybuddy'&&!hc.backup);
+        rw.appendChild(b1);rw.appendChild(bs);if(manualOn)rw.appendChild(b3);rw.appendChild(b2);d.appendChild(rw)}}
     if(x.likes&&x.likes.client){var h=document.createElement('span');h.className='lk';h.textContent='❤️';d.appendChild(h)}
     if(x.ai){var ai=document.createElement('small');ai.className='tag';ai.textContent='🤖 sent by AI assistant';d.appendChild(ai)}
     if(x.hiddenForClient){var g=document.createElement('small');g.className='tag';g.textContent=x.clearedByAgent?'🧹 cleared from the customer\'s chat':'🗑️ deleted by customer';d.appendChild(g)}
